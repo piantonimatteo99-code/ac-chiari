@@ -48,7 +48,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="mx-auto max-w-sm">
+      <Card className="mx-auto max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">AC Chiari</CardTitle>
           <CardDescription>
