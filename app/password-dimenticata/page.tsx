@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 export default function ForgotPasswordPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="mx-auto max-w-sm">
+      <Card className="mx-auto max-w-md">
         <CardHeader>
           <CardTitle className="text-xl">Password Dimenticata</CardTitle>
           <CardDescription>
@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
           </div>
           <div className="mt-4 text-center text-sm">
             Ricordi la password?{" "}
-            <Link href="/" className="underline">
+            <Link href="/login" className="underline">
               Accedi
             </Link>
           </div>

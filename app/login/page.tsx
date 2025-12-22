@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function LoginPage() {
     }
      const successParam = searchParams.get('signup_success');
     if (successParam === 'true') {
-      setError("Registrazione completata! Ti abbiamo inviato un'email di verifica. Controlla la tua posta prima di accedere.");
+      setInfo("Registrazione completata! Ti abbiamo inviato un'email di verifica. Controlla la tua posta prima di accedere.");
     }
   }, [searchParams]);
 
@@ -45,6 +46,7 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     if (!auth) return;
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -58,7 +60,7 @@ export default function LoginPage() {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError('Email o password non validi.');
       } else {
-        setError(err.message);
+        setError('Si è verificato un errore durante il login.');
       }
     }
   };
@@ -108,7 +110,8 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              {error && <p className="text-destructive text-sm p-2 bg-destructive/10 rounded-md">{error}</p>}
+              {info && <p className="text-blue-600 text-sm p-3 bg-blue-50 border border-blue-200 rounded-md">{info}</p>}
+              {error && <p className="text-destructive text-sm p-3 bg-destructive/10 border border-destructive/20 rounded-md">{error}</p>}
               <Button type="submit" className="w-full">
                 Login
               </Button>

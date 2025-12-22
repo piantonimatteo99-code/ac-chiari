@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth, useUser } from '@/src/firebase';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -22,7 +22,6 @@ export default function SignupPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -37,7 +36,6 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
     if (!auth) return;
 
     try {
@@ -45,6 +43,7 @@ export default function SignupPage() {
       // Note: First name and last name are not used by Firebase Auth for creation
       // but you would typically save them to a user profile in Firestore.
       await sendEmailVerification(userCredential.user);
+      await signOut(auth);
       
       router.push('/login?signup_success=true');
       
@@ -116,8 +115,7 @@ export default function SignupPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              {error && <p className="text-destructive text-sm">{error}</p>}
-              {success && <p className="text-green-600 text-sm">{success}</p>}
+              {error && <p className="text-destructive text-sm p-3 bg-destructive/10 border border-destructive/20 rounded-md">{error}</p>}
               <Button type="submit" className="w-full">
                 Crea un account
               </Button>
