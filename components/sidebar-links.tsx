@@ -16,7 +16,6 @@ const navItems = [
   { href: '/miei-gruppi', icon: Users, label: 'I Miei Gruppi' },
   { href: '/contabilita', icon: Landmark, label: 'Contabilità' },
   { href: '/nucleo-familiare', icon: Building, label: 'Nucleo Familiare' },
-  { href: '/admin-panel', icon: Cog, label: 'Admin Panel' },
 ];
 
 export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean }) {
@@ -24,28 +23,28 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
 
   return (
     <>
-      {navItems.map((item) => {
-        const isActive = pathname.startsWith(item.href);
-        if (isMobile) {
+      <TooltipProvider>
+        {navItems.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          if (isMobile) {
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground hover:text-foreground',
+                  {
+                    'bg-accent text-foreground': isActive,
+                  }
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                {item.label}
+              </Link>
+            );
+          }
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground hover:text-foreground',
-                {
-                  'bg-accent text-foreground': isActive,
-                }
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.label}
-            </Link>
-          );
-        }
-        return (
-          <TooltipProvider key={item.href}>
-            <Tooltip>
+            <Tooltip key={item.href}>
               <TooltipTrigger asChild>
                 <Link
                   href={item.href}
@@ -62,9 +61,9 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
               </TooltipTrigger>
               <TooltipContent side="right">{item.label}</TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-        );
-      })}
+          );
+        })}
+      </TooltipProvider>
     </>
   );
 }
