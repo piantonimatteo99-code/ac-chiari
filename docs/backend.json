@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the MemberHub application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address for login and communication.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "User's role within the application, determining access levels."
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Reference to Category. (Relationship: Category 1:N User). The category this user belongs to."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "role",
+        "categoryId"
+      ]
+    },
+    "Category": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a category that a user can belong to.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the category."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the category."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the category."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user data, including the user's ID, email, role, and category ID. Includes denormalized 'categoryId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": {
+          "entityName": "Category",
+          "schema": {
+            "$ref": "#/backend/entities/Category"
+          },
+          "description": "Stores category data, including the category's ID, name, and description.",
+          "params": [
+            {
+              "name": "categoryId",
+              "description": "The unique identifier for the category."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support user authentication, role-based access control, and categorized users, all while adhering to the principles of Authorization Independence, Structural Segregation, and Access Modeling. \n\n1.  **Authorization Independence:** The `users` collection includes the `categoryId` directly in each user document. This denormalization eliminates the need for security rules to perform `get()` operations to fetch the category of a user. Security rules can directly evaluate the `categoryId` in the user document, ensuring atomic operations and easier debugging.\n2.  **Structural Segregation:** The `categories` collection is separated from the `users` collection to manage category information independently. User documents contain a `categoryId` field that references a document in the `categories` collection.\n3.  **Access Modeling:** The `users/{userId}` path models user-owned data. The `categoryId` field within the `users` document allows for role-based access control. The structure allows listing users within a category with a collection group query, while security rules can enforce authorization based on the `categoryId` stored directly in each user document.\n4.  **QAPs:** The segregation of categories and denormalization of `categoryId` into the user documents enable secure list operations. Security rules can efficiently filter users by category without needing additional `get()` calls. For example, a rule can check if `request.auth.uid` has permissions to access users within a specific `categoryId`.\n\nThis design allows for efficient and secure querying and updating of user and category data, while ensuring that security rules are simple, robust, and easily debuggable."
+  }
+}
