@@ -15,37 +15,16 @@ import SidebarLinks from "./sidebar-links";
 const CustomLogo = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 100 100"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     {...props}
   >
-    <circle cx="50" cy="50" r="50" fill="#003366" />
-    <defs>
-      <radialGradient id="sunburst" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-        <stop offset="0%" style={{ stopColor: '#FFFFFF' }} />
-        <stop offset="100%" style={{ stopColor: '#FFD700' }} />
-      </radialGradient>
-      <linearGradient id="crossGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" style={{ stopColor: 'white' }} />
-        <stop offset="50%" style={{ stopColor: '#FFD700' }} />
-        <stop offset="100%" style={{ stopColor: 'white' }} />
-      </linearGradient>
-    </defs>
-    {[...Array(16)].map((_, i) => (
-      <path
-        key={i}
-        d={`M50 50 L ${50 + 50 * Math.cos((2 * Math.PI * i) / 16)} ${
-          50 + 50 * Math.sin((2 * Math.PI * i) / 16)
-        } L ${50 + 50 * Math.cos((2 * Math.PI * (i + 0.5)) / 16)} ${
-          50 + 50 * Math.sin((2 * Math.PI * (i + 0.5)) / 16)
-        } Z`}
-        fill={i % 2 === 0 ? '#FFD700' : '#003366'}
-      />
-    ))}
-    <path
-      d="M45 10 H55 V45 H90 V55 H55 V90 H45 V55 H10 V45 H45 Z"
-      fill="url(#crossGradient)"
-    />
-    <circle cx="50" cy="50" r="50" fill="transparent" stroke="#333333" strokeWidth="1" />
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
   </svg>
 );
 
@@ -65,7 +44,7 @@ export default function Header() {
               href="#"
               className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
             >
-              <CustomLogo className="h-8 w-8 transition-all group-hover:scale-110" />
+              <CustomLogo className="h-6 w-6 text-primary-foreground" />
               <span className="sr-only">AC Chiari</span>
             </Link>
             <SidebarLinks isMobile={true} />
