@@ -8,25 +8,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "./ui/button";
-import { CircleUser, PanelLeft } from "lucide-react";
+import { CircleUser, PanelLeft, Church } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import SidebarLinks from "./sidebar-links";
-
-const CustomLogo = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <path d="M12 5v14" />
-    <path d="M5 12h14" />
-  </svg>
-);
 
 export default function Header() {
   return (
@@ -44,7 +28,7 @@ export default function Header() {
               href="#"
               className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
             >
-              <CustomLogo className="h-6 w-6 text-primary-foreground" />
+              <Church className="h-6 w-6 text-primary-foreground" />
               <span className="sr-only">AC Chiari</span>
             </Link>
             <SidebarLinks isMobile={true} />

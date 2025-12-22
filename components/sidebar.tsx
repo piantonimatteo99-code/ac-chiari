@@ -1,29 +1,6 @@
 import Link from 'next/link';
-import { Settings, User } from 'lucide-react';
+import { Settings, Church } from 'lucide-react';
 import SidebarLinks from './sidebar-links';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from './ui/tooltip';
-
-const CustomLogo = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <path d="M12 5v14" />
-    <path d="M5 12h14" />
-  </svg>
-);
-
 
 export default function Sidebar() {
   return (
@@ -33,7 +10,7 @@ export default function Sidebar() {
           href="/dashboard"
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-lg font-semibold text-primary-foreground"
         >
-          <CustomLogo className="h-6 w-6 text-primary-foreground" />
+          <Church className="h-6 w-6 text-primary-foreground" />
           <span>AC Chiari</span>
         </Link>
         <SidebarLinks />
