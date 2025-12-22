@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -7,6 +8,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -14,46 +22,38 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 export default function NucleoFamiliarePage() {
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Nucleo Familiare</h1>
         <Button>
           <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Familiare
         </Button>
       </div>
       <Card>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>Nome</TableHead>
                 <TableHead>Data di Nascita</TableHead>
                 <TableHead>Codice Fiscale</TableHead>
                 <TableHead>Stato</TableHead>
                 <TableHead>
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">Azioni</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
+              <TableRow className="hover:bg-muted/50">
                 <TableCell className="font-medium">Prova 1 Prova 1</TableCell>
                 <TableCell>09/06/2010</TableCell>
                 <TableCell>Prova 1</TableCell>
                 <TableCell>
-                  <Badge variant="outline">Attivo</Badge>
+                  <Badge variant="outline" className="text-green-600 border-green-600">Attivo</Badge>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
