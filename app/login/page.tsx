@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth, useUser } from '@/src/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -23,9 +23,21 @@ export default function LoginPage() {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (!isUserLoading && user) {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'email_not_verified') {
+      setError("Devi prima verificare la tua email. Controlla la tua casella di posta e il link che ti abbiamo inviato.");
+    }
+     const successParam = searchParams.get('signup_success');
+    if (successParam === 'true') {
+      setError("Registrazione completata! Ti abbiamo inviato un'email di verifica. Controlla la tua posta prima di accedere.");
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!isUserLoading && user && user.emailVerified) {
       router.push('/dashboard');
     }
   }, [user, isUserLoading, router]);
@@ -35,14 +47,23 @@ export default function LoginPage() {
     setError(null);
     if (!auth) return;
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      if (!userCredential.user.emailVerified) {
+        await signOut(auth);
+        setError("Devi prima verificare la tua email. Controlla la tua casella di posta e il link che ti abbiamo inviato.");
+        return;
+      }
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Email o password non validi.');
+      } else {
+        setError(err.message);
+      }
     }
   };
   
-  if (isUserLoading || (!isUserLoading && user)) {
+  if (isUserLoading || (!isUserLoading && user && user.emailVerified)) {
     return <div className="flex items-center justify-center min-h-screen">Caricamento...</div>;
   }
 
@@ -87,7 +108,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              {error && <p className="text-destructive text-sm">{error}</p>}
+              {error && <p className="text-destructive text-sm p-2 bg-destructive/10 rounded-md">{error}</p>}
               <Button type="submit" className="w-full">
                 Login
               </Button>

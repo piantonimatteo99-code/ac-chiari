@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/sidebar';
 import Header from '@/components/header';
 import { useUser } from '@/src/firebase';
+import { signOut } from 'firebase/auth';
+import { useAuth } from '@/src/firebase';
 
 export default function AppLayout({
   children,
@@ -13,14 +15,25 @@ export default function AppLayout({
 }) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const auth = useAuth();
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push('/login');
-    }
-  }, [user, isUserLoading, router]);
+    if (isUserLoading) return;
 
-  if (isUserLoading || !user) {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    if (!user.emailVerified) {
+      if (auth) {
+        signOut(auth);
+      }
+      router.push('/login?error=email_not_verified');
+    }
+  }, [user, isUserLoading, router, auth]);
+
+  if (isUserLoading || !user || !user.emailVerified) {
     return <div className="flex items-center justify-center min-h-screen">Caricamento...</div>;
   }
 

@@ -14,7 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth, useUser } from '@/src/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -22,6 +22,8 @@ export default function SignupPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
@@ -35,14 +37,25 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     if (!auth) return;
+
     try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       // Note: First name and last name are not used by Firebase Auth for creation
       // but you would typically save them to a user profile in Firestore.
-      await createUserWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard');
+      await sendEmailVerification(userCredential.user);
+      
+      router.push('/login?signup_success=true');
+      
     } catch (err: any) {
-      setError(err.message);
+       if (err.code === 'auth/email-already-in-use') {
+        setError('Questo indirizzo email è già in uso.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('La password è troppo debole. Deve essere di almeno 6 caratteri.');
+      } else {
+        setError('Si è verificato un errore durante la registrazione.');
+      }
     }
   };
   
@@ -104,6 +117,7 @@ export default function SignupPage() {
                 />
               </div>
               {error && <p className="text-destructive text-sm">{error}</p>}
+              {success && <p className="text-green-600 text-sm">{success}</p>}
               <Button type="submit" className="w-full">
                 Crea un account
               </Button>
