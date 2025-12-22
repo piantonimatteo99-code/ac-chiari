@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useFirestore, useUser } from "@/src/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, arrayUnion } from "firebase/firestore";
 
 export default function DashboardPage() {
   const firestore = useFirestore();
@@ -17,8 +17,10 @@ export default function DashboardPage() {
     const userDocRef = doc(firestore, "users", user.uid);
 
     try {
+      // Aggiorna il documento per rispecchiare la struttura dell'immagine
       await updateDoc(userDocRef, {
-        roles: ["admin"],
+        role: "admin",
+        roles: ["admin", "utente", "educatore"],
       });
       alert("Ruolo aggiornato ad admin con successo! Potrebbe essere necessario ricaricare la pagina per vedere le modifiche.");
     } catch (error) {
