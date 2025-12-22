@@ -10,7 +10,7 @@ export default function Sidebar() {
           href="/dashboard"
           className="flex items-center gap-2 px-4 py-2 text-lg font-semibold text-foreground"
         >
-          <Church className="h-6 w-6" />
+          <Church className="h-8 w-8" />
           <span>AC Chiari</span>
         </Link>
         <SidebarLinks />

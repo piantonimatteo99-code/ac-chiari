@@ -46,7 +46,7 @@ export default function Header() {
               href="#"
               className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
             >
-              <Church className="h-6 w-6 text-primary-foreground" />
+              <Church className="h-8 w-8 text-primary-foreground" />
               <span className="sr-only">AC Chiari</span>
             </Link>
             <SidebarLinks isMobile={true} />
