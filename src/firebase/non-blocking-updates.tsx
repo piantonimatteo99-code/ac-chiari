@@ -9,8 +9,8 @@ import {
   DocumentReference,
   SetOptions,
 } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import {FirestorePermissionError} from '@/firebase/errors';
+import { errorEmitter } from '@/src/firebase/error-emitter';
+import {FirestorePermissionError} from '@/src/firebase/errors';
 
 /**
  * Initiates a setDoc operation for a document reference.
