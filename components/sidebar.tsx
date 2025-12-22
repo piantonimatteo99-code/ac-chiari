@@ -8,9 +8,9 @@ export default function Sidebar() {
       <nav className="flex flex-col gap-6 px-4 py-6">
         <Link
           href="/dashboard"
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-lg font-semibold text-primary-foreground"
+          className="flex items-center gap-2 px-4 py-2 text-lg font-semibold text-foreground"
         >
-          <Church className="h-6 w-6 text-primary-foreground" />
+          <Church className="h-6 w-6" />
           <span>AC Chiari</span>
         </Link>
         <SidebarLinks />
