@@ -13,8 +13,9 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useAuth, useUser } from '@/src/firebase';
+import { useAuth, useUser, useFirestore } from '@/src/firebase';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
+import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -24,6 +25,7 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
 
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
@@ -36,12 +38,20 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!auth) return;
+    if (!auth || !firestore) return;
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // Note: First name and last name are not used by Firebase Auth for creation
-      // but you would typically save them to a user profile in Firestore.
+      
+      const userDocRef = doc(firestore, "users", userCredential.user.uid);
+      await setDoc(userDocRef, {
+        id: userCredential.user.uid,
+        displayName: `${firstName} ${lastName}`,
+        email: email,
+        roles: ["utente"],
+        createdAt: serverTimestamp(),
+      });
+
       await sendEmailVerification(userCredential.user);
       await signOut(auth);
       
@@ -53,6 +63,7 @@ export default function SignupPage() {
       } else if (err.code === 'auth/weak-password') {
         setError('La password è troppo debole. Deve essere di almeno 6 caratteri.');
       } else {
+        console.error(err);
         setError('Si è verificato un errore durante la registrazione.');
       }
     }
