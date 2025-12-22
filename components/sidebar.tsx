@@ -2,14 +2,8 @@
 
 import Link from "next/link";
 import {
-  Home,
-  Users,
-  Building,
-  Landmark,
-  Cog,
-  User,
-  PanelLeft,
   Settings,
+  User,
 } from "lucide-react";
 import {
   Tooltip,
@@ -17,8 +11,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Button } from "./ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import SidebarLinks from "./sidebar-links";
 
 export default function Sidebar() {

@@ -25,7 +25,7 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
   return (
     <>
       {navItems.map((item) => {
-        const isActive = pathname === item.href;
+        const isActive = pathname.startsWith(item.href);
         if (isMobile) {
           return (
             <Link
