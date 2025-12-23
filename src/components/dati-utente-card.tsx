@@ -167,7 +167,7 @@ export default function DatiUtenteCard() {
       <CardHeader>
         <CardTitle>I Miei Dati</CardTitle>
         <CardDescription>
-          Visualizza e modifica le tue informazioni personali.
+          Questi sono i tuoi dati personali. L'indirizzo qui specificato è indipendente da quello dei tuoi familiari.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -247,7 +247,7 @@ export default function DatiUtenteCard() {
         )}
       </CardContent>
       <CardFooter className="border-t px-6 py-4 flex justify-end">
-        <Button onClick={handleSave}>Salva Modifiche</Button>
+         <Button onClick={handleSave}>Salva</Button>
       </CardFooter>
     </Card>
   );
