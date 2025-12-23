@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,7 +15,6 @@ import { Label } from '@/components/ui/label';
 import { useFirestore, useUser } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import type { Familiare } from '@/app/(app)/nucleo-familiare/page';
-import { useDebounce } from 'use-debounce';
 
 interface AddFamiliareDialogProps {
   isOpen: boolean;
@@ -38,30 +37,11 @@ const initialState: Omit<Familiare, 'id'> = {
   telefonoSecondario: '',
 };
 
-interface AddressSuggestion {
-  description: string;
-  place_id: string;
-}
-
-interface ParsedAddress {
-    via: string;
-    numeroCivico: string;
-    citta: string;
-    provincia: string;
-    cap: string;
-}
-
-
 export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: AddFamiliareDialogProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const [formData, setFormData] = useState(initialState);
   const [error, setError] = useState<string | null>(null);
-
-  const [addressQuery, setAddressQuery] = useState('');
-  const [debouncedAddressQuery] = useDebounce(addressQuery, 500);
-  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const isEditing = familiareToEdit != null;
 
@@ -86,75 +66,12 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
         setFormData(initialState);
       }
        setError(null);
-       setSuggestions([]);
-       setAddressQuery('');
     }
   }, [familiareToEdit, isEditing, isOpen]);
   
-  // Effect for fetching address suggestions
-  useEffect(() => {
-    const fetchSuggestions = async () => {
-      if (debouncedAddressQuery.length < 3) {
-        setSuggestions([]);
-        return;
-      }
-      try {
-        const response = await fetch(`/api/places?input=${debouncedAddressQuery}`);
-        if (!response.ok) throw new Error('Failed to fetch');
-        const data = await response.json();
-        setSuggestions(data);
-      } catch (error) {
-        console.error('Error fetching address suggestions:', error);
-        setSuggestions([]);
-      }
-    };
-
-    fetchSuggestions();
-  }, [debouncedAddressQuery]);
-  
-  // Click outside handler for suggestions
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
-        setSuggestions([]);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
-
-    // Update address query for suggestions
-    const addressFields = ['via', 'numeroCivico', 'citta'];
-    if (addressFields.includes(id)) {
-        const newQueryParts = {
-            citta: id === 'citta' ? value : formData.citta,
-            via: id === 'via' ? value : formData.via,
-            numeroCivico: id === 'numeroCivico' ? value : formData.numeroCivico
-        };
-        const newQuery = `${newQueryParts.via} ${newQueryParts.numeroCivico}, ${newQueryParts.citta}`.trim();
-        setAddressQuery(newQuery);
-    }
-  };
-
-  const handleSelectSuggestion = async (placeId: string) => {
-    setSuggestions([]);
-    try {
-        const response = await fetch(`/api/places?placeId=${placeId}`);
-        if(!response.ok) throw new Error('Failed to fetch place details');
-        const data: ParsedAddress = await response.json();
-        setFormData(prev => ({
-            ...prev,
-            ...data
-        }));
-    } catch(error) {
-        console.error('Error fetching place details:', error);
-    }
   };
 
   const handleClose = () => {
@@ -232,7 +149,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
             <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} />
           </div>
 
-          <div className="relative" ref={suggestionsRef}>
+          <div className="space-y-4">
              <div className="grid grid-cols-5 gap-4">
                 <div className="col-span-3 grid gap-2">
                     <Label htmlFor="citta">Città</Label>
@@ -247,7 +164,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
                     <Input id="cap" value={formData.cap} onChange={handleChange} />
                 </div>
               </div>
-            <div className="grid grid-cols-5 gap-4 mt-4">
+            <div className="grid grid-cols-5 gap-4">
                 <div className="col-span-4 grid gap-2">
                     <Label htmlFor="via">Via</Label>
                     <Input id="via" value={formData.via} onChange={handleChange} autoComplete="off" />
@@ -257,22 +174,6 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
                     <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} autoComplete="off" />
                 </div>
             </div>
-
-            {suggestions.length > 0 && (
-              <div className="absolute top-full mt-1 w-full bg-background border border-border rounded-md shadow-lg z-50">
-                <ul className="py-1">
-                  {suggestions.map((suggestion) => (
-                    <li
-                      key={suggestion.place_id}
-                      className="px-3 py-2 cursor-pointer hover:bg-accent"
-                      onMouseDown={() => handleSelectSuggestion(suggestion.place_id)}
-                    >
-                      {suggestion.description}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
           
           <div className="grid grid-cols-2 gap-4">
