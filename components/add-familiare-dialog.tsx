@@ -15,16 +15,18 @@ import { Label } from '@/components/ui/label';
 import { useFirestore, useUser } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import type { Familiare as FamiliareBase } from '@/app/(app)/nucleo-familiare/page';
+import type { UserData } from '@/src/hooks/use-user-data';
 
-type Familiare = Omit<FamiliareBase, 'via' | 'numeroCivico' | 'citta' | 'provincia' | 'cap'>;
+type Familiare = Omit<FamiliareBase, 'id'>;
 
 interface AddFamiliareDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  familiareToEdit?: Familiare | null;
+  familiareToEdit?: FamiliareBase | null;
+  userAnagrafica?: UserData | null;
 }
 
-const initialState: Omit<Familiare, 'id'> = {
+const initialFamiliareState: Familiare = {
   nome: '',
   cognome: '',
   dataNascita: '',
@@ -34,15 +36,25 @@ const initialState: Omit<Familiare, 'id'> = {
   telefonoSecondario: '',
 };
 
+const initialAnagraficaState = {
+    via: '',
+    numeroCivico: '',
+    citta: '',
+    provincia: '',
+    cap: '',
+};
+
 const capitalizeWords = (str: string) => {
   if (!str) return '';
   return str.replace(/\b\w/g, char => char.toUpperCase());
 };
 
-export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: AddFamiliareDialogProps) {
+export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, userAnagrafica }: AddFamiliareDialogProps) {
   const firestore = useFirestore();
   const { user } = useUser();
-  const [formData, setFormData] = useState(initialState);
+  
+  const [familiareData, setFamiliareData] = useState(initialFamiliareState);
+  const [anagraficaData, setAnagraficaData] = useState(initialAnagraficaState);
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = familiareToEdit != null;
@@ -50,7 +62,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
   useEffect(() => {
     if (isOpen) {
       if (isEditing && familiareToEdit) {
-        setFormData({
+        setFamiliareData({
           nome: familiareToEdit.nome || '',
           cognome: familiareToEdit.cognome || '',
           dataNascita: familiareToEdit.dataNascita || '',
@@ -60,15 +72,31 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
           telefonoSecondario: familiareToEdit.telefonoSecondario || '',
         });
       } else {
-        setFormData(initialState);
+        setFamiliareData(initialFamiliareState);
       }
+
+      if (userAnagrafica) {
+          setAnagraficaData({
+              via: userAnagrafica.via || '',
+              numeroCivico: userAnagrafica.numeroCivico || '',
+              citta: userAnagrafica.citta || '',
+              provincia: userAnagrafica.provincia || '',
+              cap: userAnagrafica.cap || '',
+          });
+      } else {
+          setAnagraficaData(initialAnagraficaState);
+      }
+
        setError(null);
     }
-  }, [familiareToEdit, isEditing, isOpen]);
+  }, [familiareToEdit, isEditing, isOpen, userAnagrafica]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     let formattedValue = value;
+    
+    const anagraficaKeys = Object.keys(initialAnagraficaState);
+    const isAnagraficaField = anagraficaKeys.includes(id);
 
     switch (id) {
         case 'codiceFiscale':
@@ -85,13 +113,17 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
         default:
             break;
     }
-
-    setFormData((prev) => ({ ...prev, [id]: formattedValue }));
+    
+    if (isAnagraficaField) {
+        setAnagraficaData((prev) => ({ ...prev, [id]: formattedValue }));
+    } else {
+        setFamiliareData((prev) => ({ ...prev, [id]: formattedValue as any }));
+    }
   };
 
   const handleClose = () => {
     onOpenChange(false);
-  }
+  };
 
   const handleSubmit = async () => {
     setError(null);
@@ -100,26 +132,34 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
       return;
     }
 
-    if (!formData.nome || !formData.cognome || !formData.dataNascita) {
-      setError('Nome, cognome e data di nascita sono obbligatori.');
+    if (!familiareData.nome || !familiareData.cognome || !familiareData.dataNascita) {
+      setError('Nome, cognome e data di nascita del familiare sono obbligatori.');
       return;
     }
 
     try {
-      if(isEditing && familiareToEdit) {
+      // 1. Save anagrafica data to the user's document
+      const userDocRef = doc(firestore, 'users', user.uid);
+      await updateDoc(userDocRef, {
+        ...anagraficaData
+      });
+
+      // 2. Save familiare data
+      if (isEditing && familiareToEdit) {
         const docRef = doc(firestore, 'familiari', familiareToEdit.id);
         await updateDoc(docRef, {
-            ...formData,
+            ...familiareData,
         });
       } else {
         const familiariCollection = collection(firestore, 'familiari');
         await addDoc(familiariCollection, {
-            ...formData,
+            ...familiareData,
             registratoDa: user.uid,
             emailRiferimento: user.email,
             createdAt: serverTimestamp(),
         });
       }
+
       handleClose();
     } catch (err) {
       console.error(err);
@@ -134,8 +174,8 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
           <DialogTitle>{isEditing ? 'Modifica Dati Familiare' : 'Aggiungi Familiare'}</DialogTitle>
           <DialogDescription>
             {isEditing 
-                ? 'Aggiorna i dati del membro del nucleo familiare. L\'indirizzo è condiviso con tutto il nucleo e può essere modificato dalla dashboard.'
-                : 'Inserisci i dati del nuovo membro. L\'indirizzo è condiviso con tutto il nucleo e può essere modificato dalla dashboard.'
+                ? 'Aggiorna i dati del membro del nucleo familiare. L\'indirizzo qui sotto è condiviso con tutto il nucleo.'
+                : 'Inserisci i dati del nuovo membro. L\'indirizzo è condiviso con tutto il nucleo familiare.'
             }
           </DialogDescription>
         </DialogHeader>
@@ -143,34 +183,63 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="nome">Nome</Label>
-              <Input id="nome" value={formData.nome} onChange={handleChange} />
+              <Input id="nome" value={familiareData.nome} onChange={handleChange} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="cognome">Cognome</Label>
-              <Input id="cognome" value={formData.cognome} onChange={handleChange} />
+              <Input id="cognome" value={familiareData.cognome} onChange={handleChange} />
             </div>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="dataNascita">Data di Nascita</Label>
-            <Input id="dataNascita" type="date" value={formData.dataNascita} onChange={handleChange} />
+            <Input id="dataNascita" type="date" value={familiareData.dataNascita} onChange={handleChange} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="codiceFiscale">Codice Fiscale</Label>
-            <Input id="codiceFiscale" value={formData.codiceFiscale} onChange={handleChange} />
+            <Input id="codiceFiscale" value={familiareData.codiceFiscale} onChange={handleChange} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
-            <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} />
+            <Input id="luogoNascita" value={familiareData.luogoNascita} onChange={handleChange} />
           </div>
+
+          <div className="space-y-4">
+              <p className="text-sm font-medium text-muted-foreground pt-2 border-t">Indirizzo di Residenza Familiare</p>
+              <div className="grid grid-cols-5 gap-4">
+                  <div className="col-span-3 grid gap-2">
+                      <Label htmlFor="citta">Città</Label>
+                      <Input id="citta" value={anagraficaData.citta} onChange={handleChange} autoComplete="off"/>
+                  </div>
+                  <div className="grid gap-2">
+                      <Label htmlFor="provincia">Prov.</Label>
+                      <Input id="provincia" value={anagraficaData.provincia} onChange={handleChange} maxLength={2} />
+                  </div>
+                  <div className="grid gap-2">
+                      <Label htmlFor="cap">CAP</Label>
+                      <Input id="cap" value={anagraficaData.cap} onChange={handleChange} />
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-5 gap-4">
+                  <div className="col-span-4 grid gap-2">
+                      <Label htmlFor="via">Via</Label>
+                      <Input id="via" value={anagraficaData.via} onChange={handleChange} autoComplete="off" />
+                  </div>
+                  <div className="col-span-1 grid gap-2">
+                      <Label htmlFor="numeroCivico">N.</Label>
+                      <Input id="numeroCivico" value={anagraficaData.numeroCivico} onChange={handleChange} autoComplete="off" />
+                  </div>
+              </div>
+            </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 border-t pt-4">
             <div className="grid gap-2">
               <Label htmlFor="telefonoPrincipale">Tel. Principale</Label>
-              <Input id="telefonoPrincipale" value={formData.telefonoPrincipale} onChange={handleChange} />
+              <Input id="telefonoPrincipale" value={familiareData.telefonoPrincipale} onChange={handleChange} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="telefonoSecondario">Tel. Secondario</Label>
-              <Input id="telefonoSecondario" value={formData.telefonoSecondario} onChange={handleChange} />
+              <Input id="telefonoSecondario" value={familiareData.telefonoSecondario} onChange={handleChange} />
             </div>
           </div>
         </div>

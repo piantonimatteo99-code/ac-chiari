@@ -44,7 +44,7 @@ export default function NucleoFamiliarePage() {
   const [editingFamiliare, setEditingFamiliare] = useState<Familiare | null>(null);
   const firestore = useFirestore();
   const { user } = useUser();
-  const { userData } = useUserData();
+  const { userData, isLoading: isUserDataLoading } = useUserData();
 
   const familiariQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -53,7 +53,7 @@ export default function NucleoFamiliarePage() {
 
   const { data: familiari, isLoading: isFamiliariLoading, error } = useCollection<Familiare>(familiariQuery);
   
-  const isLoading = isFamiliariLoading || !userData;
+  const isLoading = isFamiliariLoading || isUserDataLoading;
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -108,6 +108,7 @@ export default function NucleoFamiliarePage() {
         isOpen={isDialogOpen} 
         onOpenChange={setIsDialogOpen}
         familiareToEdit={editingFamiliare}
+        userAnagrafica={userData}
        />
       <Card>
         <CardContent className="p-0">
