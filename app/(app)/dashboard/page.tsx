@@ -2,13 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { useFirestore, useUser } from "@/src/firebase";
-import { doc, updateDoc, getDoc, arrayUnion } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function DashboardPage() {
   const firestore = useFirestore();
   const { user } = useUser();
 
-  const handleBecomeAdmin = async () => {
+  const handleRecreateAdmin = async () => {
     if (!user || !firestore) {
       alert("Utente o database non trovato.");
       return;
@@ -17,16 +17,18 @@ export default function DashboardPage() {
     const userDocRef = doc(firestore, "users", user.uid);
 
     try {
-      // Aggiorna il documento per rispecchiare la struttura dell'immagine
-      await updateDoc(userDocRef, {
+      // Usa setDoc per creare o sovrascrivere il documento
+      await setDoc(userDocRef, {
+        id: user.uid,
+        email: user.email,
         displayName: user.email,
         role: "admin",
         roles: ["admin", "utente", "educatore"],
       });
-      alert("Ruolo e displayName aggiornati con successo! Potrebbe essere necessario ricaricare la pagina per vedere le modifiche.");
+      alert("Documento utente ricreato/aggiornato con successo come admin!");
     } catch (error) {
-      console.error("Errore durante l'aggiornamento del ruolo:", error);
-      alert("Si è verificato un errore durante l'aggiornamento del ruolo.");
+      console.error("Errore durante la creazione/aggiornamento del documento:", error);
+      alert("Si è verificato un errore durante l'operazione.");
     }
   };
 
@@ -34,11 +36,11 @@ export default function DashboardPage() {
     <div>
       <h1 className="text-2xl font-bold">Dashboard</h1>
       <div className="mt-4">
-        <Button onClick={handleBecomeAdmin} variant="destructive">
-          (Temp) Diventa Admin
+        <Button onClick={handleRecreateAdmin} variant="destructive">
+          (Temp) Ricrea Utente Admin
         </Button>
         <p className="text-sm text-muted-foreground mt-2">
-          Questo pulsante serve solo per scopi di sviluppo.
+          Questo pulsante crea o sovrascrive il tuo documento utente con i permessi di admin.
         </p>
       </div>
     </div>
