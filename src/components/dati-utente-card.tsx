@@ -117,7 +117,7 @@ export default function DatiUtenteCard() {
       <CardHeader>
         <CardTitle>I Miei Dati</CardTitle>
         <CardDescription>
-          Modifica i tuoi dati anagrafici. L'indirizzo qui specificato può essere usato come predefinito per i nuovi familiari.
+          Modifica i tuoi dati anagrafici. Questo indirizzo può essere usato come predefinito per i nuovi familiari.
         </CardDescription>
       </CardHeader>
       <CardContent>
