@@ -1,8 +1,7 @@
 export const firebaseConfig = {
-  "projectId": "ac-chiari-import-2024",
-  "appId": "1:901135690459:web:bf13c0ff2d857b991c7afe",
-  "apiKey": "AIzaSyBg5bQxU4Lk0QDFkPb4zGc7686ax0rY-as",
-  "authDomain": "ac-chiari-import-2024.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "901135690459"
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
 };
