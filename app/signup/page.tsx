@@ -20,8 +20,8 @@ import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [nome, setNome] = useState('');
+  const [cognome, setCognome] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const auth = useAuth();
@@ -46,7 +46,9 @@ export default function SignupPage() {
       const userDocRef = doc(firestore, "users", userCredential.user.uid);
       await setDoc(userDocRef, {
         id: userCredential.user.uid,
-        displayName: `${firstName} ${lastName}`,
+        nome: nome,
+        cognome: cognome,
+        displayName: `${nome} ${cognome}`,
         email: email,
         roles: ["utente"],
         createdAt: serverTimestamp(),
@@ -91,8 +93,8 @@ export default function SignupPage() {
                   id="first-name"
                   placeholder="Mario"
                   required
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
                 />
               </div>
               <div className="grid gap-2">
@@ -101,8 +103,8 @@ export default function SignupPage() {
                   id="last-name"
                   placeholder="Rossi"
                   required
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  value={cognome}
+                  onChange={(e) => setCognome(e.target.value)}
                 />
               </div>
               <div className="grid gap-2">

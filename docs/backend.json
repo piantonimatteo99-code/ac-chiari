@@ -17,7 +17,40 @@
         },
         "displayName": {
           "type": "string",
-          "description": "The user's full name."
+          "description": "The user's full name, composed from nome and cognome."
+        },
+        "nome": {
+          "type": "string",
+          "description": "First name of the user."
+        },
+        "cognome": {
+          "type": "string",
+          "description": "Last name of the user."
+        },
+        "dataNascita": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of birth."
+        },
+        "codiceFiscale": {
+          "type": "string",
+          "description": "Italian fiscal code."
+        },
+        "luogoNascita": {
+          "type": "string",
+          "description": "Place of birth."
+        },
+        "indirizzo": {
+          "type": "string",
+          "description": "Full address."
+        },
+        "telefonoPrincipale": {
+          "type": "string",
+          "description": "Primary phone number."
+        },
+        "telefonoSecondario": {
+          "type": "string",
+          "description": "Secondary phone number."
         },
         "roles": {
           "type": "array",
@@ -41,6 +74,8 @@
         "id",
         "email",
         "displayName",
+        "nome",
+        "cognome",
         "roles",
         "createdAt"
       ]

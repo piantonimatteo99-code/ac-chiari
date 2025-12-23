@@ -11,7 +11,16 @@ export interface UserData {
     email: string;
     roles: ('admin' | 'utente' | 'educatore')[];
     createdAt: any; // Can be a Timestamp object
-    role?: string; 
+    
+    // Anagrafica
+    nome?: string;
+    cognome?: string;
+    dataNascita?: string;
+    codiceFiscale?: string;
+    luogoNascita?: string;
+    indirizzo?: string;
+    telefonoPrincipale?: string;
+    telefonoSecondario?: string;
 }
 
 /**

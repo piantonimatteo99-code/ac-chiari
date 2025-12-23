@@ -16,11 +16,21 @@ import { useUserData } from "@/src/hooks/use-user-data";
 import { useFirestore } from "@/src/firebase";
 import { doc, updateDoc } from 'firebase/firestore';
 
+const initialState = {
+  nome: '',
+  cognome: '',
+  dataNascita: '',
+  codiceFiscale: '',
+  luogoNascita: '',
+  indirizzo: '',
+  telefonoPrincipale: '',
+  telefonoSecondario: '',
+};
+
 export default function DatiUtenteCard() {
   const { userData, isLoading } = useUserData();
   const firestore = useFirestore();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [formData, setFormData] = useState(initialState);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -28,12 +38,24 @@ export default function DatiUtenteCard() {
 
   useEffect(() => {
     if (userData) {
-      const nameParts = userData.displayName?.split(' ') || ['', ''];
-      setFirstName(nameParts[0] || '');
-      setLastName(nameParts.slice(1).join(' ') || '');
+      setFormData({
+        nome: userData.nome || '',
+        cognome: userData.cognome || '',
+        dataNascita: userData.dataNascita || '',
+        codiceFiscale: userData.codiceFiscale || '',
+        luogoNascita: userData.luogoNascita || '',
+        indirizzo: userData.indirizzo || '',
+        telefonoPrincipale: userData.telefonoPrincipale || '',
+        telefonoSecondario: userData.telefonoSecondario || '',
+      });
       setEmail(userData.email || '');
     }
   }, [userData]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  };
 
   const handleSave = async () => {
     if (!userData || !firestore) {
@@ -46,7 +68,8 @@ export default function DatiUtenteCard() {
     try {
       const userDocRef = doc(firestore, 'users', userData.id);
       await updateDoc(userDocRef, {
-        displayName: `${firstName} ${lastName}`.trim(),
+        ...formData,
+        displayName: `${formData.nome} ${formData.cognome}`.trim(),
       });
       setSuccess("Dati aggiornati con successo!");
       setIsEditing(false);
@@ -58,9 +81,16 @@ export default function DatiUtenteCard() {
   
   const handleCancel = () => {
     if(userData) {
-      const nameParts = userData.displayName?.split(' ') || ['', ''];
-      setFirstName(nameParts[0] || '');
-      setLastName(nameParts.slice(1).join(' ') || '');
+      setFormData({
+        nome: userData.nome || '',
+        cognome: userData.cognome || '',
+        dataNascita: userData.dataNascita || '',
+        codiceFiscale: userData.codiceFiscale || '',
+        luogoNascita: userData.luogoNascita || '',
+        indirizzo: userData.indirizzo || '',
+        telefonoPrincipale: userData.telefonoPrincipale || '',
+        telefonoSecondario: userData.telefonoSecondario || '',
+      });
     }
     setIsEditing(false);
     setError(null);
@@ -78,13 +108,41 @@ export default function DatiUtenteCard() {
           <p>Caricamento dati...</p>
         ) : (
           <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="first-name">Nome</Label>
-              <Input id="first-name" value={firstName} onChange={e => setFirstName(e.target.value)} disabled={!isEditing} />
+             <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="nome">Nome</Label>
+                <Input id="nome" value={formData.nome} onChange={handleChange} disabled={!isEditing} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="cognome">Cognome</Label>
+                <Input id="cognome" value={formData.cognome} onChange={handleChange} disabled={!isEditing} />
+              </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="last-name">Cognome</Label>
-              <Input id="last-name" value={lastName} onChange={e => setLastName(e.target.value)} disabled={!isEditing} />
+                <Label htmlFor="dataNascita">Data di Nascita</Label>
+                <Input id="dataNascita" type="date" value={formData.dataNascita} onChange={handleChange} disabled={!isEditing} />
+            </div>
+             <div className="grid gap-2">
+                <Label htmlFor="codiceFiscale">Codice Fiscale</Label>
+                <Input id="codiceFiscale" value={formData.codiceFiscale} onChange={handleChange} disabled={!isEditing} />
+            </div>
+             <div className="grid gap-2">
+                <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
+                <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} disabled={!isEditing} />
+            </div>
+             <div className="grid gap-2">
+                <Label htmlFor="indirizzo">Indirizzo</Label>
+                <Input id="indirizzo" value={formData.indirizzo} onChange={handleChange} disabled={!isEditing} />
+            </div>
+             <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="telefonoPrincipale">Tel. Principale</Label>
+                    <Input id="telefonoPrincipale" value={formData.telefonoPrincipale} onChange={handleChange} disabled={!isEditing} />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="telefonoSecondario">Tel. Secondario</Label>
+                    <Input id="telefonoSecondario" value={formData.telefonoSecondario} onChange={handleChange} disabled={!isEditing} />
+                </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
