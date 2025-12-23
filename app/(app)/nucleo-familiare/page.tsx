@@ -25,6 +25,7 @@ import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/src/firebase';
 import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
+import { useUserData } from '@/src/hooks/use-user-data';
 
 export interface Familiare {
   id: string;
@@ -33,11 +34,6 @@ export interface Familiare {
   dataNascita: string;
   codiceFiscale: string;
   luogoNascita: string;
-  via: string;
-  numeroCivico: string;
-  citta: string;
-  provincia: string;
-  cap: string;
   telefonoPrincipale: string;
   telefonoSecondario: string;
 }
@@ -47,13 +43,16 @@ export default function NucleoFamiliarePage() {
   const [editingFamiliare, setEditingFamiliare] = useState<Familiare | null>(null);
   const firestore = useFirestore();
   const { user } = useUser();
+  const { userData, isLoading: isUserDataLoading } = useUserData();
 
   const familiariQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(collection(firestore, 'familiari'), where('registratoDa', '==', user.uid));
   }, [user, firestore]);
 
-  const { data: familiari, isLoading, error } = useCollection<Familiare>(familiariQuery);
+  const { data: familiari, isLoading: isFamiliariLoading, error } = useCollection<Familiare>(familiariQuery);
+  
+  const isLoading = isUserDataLoading || isFamiliariLoading;
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -63,6 +62,13 @@ export default function NucleoFamiliarePage() {
       month: '2-digit',
       year: 'numeric',
     });
+  }
+  
+  const formatAddress = () => {
+    if (!userData) return 'Indirizzo non specificato';
+    const { via, numeroCivico, citta, provincia, cap } = userData;
+    if (!via || !citta) return 'Indirizzo non specificato';
+    return `${via} ${numeroCivico}, ${cap} ${citta} (${provincia})`;
   }
 
   const handleEdit = (familiare: Familiare) => {
@@ -109,7 +115,7 @@ export default function NucleoFamiliarePage() {
               <TableRow className="hover:bg-transparent">
                 <TableHead>Nome</TableHead>
                 <TableHead>Data di Nascita</TableHead>
-                <TableHead>Codice Fiscale</TableHead>
+                <TableHead>Indirizzo</TableHead>
                 <TableHead>Stato</TableHead>
                 <TableHead>
                   <span className="sr-only">Azioni</span>
@@ -129,7 +135,7 @@ export default function NucleoFamiliarePage() {
                   <TableRow key={familiare.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{familiare.nome} {familiare.cognome}</TableCell>
                     <TableCell>{formatDate(familiare.dataNascita)}</TableCell>
-                    <TableCell>{familiare.codiceFiscale}</TableCell>
+                    <TableCell>{formatAddress()}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-green-600 border-green-600">Attivo</Badge>
                     </TableCell>

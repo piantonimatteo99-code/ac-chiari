@@ -28,11 +28,6 @@ const initialState: Omit<Familiare, 'id'> = {
   dataNascita: '',
   codiceFiscale: '',
   luogoNascita: '',
-  via: '',
-  numeroCivico: '',
-  citta: '',
-  provincia: '',
-  cap: '',
   telefonoPrincipale: '',
   telefonoSecondario: '',
 };
@@ -59,11 +54,6 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
           dataNascita: familiareToEdit.dataNascita || '',
           codiceFiscale: familiareToEdit.codiceFiscale || '',
           luogoNascita: familiareToEdit.luogoNascita || '',
-          via: familiareToEdit.via || '',
-          numeroCivico: familiareToEdit.numeroCivico || '',
-          citta: familiareToEdit.citta || '',
-          provincia: familiareToEdit.provincia || '',
-          cap: familiareToEdit.cap || '',
           telefonoPrincipale: familiareToEdit.telefonoPrincipale || '',
           telefonoSecondario: familiareToEdit.telefonoSecondario || '',
         });
@@ -85,13 +75,8 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
         case 'nome':
         case 'cognome':
         case 'luogoNascita':
-        case 'citta':
-        case 'via':
             formattedValue = capitalizeWords(value);
             break;
-        case 'provincia':
-             formattedValue = value.toUpperCase();
-             break;
         default:
             break;
     }
@@ -142,11 +127,11 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[475px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Modifica Familiare' : 'Aggiungi Familiare'}</DialogTitle>
+          <DialogTitle>{isEditing ? 'Modifica Dati Familiare' : 'Aggiungi Familiare'}</DialogTitle>
           <DialogDescription>
             {isEditing 
                 ? 'Aggiorna i dati del membro del nucleo familiare.'
-                : 'Inserisci i dati del nuovo membro del nucleo familiare.'
+                : 'Inserisci i dati del nuovo membro. L\\'indirizzo sarà lo stesso del tuo profilo.'
             }
           </DialogDescription>
         </DialogHeader>
@@ -172,33 +157,6 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
           <div className="grid gap-2">
             <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
             <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} />
-          </div>
-
-          <div className="space-y-4">
-             <div className="grid grid-cols-5 gap-4">
-                <div className="col-span-3 grid gap-2">
-                    <Label htmlFor="citta">Città</Label>
-                    <Input id="citta" value={formData.citta} onChange={handleChange} autoComplete="off" />
-                </div>
-                 <div className="grid gap-2">
-                    <Label htmlFor="provincia">Prov.</Label>
-                    <Input id="provincia" value={formData.provincia} onChange={handleChange} maxLength={2}/>
-                </div>
-                 <div className="grid gap-2">
-                    <Label htmlFor="cap">CAP</Label>
-                    <Input id="cap" value={formData.cap} onChange={handleChange} />
-                </div>
-              </div>
-            <div className="grid grid-cols-5 gap-4">
-                <div className="col-span-4 grid gap-2">
-                    <Label htmlFor="via">Via</Label>
-                    <Input id="via" value={formData.via} onChange={handleChange} autoComplete="off" />
-                </div>
-                <div className="col-span-1 grid gap-2">
-                    <Label htmlFor="numeroCivico">N.</Label>
-                    <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} autoComplete="off" />
-                </div>
-            </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4">

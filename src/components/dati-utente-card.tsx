@@ -115,7 +115,10 @@ export default function DatiUtenteCard() {
     <Card>
       <CardHeader>
         <CardTitle>I Miei Dati</CardTitle>
-        <CardDescription>Visualizza e modifica le tue informazioni personali.</CardDescription>
+        <CardDescription>
+          Visualizza e modifica le tue informazioni personali.
+          L'indirizzo di residenza è condiviso con tutto il tuo nucleo familiare.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -146,6 +149,7 @@ export default function DatiUtenteCard() {
             </div>
             
             <div className="space-y-4">
+              <p className="text-sm font-medium text-muted-foreground pt-2">Indirizzo di Residenza</p>
               <div className="grid grid-cols-5 gap-4">
                   <div className="col-span-3 grid gap-2">
                       <Label htmlFor="citta">Città</Label>

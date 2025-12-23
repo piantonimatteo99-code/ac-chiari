@@ -100,7 +100,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Familiare",
       "type": "object",
-      "description": "Represents a family member of a user.",
+      "description": "Represents a family member of a user. The address is shared from the main user's profile.",
       "properties": {
         "nome": {
           "type": "string",
@@ -122,26 +122,6 @@
         "luogoNascita": {
           "type": "string",
           "description": "Place of birth."
-        },
-        "via": {
-          "type": "string",
-          "description": "Street name."
-        },
-        "numeroCivico": {
-          "type": "string",
-          "description": "Street number."
-        },
-        "citta": {
-          "type": "string",
-          "description": "City."
-        },
-        "provincia": {
-          "type": "string",
-          "description": "Province (e.g., 'BS')."
-        },
-        "cap": {
-          "type": "string",
-          "description": "Postal code (ZIP code)."
         },
         "telefonoPrincipale": {
           "type": "string",
@@ -190,7 +170,7 @@
           "schema": {
             "$ref": "#/entities/User"
           },
-          "description": "Stores user profile data, including roles for authorization."
+          "description": "Stores user profile data, including roles for authorization and the shared address for the family unit."
         }
       },
       {
@@ -200,7 +180,7 @@
           "schema": {
             "$ref": "#/entities/Familiare"
           },
-          "description": "Collection to store family members."
+          "description": "Collection to store family members. Address is inherited from the parent user."
         }
       },
       {
