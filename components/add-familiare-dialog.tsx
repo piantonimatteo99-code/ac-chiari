@@ -131,7 +131,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
           <DialogDescription>
             {isEditing 
                 ? 'Aggiorna i dati del membro del nucleo familiare.'
-                : 'Inserisci i dati del nuovo membro. L\\'indirizzo sarà lo stesso del tuo profilo.'
+                : 'Inserisci i dati del nuovo membro. L\'indirizzo sarà lo stesso del tuo profilo.'
             }
           </DialogDescription>
         </DialogHeader>
