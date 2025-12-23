@@ -11,7 +11,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -139,7 +138,6 @@ export default function NucleoFamiliarePage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Azioni</DropdownMenuLabel>
                           <DropdownMenuItem onSelect={() => handleEdit(familiare)}>Modifica</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => handleDelete(familiare.id)}>Elimina</DropdownMenuItem>
                         </DropdownMenuContent>
