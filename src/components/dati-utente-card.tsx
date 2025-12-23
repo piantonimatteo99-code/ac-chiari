@@ -155,21 +155,23 @@ export default function DatiUtenteCard() {
                 <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} disabled={!isEditing} />
             </div>
             
-            {isEditing && <AddressInput onAddressSelect={handleAddressSelect} />}
+            <div className={isEditing ? '' : 'hidden'}>
+              <AddressInput onAddressSelect={handleAddressSelect} />
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div className="md:col-span-3 grid gap-2">
+            <div className="grid grid-cols-5 gap-4">
+              <div className="col-span-3 grid gap-2">
                   <Label htmlFor="via">Via</Label>
                   <Input id="via" value={formData.via} onChange={handleChange} disabled={!isEditing} />
               </div>
-              <div className="md:col-span-2 grid gap-2">
+              <div className="col-span-2 grid gap-2">
                   <Label htmlFor="numeroCivico">Numero Civico</Label>
                   <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} disabled={!isEditing} />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div className="md:col-span-3 grid gap-2">
+            <div className="grid grid-cols-5 gap-4">
+              <div className="col-span-3 grid gap-2">
                   <Label htmlFor="citta">Città</Label>
                   <Input id="citta" value={formData.citta} onChange={handleChange} disabled={!isEditing} />
               </div>
