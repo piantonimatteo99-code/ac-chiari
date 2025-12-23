@@ -20,13 +20,13 @@ interface ParsedAddress {
 
 interface AddressInputProps {
   onAddressSelect: (address: ParsedAddress) => void;
+  disabled?: boolean;
 }
 
-export function AddressInput({ onAddressSelect }: AddressInputProps) {
+export function AddressInput({ onAddressSelect, disabled }: AddressInputProps) {
   const [query, setQuery] = useState('');
   const [debouncedQuery] = useDebounce(query, 400);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,13 +46,14 @@ export function AddressInput({ onAddressSelect }: AddressInputProps) {
       }
     };
 
-    fetchSuggestions();
-  }, [debouncedQuery]);
+    if (!disabled) {
+        fetchSuggestions();
+    }
+  }, [debouncedQuery, disabled]);
 
   const handleSelectSuggestion = async (placeId: string) => {
     setQuery('');
     setSuggestions([]);
-    setShowSuggestions(false);
     
     try {
         const response = await fetch(`/api/places?placeId=${placeId}`);
@@ -67,7 +68,7 @@ export function AddressInput({ onAddressSelect }: AddressInputProps) {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
+        setSuggestions([]);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -85,10 +86,11 @@ export function AddressInput({ onAddressSelect }: AddressInputProps) {
         placeholder="Inizia a digitare un indirizzo..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => setShowSuggestions(true)}
+        onFocus={() => {if (debouncedQuery.length > 2) setSuggestions([])}}
         autoComplete="off"
+        disabled={disabled}
       />
-      {showSuggestions && suggestions.length > 0 && (
+      {suggestions.length > 0 && (
         <div className="absolute top-full mt-1 w-full bg-background border border-border rounded-md shadow-lg z-10">
           <ul className="py-1">
             {suggestions.map((suggestion) => (

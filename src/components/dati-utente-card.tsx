@@ -155,9 +155,7 @@ export default function DatiUtenteCard() {
                 <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} disabled={!isEditing} />
             </div>
             
-            <div className={isEditing ? '' : 'hidden'}>
-              <AddressInput onAddressSelect={handleAddressSelect} />
-            </div>
+            <AddressInput onAddressSelect={handleAddressSelect} disabled={!isEditing} />
 
             <div className="grid grid-cols-5 gap-4">
               <div className="col-span-3 grid gap-2">
