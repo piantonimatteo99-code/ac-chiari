@@ -64,13 +64,13 @@ service cloud.firestore {
       allow get: if isOwner(userId);
       allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow update: if isOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
     
     match /familiari/{familiareId} {
         allow get: if isSignedIn() && resource.data.registratoDa == request.auth.uid;
-        allow list: if isSignedIn() && request.query.get("registratoDa") == request.auth.uid;
+        allow list: if isSignedIn() && request.query.where[0][2] == request.auth.uid;
         allow create: if isSignedIn() && request.resource.data.registratoDa == request.auth.uid;
         allow update, delete: if isSignedIn() && resource.data.registratoDa == request.auth.uid;
     }

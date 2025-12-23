@@ -65,7 +65,7 @@ export default function NucleoFamiliarePage() {
     });
   }
   
-  const formatAddress = () => {
+  const getSharedAddress = () => {
     if (!userData) return 'Indirizzo non specificato';
     const { via, numeroCivico, citta, provincia, cap } = userData;
     if (!via || !citta) return 'Indirizzo non specificato';
@@ -117,7 +117,7 @@ export default function NucleoFamiliarePage() {
               <TableRow className="hover:bg-transparent">
                 <TableHead>Nome</TableHead>
                 <TableHead>Data di Nascita</TableHead>
-                <TableHead>Indirizzo</TableHead>
+                <TableHead>Indirizzo Condiviso</TableHead>
                 <TableHead>Stato</TableHead>
                 <TableHead>
                   <span className="sr-only">Azioni</span>
@@ -137,7 +137,7 @@ export default function NucleoFamiliarePage() {
                   <TableRow key={familiare.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{familiare.nome} {familiare.cognome}</TableCell>
                     <TableCell>{formatDate(familiare.dataNascita)}</TableCell>
-                    <TableCell>{formatAddress()}</TableCell>
+                    <TableCell>{getSharedAddress()}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-green-600 border-green-600">Attivo</Badge>
                     </TableCell>
