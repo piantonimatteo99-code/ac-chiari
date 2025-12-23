@@ -117,7 +117,7 @@ export default function DatiUtenteCard() {
       <CardHeader>
         <CardTitle>I Miei Dati</CardTitle>
         <CardDescription>
-          Modifica i tuoi dati personali. L'indirizzo qui specificato è indipendente da quello dei tuoi familiari.
+          Modifica i tuoi dati anagrafici. L'indirizzo qui specificato è indipendente da quello dei tuoi familiari.
         </CardDescription>
       </CardHeader>
       <CardContent>
