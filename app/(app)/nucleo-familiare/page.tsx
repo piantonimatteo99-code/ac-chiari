@@ -1,14 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   DropdownMenu,
@@ -28,18 +25,23 @@ import {
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
 
-interface Familiare {
+export interface Familiare {
   id: string;
   nome: string;
   cognome: string;
   dataNascita: string;
   codiceFiscale: string;
+  luogoNascita: string;
+  indirizzo: string;
+  telefonoPrincipale: string;
+  telefonoSecondario: string;
 }
 
 export default function NucleoFamiliarePage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingFamiliare, setEditingFamiliare] = useState<Familiare | null>(null);
   const firestore = useFirestore();
   const { user } = useUser();
 
@@ -60,15 +62,43 @@ export default function NucleoFamiliarePage() {
     });
   }
 
+  const handleEdit = (familiare: Familiare) => {
+    setEditingFamiliare(familiare);
+    setIsDialogOpen(true);
+  };
+  
+  const handleAddNew = () => {
+    setEditingFamiliare(null);
+    setIsDialogOpen(true);
+  }
+
+  const handleDelete = async (familiareId: string) => {
+    if (!firestore) return;
+    if (window.confirm("Sei sicuro di voler eliminare questo familiare?")) {
+      try {
+        const docRef = doc(firestore, 'familiari', familiareId);
+        await deleteDoc(docRef);
+      } catch (error) {
+        console.error("Errore durante l'eliminazione del familiare:", error);
+        alert("Si è verificato un errore.");
+      }
+    }
+  };
+
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Nucleo Familiare</h1>
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button onClick={handleAddNew}>
           <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Familiare
         </Button>
       </div>
-      <AddFamiliareDialog isOpen={isDialogOpen} onOpenChange={setIsDialogOpen} />
+      <AddFamiliareDialog 
+        isOpen={isDialogOpen} 
+        onOpenChange={setIsDialogOpen}
+        familiareToEdit={editingFamiliare}
+       />
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -110,8 +140,8 @@ export default function NucleoFamiliarePage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-                          <DropdownMenuItem>Modifica</DropdownMenuItem>
-                          <DropdownMenuItem>Elimina</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleEdit(familiare)}>Modifica</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleDelete(familiare.id)}>Elimina</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
