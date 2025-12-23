@@ -26,22 +26,20 @@ const AddressInput: React.FC<AddressInputProps> = ({
   const [debouncedValue] = useDebounce(inputValue, 400); // 400ms debounce delay
   const [isListVisible, setIsListVisible] = useState(true);
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
   useEffect(() => {
     setInputValue(value);
   }, [value]);
 
   useEffect(() => {
     const fetchSuggestions = async () => {
-      if (!apiKey) {
-        console.error("Google Maps API key is not configured.");
-        return;
-      }
       if (debouncedValue.length > 2) {
         try {
-          // IMPORTANT: We are proxying the request through our own API route to avoid exposing the API key to the client.
           const response = await fetch(`/api/places?input=${encodeURIComponent(debouncedValue)}`);
+          if (!response.ok) {
+            console.error('Failed to fetch address suggestions');
+            setSuggestions([]);
+            return;
+          }
           const data = await response.json();
           if (data.predictions) {
             setSuggestions(data.predictions);
@@ -59,15 +57,16 @@ const AddressInput: React.FC<AddressInputProps> = ({
     };
 
     fetchSuggestions();
-  }, [debouncedValue, apiKey]);
+  }, [debouncedValue]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   };
 
   const handleSuggestionClick = (suggestion: Suggestion) => {
-    setInputValue(suggestion.description);
-    onChange(suggestion.description);
+    const newAddress = suggestion.description;
+    setInputValue(newAddress); // Update internal state
+    onChange(newAddress); // Update parent state
     setSuggestions([]);
     setIsListVisible(false);
   };
@@ -78,7 +77,7 @@ const AddressInput: React.FC<AddressInputProps> = ({
         {...props}
         value={inputValue}
         onChange={handleInputChange}
-        onBlur={() => setTimeout(() => setIsListVisible(false), 100)} // Delay to allow click
+        onBlur={() => setTimeout(() => setIsListVisible(false), 200)} // Delay to allow click
         onFocus={() => setIsListVisible(true)}
         autoComplete="off"
       />
