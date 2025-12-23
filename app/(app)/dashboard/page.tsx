@@ -8,7 +8,7 @@ export default function DashboardPage() {
   const firestore = useFirestore();
   const { user } = useUser();
 
-  const handleRecreateAdmin = async () => {
+  const handleRecreateEducatore = async () => {
     if (!user || !firestore) {
       alert("Utente o database non trovato.");
       return;
@@ -22,10 +22,9 @@ export default function DashboardPage() {
         id: user.uid,
         email: user.email,
         displayName: user.email,
-        role: "admin",
-        roles: ["admin", "utente", "educatore"],
+        roles: ["utente", "educatore"],
       });
-      alert("Documento utente ricreato/aggiornato con successo come admin!");
+      alert("Documento utente ricreato/aggiornato con successo come educatore!");
     } catch (error) {
       console.error("Errore durante la creazione/aggiornamento del documento:", error);
       alert("Si è verificato un errore durante l'operazione.");
@@ -36,11 +35,11 @@ export default function DashboardPage() {
     <div>
       <h1 className="text-2xl font-bold">Dashboard</h1>
       <div className="mt-4">
-        <Button onClick={handleRecreateAdmin} variant="destructive">
-          (Temp) Ricrea Utente Admin
+        <Button onClick={handleRecreateEducatore} variant="destructive">
+          (Temp) Ricrea Utente Educatore
         </Button>
         <p className="text-sm text-muted-foreground mt-2">
-          Questo pulsante crea o sovrascrive il tuo documento utente con i permessi di admin.
+          Questo pulsante crea o sovrascrive il tuo documento utente con i permessi di educatore.
         </p>
       </div>
     </div>
