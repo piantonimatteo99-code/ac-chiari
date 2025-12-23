@@ -117,7 +117,6 @@ export default function DatiUtenteCard() {
         <CardTitle>I Miei Dati</CardTitle>
         <CardDescription>
           Visualizza e modifica le tue informazioni personali.
-          L'indirizzo di residenza è condiviso con tutto il tuo nucleo familiare.
         </CardDescription>
       </CardHeader>
       <CardContent>

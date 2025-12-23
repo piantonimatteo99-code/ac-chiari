@@ -25,7 +25,6 @@ import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/src/firebase';
 import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
-import { useUserData } from '@/src/hooks/use-user-data';
 
 export interface Familiare {
   id: string;
@@ -36,6 +35,11 @@ export interface Familiare {
   luogoNascita: string;
   telefonoPrincipale: string;
   telefonoSecondario: string;
+  via?: string;
+  numeroCivico?: string;
+  citta?: string;
+  provincia?: string;
+  cap?: string;
 }
 
 export default function NucleoFamiliarePage() {
@@ -43,7 +47,6 @@ export default function NucleoFamiliarePage() {
   const [editingFamiliare, setEditingFamiliare] = useState<Familiare | null>(null);
   const firestore = useFirestore();
   const { user } = useUser();
-  const { userData, isLoading: isUserDataLoading } = useUserData();
 
   const familiariQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -52,7 +55,7 @@ export default function NucleoFamiliarePage() {
 
   const { data: familiari, isLoading: isFamiliariLoading, error } = useCollection<Familiare>(familiariQuery);
   
-  const isLoading = isUserDataLoading || isFamiliariLoading;
+  const isLoading = isFamiliariLoading;
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -64,9 +67,8 @@ export default function NucleoFamiliarePage() {
     });
   }
   
-  const formatAddress = () => {
-    if (!userData) return 'Indirizzo non specificato';
-    const { via, numeroCivico, citta, provincia, cap } = userData;
+  const formatAddress = (familiare: Familiare) => {
+    const { via, numeroCivico, citta, provincia, cap } = familiare;
     if (!via || !citta) return 'Indirizzo non specificato';
     return `${via} ${numeroCivico}, ${cap} ${citta} (${provincia})`;
   }
@@ -135,7 +137,7 @@ export default function NucleoFamiliarePage() {
                   <TableRow key={familiare.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{familiare.nome} {familiare.cognome}</TableCell>
                     <TableCell>{formatDate(familiare.dataNascita)}</TableCell>
-                    <TableCell>{formatAddress()}</TableCell>
+                    <TableCell>{formatAddress(familiare)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-green-600 border-green-600">Attivo</Badge>
                     </TableCell>
