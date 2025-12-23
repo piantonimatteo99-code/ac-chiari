@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useFirestore, useUser } from "@/src/firebase";
 import { doc, setDoc } from "firebase/firestore";
+import DatiUtenteCard from "@/src/components/dati-utente-card";
 
 export default function DashboardPage() {
   const firestore = useFirestore();
@@ -32,12 +33,19 @@ export default function DashboardPage() {
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Dashboard</h1>
-      <div className="mt-4">
-        <Button onClick={handleRecreateEducatore} variant="destructive">
-          (Temp) Ricrea Utente Educatore
-        </Button>
+    <div className="flex flex-col gap-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div>
+            <Button onClick={handleRecreateEducatore} variant="destructive">
+              (Temp) Ricrea Utente Educatore
+            </Button>
+        </div>
+      </div>
+       <div className="grid gap-4 md:grid-cols-2">
+        <DatiUtenteCard />
+      </div>
+      <div>
         <p className="text-sm text-muted-foreground mt-2">
           Questo pulsante crea o sovrascrive il tuo documento utente con i permessi di educatore.
         </p>
