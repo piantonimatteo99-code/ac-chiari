@@ -49,23 +49,28 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
   useEffect(() => {
     if (isOpen) {
       if (isEditing && familiareToEdit) {
+        // Since address fields are split now, we handle them directly.
+        const addressData = {
+          via: (familiareToEdit as any).via || '',
+          numeroCivico: (familiareToEdit as any).numeroCivico || '',
+          citta: (familiareToEdit as any).citta || '',
+          provincia: (familiareToEdit as any).provincia || '',
+          cap: (familiareToEdit as any).cap || '',
+        };
         setFormData({
           nome: familiareToEdit.nome || '',
           cognome: familiareToEdit.cognome || '',
           dataNascita: familiareToEdit.dataNascita || '',
           codiceFiscale: familiareToEdit.codiceFiscale || '',
           luogoNascita: familiareToEdit.luogoNascita || '',
-          via: (familiareToEdit as any).via || '',
-          numeroCivico: (familiareToEdit as any).numeroCivico || '',
-          citta: (familiareToEdit as any).citta || '',
-          provincia: (familiareToEdit as any).provincia || '',
-          cap: (familiareToEdit as any).cap || '',
+          ...addressData,
           telefonoPrincipale: familiareToEdit.telefonoPrincipale || '',
           telefonoSecondario: familiareToEdit.telefonoSecondario || '',
         });
       } else {
         setFormData(initialState);
       }
+       setError(null);
     }
   }, [familiareToEdit, isEditing, isOpen]);
 
@@ -166,25 +171,25 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
           <div className="grid grid-cols-5 gap-4">
               <div className="col-span-3 grid gap-2">
                   <Label htmlFor="via">Via</Label>
-                  <Input id="via" value={formData.via} onChange={handleChange} />
+                  <Input id="via" value={formData.via} onChange={handleChange} disabled />
               </div>
               <div className="col-span-2 grid gap-2">
                   <Label htmlFor="numeroCivico">Numero Civico</Label>
-                  <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} />
+                  <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} disabled />
               </div>
           </div>
            <div className="grid grid-cols-5 gap-4">
               <div className="col-span-3 grid gap-2">
                   <Label htmlFor="citta">Città</Label>
-                  <Input id="citta" value={formData.citta} onChange={handleChange} />
+                  <Input id="citta" value={formData.citta} onChange={handleChange} disabled />
               </div>
                <div className="grid gap-2">
                   <Label htmlFor="provincia">Provincia</Label>
-                  <Input id="provincia" value={formData.provincia} onChange={handleChange} />
+                  <Input id="provincia" value={formData.provincia} onChange={handleChange} disabled />
               </div>
                <div className="grid gap-2">
                   <Label htmlFor="cap">CAP</Label>
-                  <Input id="cap" value={formData.cap} onChange={handleChange} />
+                  <Input id="cap" value={formData.cap} onChange={handleChange} disabled />
               </div>
             </div>
 

@@ -160,26 +160,26 @@ export default function DatiUtenteCard() {
             <div className="grid grid-cols-5 gap-4">
               <div className="col-span-3 grid gap-2">
                   <Label htmlFor="via">Via</Label>
-                  <Input id="via" value={formData.via} onChange={handleChange} disabled={!isEditing} />
+                  <Input id="via" value={formData.via} onChange={handleChange} disabled />
               </div>
               <div className="col-span-2 grid gap-2">
                   <Label htmlFor="numeroCivico">Numero Civico</Label>
-                  <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} disabled={!isEditing} />
+                  <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} disabled />
               </div>
             </div>
 
             <div className="grid grid-cols-5 gap-4">
               <div className="col-span-3 grid gap-2">
                   <Label htmlFor="citta">Città</Label>
-                  <Input id="citta" value={formData.citta} onChange={handleChange} disabled={!isEditing} />
+                  <Input id="citta" value={formData.citta} onChange={handleChange} disabled />
               </div>
                <div className="grid gap-2">
                   <Label htmlFor="provincia">Provincia</Label>
-                  <Input id="provincia" value={formData.provincia} onChange={handleChange} disabled={!isEditing} />
+                  <Input id="provincia" value={formData.provincia} onChange={handleChange} disabled />
               </div>
                <div className="grid gap-2">
                   <Label htmlFor="cap">CAP</Label>
-                  <Input id="cap" value={formData.cap} onChange={handleChange} disabled={!isEditing} />
+                  <Input id="cap" value={formData.cap} onChange={handleChange} disabled />
               </div>
             </div>
 

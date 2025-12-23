@@ -52,6 +52,7 @@ export function AddressInput({ onAddressSelect, disabled }: AddressInputProps) {
   }, [debouncedQuery, disabled]);
 
   const handleSelectSuggestion = async (placeId: string) => {
+    // Clear query and suggestions for a clean UI
     setQuery('');
     setSuggestions([]);
     
@@ -86,7 +87,6 @@ export function AddressInput({ onAddressSelect, disabled }: AddressInputProps) {
         placeholder="Inizia a digitare un indirizzo..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => {if (debouncedQuery.length > 2) setSuggestions([])}}
         autoComplete="off"
         disabled={disabled}
       />

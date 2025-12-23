@@ -31,8 +31,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to fetch place details' }, { status: detailsResponse.status });
       }
       const detailsData = await detailsResponse.json();
-      const addressComponents = detailsData.result.address_components;
+      
+      if (!detailsData.result || !detailsData.result.address_components) {
+        return NextResponse.json({ error: 'Invalid place details response' }, { status: 500 });
+      }
 
+      const addressComponents = detailsData.result.address_components;
       const getComponent = (type: string) => addressComponents.find((c: any) => c.types.includes(type))?.long_name || '';
 
       const parsedAddress = {
