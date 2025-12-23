@@ -67,6 +67,12 @@ service cloud.firestore {
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
+    
+    match /familiari/{familiareId} {
+        allow get, list: if isSignedIn() && resource.data.registratoDa == request.auth.uid;
+        allow create: if isSignedIn() && request.resource.data.registratoDa == request.auth.uid;
+        allow update, delete: if isSignedIn() && resource.data.registratoDa == request.auth.uid;
+    }
 
     /**
      * @description Defines rules for the public categories collection. This data is readable by anyone but is not writable from the client.
