@@ -13,8 +13,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUserData } from "@/src/hooks/use-user-data";
-import { useFirestore } from "@/src/firebase";
-import { doc, updateDoc } from 'firebase/firestore';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/src/firebase";
+import { doc, updateDoc, collection, query, where, orderBy } from 'firebase/firestore';
+import type { Familiare } from '@/app/(app)/nucleo-familiare/page';
 
 const initialState = {
   nome: '',
@@ -37,32 +38,80 @@ const capitalizeWords = (str: string) => {
 };
 
 export default function DatiUtenteCard() {
-  const { userData, isLoading } = useUserData();
+  const { userData, isLoading: isUserLoading } = useUserData();
   const firestore = useFirestore();
+  const { user } = useUser();
   const [formData, setFormData] = useState(initialState);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const familiariQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(collection(firestore, 'familiari'), where('registratoDa', '==', user.uid), orderBy('createdAt', 'desc'));
+  }, [user, firestore]);
+
+  const { data: familiari, isLoading: isFamiliariLoading } = useCollection<Familiare>(familiariQuery);
+
   useEffect(() => {
     if (userData) {
-      setFormData({
-        nome: userData.nome || '',
-        cognome: userData.cognome || '',
-        dataNascita: userData.dataNascita || '',
-        codiceFiscale: userData.codiceFiscale || '',
-        luogoNascita: userData.luogoNascita || '',
-        via: userData.via || '',
-        numeroCivico: userData.numeroCivico || '',
-        citta: userData.citta || '',
-        provincia: userData.provincia || '',
-        cap: userData.cap || '',
-        telefonoPrincipale: userData.telefonoPrincipale || '',
-        telefonoSecondario: userData.telefonoSecondario || '',
-      });
+      // Check if user data has an address
+      const userHasAddress = userData.via && userData.citta;
+
+      if(userHasAddress) {
+        setFormData({
+            nome: userData.nome || '',
+            cognome: userData.cognome || '',
+            dataNascita: userData.dataNascita || '',
+            codiceFiscale: userData.codiceFiscale || '',
+            luogoNascita: userData.luogoNascita || '',
+            via: userData.via || '',
+            numeroCivico: userData.numeroCivico || '',
+            citta: userData.citta || '',
+            provincia: userData.provincia || '',
+            cap: userData.cap || '',
+            telefonoPrincipale: userData.telefonoPrincipale || '',
+            telefonoSecondario: userData.telefonoSecondario || '',
+        });
+      } else if (familiari && familiari.length > 0) {
+        // If user has no address, try to get it from the last added familiare
+         const lastFamiliareWithAddress = familiari.find(f => f.via && f.citta);
+         if (lastFamiliareWithAddress) {
+            setFormData({
+                nome: userData.nome || '',
+                cognome: userData.cognome || '',
+                dataNascita: userData.dataNascita || '',
+                codiceFiscale: userData.codiceFiscale || '',
+                luogoNascita: userData.luogoNascita || '',
+                via: lastFamiliareWithAddress.via || '',
+                numeroCivico: lastFamiliareWithAddress.numeroCivico || '',
+                citta: lastFamiliareWithAddress.citta || '',
+                provincia: lastFamiliareWithAddress.provincia || '',
+                cap: lastFamiliareWithAddress.cap || '',
+                telefonoPrincipale: userData.telefonoPrincipale || '',
+                telefonoSecondario: userData.telefonoSecondario || '',
+            });
+         }
+      } else {
+        // Fallback to just user data without address
+         setFormData({
+            nome: userData.nome || '',
+            cognome: userData.cognome || '',
+            dataNascita: userData.dataNascita || '',
+            codiceFiscale: userData.codiceFiscale || '',
+            luogoNascita: userData.luogoNascita || '',
+            via: userData.via || '',
+            numeroCivico: userData.numeroCivico || '',
+            citta: userData.citta || '',
+            provincia: userData.provincia || '',
+            cap: userData.cap || '',
+            telefonoPrincipale: userData.telefonoPrincipale || '',
+            telefonoSecondario: userData.telefonoSecondario || '',
+        });
+      }
       setEmail(userData.email || '');
     }
-  }, [userData]);
+  }, [userData, familiari]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -110,6 +159,8 @@ export default function DatiUtenteCard() {
       setError("Si è verificato un errore durante l'aggiornamento.");
     }
   };
+  
+  const isLoading = isUserLoading || isFamiliariLoading;
 
   return (
     <Card>

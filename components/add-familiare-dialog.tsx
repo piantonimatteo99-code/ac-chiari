@@ -14,21 +14,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFirestore, useUser } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-import type { Familiare as FamiliareBase } from '@/app/(app)/nucleo-familiare/page';
+import type { Familiare as FamiliareBase, DefaultAddress } from '@/app/(app)/nucleo-familiare/page';
 
 // Extend base to include address
 interface Familiare extends FamiliareBase {
-  via?: string;
-  numeroCivico?: string;
-  citta?: string;
-  provincia?: string;
-  cap?: string;
+  via: string;
+  numeroCivico: string;
+  citta: string;
+  provincia: string;
+  cap: string;
 }
 
 interface AddFamiliareDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   familiareToEdit?: Familiare | null;
+  defaultAddress?: DefaultAddress;
 }
 
 const initialState: Omit<Familiare, 'id'> = {
@@ -51,7 +52,7 @@ const capitalizeWords = (str: string) => {
   return str.replace(/\b\w/g, char => char.toUpperCase());
 };
 
-export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: AddFamiliareDialogProps) {
+export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, defaultAddress }: AddFamiliareDialogProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const [formData, setFormData] = useState(initialState);
@@ -77,11 +78,19 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
           cap: familiareToEdit.cap || '',
         });
       } else {
-        setFormData(initialState);
+        // Not editing, so we are adding a new familiare
+        setFormData({
+          ...initialState,
+          via: defaultAddress?.via || '',
+          numeroCivico: defaultAddress?.numeroCivico || '',
+          citta: defaultAddress?.citta || '',
+          provincia: defaultAddress?.provincia || '',
+          cap: defaultAddress?.cap || '',
+        });
       }
        setError(null);
     }
-  }, [familiareToEdit, isEditing, isOpen]);
+  }, [familiareToEdit, isEditing, isOpen, defaultAddress]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;

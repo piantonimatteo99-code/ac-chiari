@@ -24,7 +24,8 @@ import {
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, doc, deleteDoc, orderBy } from 'firebase/firestore';
+import { useUserData } from '@/src/hooks/use-user-data';
 
 export interface Familiare {
   id: string;
@@ -35,6 +36,15 @@ export interface Familiare {
   luogoNascita: string;
   telefonoPrincipale: string;
   telefonoSecondario: string;
+  via: string;
+  numeroCivico: string;
+  citta: string;
+  provincia: string;
+  cap: string;
+  createdAt?: any;
+}
+
+export interface DefaultAddress {
   via?: string;
   numeroCivico?: string;
   citta?: string;
@@ -47,15 +57,41 @@ export default function NucleoFamiliarePage() {
   const [editingFamiliare, setEditingFamiliare] = useState<Familiare | null>(null);
   const firestore = useFirestore();
   const { user } = useUser();
+  const { userData } = useUserData();
 
   const familiariQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    return query(collection(firestore, 'familiari'), where('registratoDa', '==', user.uid));
+    return query(collection(firestore, 'familiari'), where('registratoDa', '==', user.uid), orderBy('createdAt', 'desc'));
   }, [user, firestore]);
 
   const { data: familiari, isLoading: isFamiliariLoading, error } = useCollection<Familiare>(familiariQuery);
   
   const isLoading = isFamiliariLoading;
+
+  const getDefaultAddress = (): DefaultAddress | undefined => {
+    if (userData?.via && userData?.citta) {
+      return {
+        via: userData.via,
+        numeroCivico: userData.numeroCivico,
+        citta: userData.citta,
+        provincia: userData.provincia,
+        cap: userData.cap,
+      };
+    }
+    if (familiari && familiari.length > 0) {
+      const lastFamiliareWithAddress = familiari.find(f => f.via && f.citta);
+      if (lastFamiliareWithAddress) {
+        return {
+          via: lastFamiliareWithAddress.via,
+          numeroCivico: lastFamiliareWithAddress.numeroCivico,
+          citta: lastFamiliareWithAddress.citta,
+          provincia: lastFamiliareWithAddress.provincia,
+          cap: lastFamiliareWithAddress.cap,
+        };
+      }
+    }
+    return undefined;
+  };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -70,7 +106,7 @@ export default function NucleoFamiliarePage() {
   const formatAddress = (familiare: Familiare) => {
     const { via, numeroCivico, citta, provincia, cap } = familiare;
     if (!via || !citta) return 'Indirizzo non specificato';
-    return `${via} ${numeroCivico}, ${cap} ${citta} (${provincia})`;
+    return `${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`;
   }
 
   const handleEdit = (familiare: Familiare) => {
@@ -109,6 +145,7 @@ export default function NucleoFamiliarePage() {
         isOpen={isDialogOpen} 
         onOpenChange={setIsDialogOpen}
         familiareToEdit={editingFamiliare}
+        defaultAddress={getDefaultAddress()}
        />
       <Card>
         <CardContent className="p-0">
