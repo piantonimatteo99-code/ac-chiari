@@ -19,10 +19,11 @@ export default function DashboardPage() {
     try {
       // Aggiorna il documento per rispecchiare la struttura dell'immagine
       await updateDoc(userDocRef, {
+        displayName: user.email,
         role: "admin",
         roles: ["admin", "utente", "educatore"],
       });
-      alert("Ruolo aggiornato ad admin con successo! Potrebbe essere necessario ricaricare la pagina per vedere le modifiche.");
+      alert("Ruolo e displayName aggiornati con successo! Potrebbe essere necessario ricaricare la pagina per vedere le modifiche.");
     } catch (error) {
       console.error("Errore durante l'aggiornamento del ruolo:", error);
       alert("Si è verificato un errore durante l'aggiornamento del ruolo.");
