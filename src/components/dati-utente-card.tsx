@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useUserData } from "@/src/hooks/use-user-data";
 import { useFirestore } from "@/src/firebase";
 import { doc, updateDoc } from 'firebase/firestore';
+import AddressInput from './address-input';
 
 const initialState = {
   nome: '',
@@ -55,6 +56,10 @@ export default function DatiUtenteCard() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleAddressChange = (address: string) => {
+    setFormData((prev) => ({ ...prev, indirizzo: address }));
   };
 
   const handleSave = async () => {
@@ -132,7 +137,12 @@ export default function DatiUtenteCard() {
             </div>
              <div className="grid gap-2">
                 <Label htmlFor="indirizzo">Indirizzo</Label>
-                <Input id="indirizzo" value={formData.indirizzo} onChange={handleChange} disabled={!isEditing} />
+                <AddressInput
+                    id="indirizzo"
+                    value={formData.indirizzo}
+                    onChange={handleAddressChange}
+                    disabled={!isEditing}
+                />
             </div>
              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">

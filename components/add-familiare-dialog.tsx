@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { useFirestore, useUser } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import type { Familiare } from '@/app/(app)/nucleo-familiare/page';
+import AddressInput from '../src/components/address-input';
 
 interface AddFamiliareDialogProps {
   isOpen: boolean;
@@ -64,6 +65,10 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleAddressChange = (address: string) => {
+    setFormData((prev) => ({ ...prev, indirizzo: address }));
   };
 
   const handleClose = () => {
@@ -155,7 +160,12 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
             <Label htmlFor="indirizzo" className="text-right">
               Indirizzo
             </Label>
-            <Input id="indirizzo" value={formData.indirizzo} onChange={handleChange} className="col-span-3" />
+             <AddressInput
+                id="indirizzo"
+                value={formData.indirizzo}
+                onChange={handleAddressChange}
+                className="col-span-3"
+            />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="telefonoPrincipale" className="text-right">
