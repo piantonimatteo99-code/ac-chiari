@@ -109,9 +109,9 @@ export default function NucleoFamiliarePage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>Edit</DropdownMenuItem>
-                          <DropdownMenuItem>Delete</DropdownMenuItem>
+                          <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+                          <DropdownMenuItem>Modifica</DropdownMenuItem>
+                          <DropdownMenuItem>Elimina</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
