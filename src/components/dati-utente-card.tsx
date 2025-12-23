@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,7 +15,20 @@ import { Label } from "@/components/ui/label";
 import { useUserData } from "@/src/hooks/use-user-data";
 import { useFirestore } from "@/src/firebase";
 import { doc, updateDoc } from 'firebase/firestore';
-import { AddressInput } from './address-input';
+import { useDebounce } from 'use-debounce';
+
+interface AddressSuggestion {
+  description: string;
+  place_id: string;
+}
+
+interface ParsedAddress {
+    via: string;
+    numeroCivico: string;
+    citta: string;
+    provincia: string;
+    cap: string;
+}
 
 const initialState = {
   nome: '',
@@ -41,6 +54,12 @@ export default function DatiUtenteCard() {
   const [success, setSuccess] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
+  const [addressQuery, setAddressQuery] = useState('');
+  const [debouncedAddressQuery] = useDebounce(addressQuery, 500);
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+
   useEffect(() => {
     if (userData) {
       setFormData({
@@ -61,21 +80,71 @@ export default function DatiUtenteCard() {
     }
   }, [userData]);
 
+  // Effect for fetching address suggestions
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (debouncedAddressQuery.length < 3 || !isEditing) {
+        setSuggestions([]);
+        return;
+      }
+      try {
+        const response = await fetch(`/api/places?input=${debouncedAddressQuery}`);
+        if (!response.ok) throw new Error('Failed to fetch');
+        const data = await response.json();
+        setSuggestions(data);
+      } catch (error) {
+        console.error('Error fetching address suggestions:', error);
+        setSuggestions([]);
+      }
+    };
+
+    fetchSuggestions();
+  }, [debouncedAddressQuery, isEditing]);
+  
+  // Click outside handler for suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setSuggestions([]);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
-  };
 
-  const handleAddressSelect = (address: { via: string; numeroCivico: string; citta: string; provincia: string; cap: string; }) => {
-    setFormData(prev => ({
-        ...prev,
-        via: address.via,
-        numeroCivico: address.numeroCivico,
-        citta: address.citta,
-        provincia: address.provincia,
-        cap: address.cap,
-    }));
-  }
+    // Update address query for suggestions
+    const addressFields = ['via', 'numeroCivico', 'citta'];
+    if (isEditing && addressFields.includes(id)) {
+        const newQueryParts = {
+            citta: id === 'citta' ? value : formData.citta,
+            via: id === 'via' ? value : formData.via,
+            numeroCivico: id === 'numeroCivico' ? value : formData.numeroCivico
+        };
+        const newQuery = `${newQueryParts.via} ${newQueryParts.numeroCivico}, ${newQueryParts.citta}`.trim();
+        setAddressQuery(newQuery);
+    }
+  };
+  
+  const handleSelectSuggestion = async (placeId: string) => {
+    setSuggestions([]);
+    try {
+        const response = await fetch(`/api/places?placeId=${placeId}`);
+        if(!response.ok) throw new Error('Failed to fetch place details');
+        const data: ParsedAddress = await response.json();
+        setFormData(prev => ({
+            ...prev,
+            ...data
+        }));
+    } catch(error) {
+        console.error('Error fetching place details:', error);
+    }
+  };
 
   const handleSave = async () => {
     if (!userData || !firestore) {
@@ -119,6 +188,7 @@ export default function DatiUtenteCard() {
     setIsEditing(false);
     setError(null);
     setSuccess(null);
+    setSuggestions([]);
   }
 
   return (
@@ -155,32 +225,47 @@ export default function DatiUtenteCard() {
                 <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} disabled={!isEditing} />
             </div>
             
-            <AddressInput onAddressSelect={handleAddressSelect} disabled={!isEditing} />
+            <div className="relative space-y-4" ref={suggestionsRef}>
+              <div className="grid grid-cols-5 gap-4">
+                  <div className="col-span-3 grid gap-2">
+                      <Label htmlFor="citta">Città</Label>
+                      <Input id="citta" value={formData.citta} onChange={handleChange} disabled={!isEditing} autoComplete="off"/>
+                  </div>
+                  <div className="grid gap-2">
+                      <Label htmlFor="provincia">Prov.</Label>
+                      <Input id="provincia" value={formData.provincia} onChange={handleChange} disabled={!isEditing} />
+                  </div>
+                  <div className="grid gap-2">
+                      <Label htmlFor="cap">CAP</Label>
+                      <Input id="cap" value={formData.cap} onChange={handleChange} disabled={!isEditing} />
+                  </div>
+              </div>
 
-            <div className="grid grid-cols-5 gap-4">
-              <div className="col-span-3 grid gap-2">
-                  <Label htmlFor="via">Via</Label>
-                  <Input id="via" value={formData.via} onChange={handleChange} disabled />
+              <div className="grid grid-cols-5 gap-4">
+                  <div className="col-span-4 grid gap-2">
+                      <Label htmlFor="via">Via</Label>
+                      <Input id="via" value={formData.via} onChange={handleChange} disabled={!isEditing} autoComplete="off" />
+                  </div>
+                  <div className="col-span-1 grid gap-2">
+                      <Label htmlFor="numeroCivico">N.</Label>
+                      <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} disabled={!isEditing} autoComplete="off" />
+                  </div>
               </div>
-              <div className="col-span-2 grid gap-2">
-                  <Label htmlFor="numeroCivico">Numero Civico</Label>
-                  <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} disabled />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-5 gap-4">
-              <div className="col-span-3 grid gap-2">
-                  <Label htmlFor="citta">Città</Label>
-                  <Input id="citta" value={formData.citta} onChange={handleChange} disabled />
-              </div>
-               <div className="grid gap-2">
-                  <Label htmlFor="provincia">Provincia</Label>
-                  <Input id="provincia" value={formData.provincia} onChange={handleChange} disabled />
-              </div>
-               <div className="grid gap-2">
-                  <Label htmlFor="cap">CAP</Label>
-                  <Input id="cap" value={formData.cap} onChange={handleChange} disabled />
-              </div>
+              {isEditing && suggestions.length > 0 && (
+                <div className="absolute top-full mt-1 w-full bg-background border border-border rounded-md shadow-lg z-10">
+                  <ul className="py-1">
+                    {suggestions.map((suggestion) => (
+                      <li
+                        key={suggestion.place_id}
+                        className="px-3 py-2 cursor-pointer hover:bg-accent"
+                        onMouseDown={() => handleSelectSuggestion(suggestion.place_id)}
+                      >
+                        {suggestion.description}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
              <div className="grid grid-cols-2 gap-4">
