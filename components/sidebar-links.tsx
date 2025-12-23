@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Landmark, Building, Shield, User } from 'lucide-react';
+import { Home, Users, Landmark, Building, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useUserData } from '@/src/hooks/use-user-data';
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -16,6 +17,9 @@ const adminItems = [{ href: '/admin', icon: Shield, label: 'Admin Panel' }];
 
 export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean }) {
   const pathname = usePathname();
+  const { userData } = useUserData();
+
+  const isAdmin = userData?.roles?.includes('admin');
 
   const renderLink = (item: typeof navItems[0]) => {
     const isActive = pathname.startsWith(item.href);
@@ -39,9 +43,11 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
   return (
     <div className="flex flex-col gap-2">
       {navItems.map(renderLink)}
-      <div className="mt-auto pt-4">
-        {adminItems.map(renderLink)}
-      </div>
+      {isAdmin && (
+        <div className="mt-auto pt-4">
+          {adminItems.map(renderLink)}
+        </div>
+      )}
     </div>
   );
 }
