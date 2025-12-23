@@ -31,6 +31,11 @@ const initialState = {
   telefonoSecondario: '',
 };
 
+const capitalizeWords = (str: string) => {
+    if (!str) return '';
+    return str.replace(/\b\w/g, char => char.toUpperCase());
+};
+
 export default function DatiUtenteCard() {
   const { userData, isLoading } = useUserData();
   const firestore = useFirestore();
@@ -61,7 +66,27 @@ export default function DatiUtenteCard() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
+    let formattedValue = value;
+
+    switch (id) {
+        case 'codiceFiscale':
+            formattedValue = value.toUpperCase();
+            break;
+        case 'nome':
+        case 'cognome':
+        case 'luogoNascita':
+        case 'citta':
+        case 'via':
+            formattedValue = capitalizeWords(value);
+            break;
+        case 'provincia':
+             formattedValue = value.toUpperCase();
+             break;
+        default:
+            break;
+    }
+    
+    setFormData((prev) => ({ ...prev, [id]: formattedValue }));
   };
 
   const handleSave = async () => {
@@ -128,7 +153,7 @@ export default function DatiUtenteCard() {
                   </div>
                   <div className="grid gap-2">
                       <Label htmlFor="provincia">Prov.</Label>
-                      <Input id="provincia" value={formData.provincia} onChange={handleChange} />
+                      <Input id="provincia" value={formData.provincia} onChange={handleChange} maxLength={2} />
                   </div>
                   <div className="grid gap-2">
                       <Label htmlFor="cap">CAP</Label>
