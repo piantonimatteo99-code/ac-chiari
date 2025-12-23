@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,16 +26,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
+import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 
 export default function NucleoFamiliarePage() {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Nucleo Familiare</h1>
-        <Button>
+        <Button onClick={() => setIsDialogOpen(true)}>
           <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Familiare
         </Button>
       </div>
+      <AddFamiliareDialog isOpen={isDialogOpen} onOpenChange={setIsDialogOpen} />
       <Card>
         <CardContent className="p-0">
           <Table>

@@ -44,6 +44,69 @@
         "roles",
         "createdAt"
       ]
+    },
+    "Familiare": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Familiare",
+      "type": "object",
+      "description": "Represents a family member of a user.",
+      "properties": {
+        "nome": {
+          "type": "string",
+          "description": "First name of the family member."
+        },
+        "cognome": {
+          "type": "string",
+          "description": "Last name of the family member."
+        },
+        "dataNascita": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of birth."
+        },
+        "codiceFiscale": {
+          "type": "string",
+          "description": "Italian fiscal code."
+        },
+        "luogoNascita": {
+          "type": "string",
+          "description": "Place of birth."
+        },
+        "indirizzo": {
+          "type": "string",
+          "description": "Full address."
+        },
+        "telefonoPrincipale": {
+          "type": "string",
+          "description": "Primary phone number."
+        },
+        "telefonoSecondario": {
+          "type": "string",
+          "description": "Secondary phone number."
+        },
+        "registratoDa": {
+          "type": "string",
+          "description": "The UID of the user who registered this family member."
+        },
+        "emailRiferimento": {
+          "type": "string",
+          "format": "email",
+          "description": "The email of the user who registered this family member."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the family member document was created."
+        }
+      },
+      "required": [
+        "nome",
+        "cognome",
+        "dataNascita",
+        "registratoDa",
+        "emailRiferimento",
+        "createdAt"
+      ]
     }
   },
   "auth": {
@@ -66,6 +129,10 @@
       {
         "path": "/familiari/{familiareId}",
         "definition": {
+          "entityName": "Familiare",
+          "schema": {
+            "$ref": "#/entities/Familiare"
+          },
           "description": "Collection to store family members."
         }
       },
