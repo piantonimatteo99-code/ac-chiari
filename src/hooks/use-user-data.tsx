@@ -18,7 +18,11 @@ export interface UserData {
     dataNascita?: string;
     codiceFiscale?: string;
     luogoNascita?: string;
-    indirizzo?: string;
+    via?: string;
+    numeroCivico?: string;
+    citta?: string;
+    provincia?: string;
+    cap?: string;
     telefonoPrincipale?: string;
     telefonoSecondario?: string;
 }

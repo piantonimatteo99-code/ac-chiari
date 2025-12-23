@@ -15,7 +15,6 @@ import { Label } from '@/components/ui/label';
 import { useFirestore, useUser } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import type { Familiare } from '@/app/(app)/nucleo-familiare/page';
-import AddressInput from '../src/components/address-input';
 
 interface AddFamiliareDialogProps {
   isOpen: boolean;
@@ -29,7 +28,11 @@ const initialState = {
   dataNascita: '',
   codiceFiscale: '',
   luogoNascita: '',
-  indirizzo: '',
+  via: '',
+  numeroCivico: '',
+  citta: '',
+  provincia: '',
+  cap: '',
   telefonoPrincipale: '',
   telefonoSecondario: '',
 };
@@ -43,20 +46,22 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
   const isEditing = familiareToEdit != null;
 
   useEffect(() => {
-    if (isEditing) {
-      // If we are editing, pre-fill the form with existing data
+    if (isEditing && familiareToEdit) {
       setFormData({
-        nome: familiareToEdit.nome,
-        cognome: familiareToEdit.cognome,
-        dataNascita: familiareToEdit.dataNascita,
+        nome: familiareToEdit.nome || '',
+        cognome: familiareToEdit.cognome || '',
+        dataNascita: familiareToEdit.dataNascita || '',
         codiceFiscale: familiareToEdit.codiceFiscale || '',
         luogoNascita: familiareToEdit.luogoNascita || '',
-        indirizzo: familiareToEdit.indirizzo || '',
+        via: (familiareToEdit as any).via || '',
+        numeroCivico: (familiareToEdit as any).numeroCivico || '',
+        citta: (familiareToEdit as any).citta || '',
+        provincia: (familiareToEdit as any).provincia || '',
+        cap: (familiareToEdit as any).cap || '',
         telefonoPrincipale: familiareToEdit.telefonoPrincipale || '',
         telefonoSecondario: familiareToEdit.telefonoSecondario || '',
       });
     } else {
-      // If adding a new one, reset the form
       setFormData(initialState);
     }
   }, [familiareToEdit, isOpen]);
@@ -65,10 +70,6 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
-  };
-
-  const handleAddressChange = (address: string) => {
-    setFormData((prev) => ({ ...prev, indirizzo: address }));
   };
 
   const handleClose = () => {
@@ -88,15 +89,12 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
     }
 
     try {
-      if(isEditing) {
-        // Update existing document
+      if(isEditing && familiareToEdit) {
         const docRef = doc(firestore, 'familiari', familiareToEdit.id);
         await updateDoc(docRef, {
             ...formData,
-            // You might want to add an updatedAt field here
         });
       } else {
-        // Create new document
         const familiariCollection = collection(firestore, 'familiari');
         await addDoc(familiariCollection, {
             ...formData,
@@ -115,7 +113,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[475px]">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Modifica Familiare' : 'Aggiungi Familiare'}</DialogTitle>
           <DialogDescription>
@@ -126,58 +124,63 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="nome" className="text-right">
-              Nome
-            </Label>
-            <Input id="nome" value={formData.nome} onChange={handleChange} className="col-span-3" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="nome">Nome</Label>
+              <Input id="nome" value={formData.nome} onChange={handleChange} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cognome">Cognome</Label>
+              <Input id="cognome" value={formData.cognome} onChange={handleChange} />
+            </div>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="cognome" className="text-right">
-              Cognome
-            </Label>
-            <Input id="cognome" value={formData.cognome} onChange={handleChange} className="col-span-3" />
+          <div className="grid gap-2">
+            <Label htmlFor="dataNascita">Data di Nascita</Label>
+            <Input id="dataNascita" type="date" value={formData.dataNascita} onChange={handleChange} />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="dataNascita" className="text-right">
-              Data di Nascita
-            </Label>
-            <Input id="dataNascita" type="date" value={formData.dataNascita} onChange={handleChange} className="col-span-3" />
+          <div className="grid gap-2">
+            <Label htmlFor="codiceFiscale">Codice Fiscale</Label>
+            <Input id="codiceFiscale" value={formData.codiceFiscale} onChange={handleChange} />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="codiceFiscale" className="text-right">
-              Codice Fiscale
-            </Label>
-            <Input id="codiceFiscale" value={formData.codiceFiscale} onChange={handleChange} className="col-span-3" />
+          <div className="grid gap-2">
+            <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
+            <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="luogoNascita" className="text-right">
-              Luogo di Nascita
-            </Label>
-            <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} className="col-span-3" />
+
+          <div className="grid grid-cols-5 gap-4">
+              <div className="col-span-3 grid gap-2">
+                  <Label htmlFor="via">Via</Label>
+                  <Input id="via" value={formData.via} onChange={handleChange} />
+              </div>
+              <div className="col-span-2 grid gap-2">
+                  <Label htmlFor="numeroCivico">Numero Civico</Label>
+                  <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} />
+              </div>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="indirizzo" className="text-right">
-              Indirizzo
-            </Label>
-             <AddressInput
-                id="indirizzo"
-                value={formData.indirizzo}
-                onChange={handleAddressChange}
-                className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="telefonoPrincipale" className="text-right">
-              Tel. Principale
-            </Label>
-            <Input id="telefonoPrincipale" value={formData.telefonoPrincipale} onChange={handleChange} className="col-span-3" />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="telefonoSecondario" className="text-right">
-              Tel. Secondario
-            </Label>
-            <Input id="telefonoSecondario" value={formData.telefonoSecondario} onChange={handleChange} className="col-span-3" />
+           <div className="grid grid-cols-5 gap-4">
+              <div className="col-span-3 grid gap-2">
+                  <Label htmlFor="citta">Città</Label>
+                  <Input id="citta" value={formData.citta} onChange={handleChange} />
+              </div>
+               <div className="grid gap-2">
+                  <Label htmlFor="provincia">Provincia</Label>
+                  <Input id="provincia" value={formData.provincia} onChange={handleChange} />
+              </div>
+               <div className="grid gap-2">
+                  <Label htmlFor="cap">CAP</Label>
+                  <Input id="cap" value={formData.cap} onChange={handleChange} />
+              </div>
+            </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="telefonoPrincipale">Tel. Principale</Label>
+              <Input id="telefonoPrincipale" value={formData.telefonoPrincipale} onChange={handleChange} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="telefonoSecondario">Tel. Secondario</Label>
+              <Input id="telefonoSecondario" value={formData.telefonoSecondario} onChange={handleChange} />
+            </div>
           </div>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}

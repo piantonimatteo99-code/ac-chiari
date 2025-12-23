@@ -40,9 +40,25 @@
           "type": "string",
           "description": "Place of birth."
         },
-        "indirizzo": {
+        "via": {
           "type": "string",
-          "description": "Full address."
+          "description": "Street name."
+        },
+        "numeroCivico": {
+          "type": "string",
+          "description": "Street number."
+        },
+        "citta": {
+          "type": "string",
+          "description": "City."
+        },
+        "provincia": {
+          "type": "string",
+          "description": "Province (e.g., 'BS')."
+        },
+        "cap": {
+          "type": "string",
+          "description": "Postal code (ZIP code)."
         },
         "telefonoPrincipale": {
           "type": "string",
@@ -107,9 +123,25 @@
           "type": "string",
           "description": "Place of birth."
         },
-        "indirizzo": {
+        "via": {
           "type": "string",
-          "description": "Full address."
+          "description": "Street name."
+        },
+        "numeroCivico": {
+          "type": "string",
+          "description": "Street number."
+        },
+        "citta": {
+          "type": "string",
+          "description": "City."
+        },
+        "provincia": {
+          "type": "string",
+          "description": "Province (e.g., 'BS')."
+        },
+        "cap": {
+          "type": "string",
+          "description": "Postal code (ZIP code)."
         },
         "telefonoPrincipale": {
           "type": "string",

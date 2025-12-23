@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { useUserData } from "@/src/hooks/use-user-data";
 import { useFirestore } from "@/src/firebase";
 import { doc, updateDoc } from 'firebase/firestore';
-import AddressInput from './address-input';
 
 const initialState = {
   nome: '',
@@ -23,7 +22,11 @@ const initialState = {
   dataNascita: '',
   codiceFiscale: '',
   luogoNascita: '',
-  indirizzo: '',
+  via: '',
+  numeroCivico: '',
+  citta: '',
+  provincia: '',
+  cap: '',
   telefonoPrincipale: '',
   telefonoSecondario: '',
 };
@@ -45,7 +48,11 @@ export default function DatiUtenteCard() {
         dataNascita: userData.dataNascita || '',
         codiceFiscale: userData.codiceFiscale || '',
         luogoNascita: userData.luogoNascita || '',
-        indirizzo: userData.indirizzo || '',
+        via: userData.via || '',
+        numeroCivico: userData.numeroCivico || '',
+        citta: userData.citta || '',
+        provincia: userData.provincia || '',
+        cap: userData.cap || '',
         telefonoPrincipale: userData.telefonoPrincipale || '',
         telefonoSecondario: userData.telefonoSecondario || '',
       });
@@ -56,10 +63,6 @@ export default function DatiUtenteCard() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
-  };
-
-  const handleAddressChange = (address: string) => {
-    setFormData((prev) => ({ ...prev, indirizzo: address }));
   };
 
   const handleSave = async () => {
@@ -92,7 +95,11 @@ export default function DatiUtenteCard() {
         dataNascita: userData.dataNascita || '',
         codiceFiscale: userData.codiceFiscale || '',
         luogoNascita: userData.luogoNascita || '',
-        indirizzo: userData.indirizzo || '',
+        via: userData.via || '',
+        numeroCivico: userData.numeroCivico || '',
+        citta: userData.citta || '',
+        provincia: userData.provincia || '',
+        cap: userData.cap || '',
         telefonoPrincipale: userData.telefonoPrincipale || '',
         telefonoSecondario: userData.telefonoSecondario || '',
       });
@@ -135,15 +142,33 @@ export default function DatiUtenteCard() {
                 <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
                 <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} disabled={!isEditing} />
             </div>
-             <div className="grid gap-2">
-                <Label htmlFor="indirizzo">Indirizzo</Label>
-                <AddressInput
-                    id="indirizzo"
-                    value={formData.indirizzo}
-                    onChange={handleAddressChange}
-                    disabled={!isEditing}
-                />
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="md:col-span-3 grid gap-2">
+                  <Label htmlFor="via">Via</Label>
+                  <Input id="via" value={formData.via} onChange={handleChange} disabled={!isEditing} />
+              </div>
+              <div className="md:col-span-2 grid gap-2">
+                  <Label htmlFor="numeroCivico">Numero Civico</Label>
+                  <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} disabled={!isEditing} />
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="md:col-span-3 grid gap-2">
+                  <Label htmlFor="citta">Città</Label>
+                  <Input id="citta" value={formData.citta} onChange={handleChange} disabled={!isEditing} />
+              </div>
+               <div className="grid gap-2">
+                  <Label htmlFor="provincia">Provincia</Label>
+                  <Input id="provincia" value={formData.provincia} onChange={handleChange} disabled={!isEditing} />
+              </div>
+               <div className="grid gap-2">
+                  <Label htmlFor="cap">CAP</Label>
+                  <Input id="cap" value={formData.cap} onChange={handleChange} disabled={!isEditing} />
+              </div>
+            </div>
+
              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                     <Label htmlFor="telefonoPrincipale">Tel. Principale</Label>
