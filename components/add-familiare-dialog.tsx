@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { useFirestore, useUser } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import type { Familiare } from '@/app/(app)/nucleo-familiare/page';
+import { AddressInput } from '@/src/components/address-input';
 
 interface AddFamiliareDialogProps {
   isOpen: boolean;
@@ -46,31 +47,44 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
   const isEditing = familiareToEdit != null;
 
   useEffect(() => {
-    if (isEditing && familiareToEdit) {
-      setFormData({
-        nome: familiareToEdit.nome || '',
-        cognome: familiareToEdit.cognome || '',
-        dataNascita: familiareToEdit.dataNascita || '',
-        codiceFiscale: familiareToEdit.codiceFiscale || '',
-        luogoNascita: familiareToEdit.luogoNascita || '',
-        via: (familiareToEdit as any).via || '',
-        numeroCivico: (familiareToEdit as any).numeroCivico || '',
-        citta: (familiareToEdit as any).citta || '',
-        provincia: (familiareToEdit as any).provincia || '',
-        cap: (familiareToEdit as any).cap || '',
-        telefonoPrincipale: familiareToEdit.telefonoPrincipale || '',
-        telefonoSecondario: familiareToEdit.telefonoSecondario || '',
-      });
-    } else {
-      setFormData(initialState);
+    if (isOpen) {
+      if (isEditing && familiareToEdit) {
+        setFormData({
+          nome: familiareToEdit.nome || '',
+          cognome: familiareToEdit.cognome || '',
+          dataNascita: familiareToEdit.dataNascita || '',
+          codiceFiscale: familiareToEdit.codiceFiscale || '',
+          luogoNascita: familiareToEdit.luogoNascita || '',
+          via: (familiareToEdit as any).via || '',
+          numeroCivico: (familiareToEdit as any).numeroCivico || '',
+          citta: (familiareToEdit as any).citta || '',
+          provincia: (familiareToEdit as any).provincia || '',
+          cap: (familiareToEdit as any).cap || '',
+          telefonoPrincipale: familiareToEdit.telefonoPrincipale || '',
+          telefonoSecondario: familiareToEdit.telefonoSecondario || '',
+        });
+      } else {
+        setFormData(initialState);
+      }
     }
-  }, [familiareToEdit, isOpen]);
+  }, [familiareToEdit, isEditing, isOpen]);
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
+  
+  const handleAddressSelect = (address: { via: string; numeroCivico: string; citta: string; provincia: string; cap: string; }) => {
+    setFormData(prev => ({
+        ...prev,
+        via: address.via,
+        numeroCivico: address.numeroCivico,
+        citta: address.citta,
+        provincia: address.provincia,
+        cap: address.cap,
+    }));
+  }
 
   const handleClose = () => {
     onOpenChange(false);
@@ -146,6 +160,8 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: Ad
             <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
             <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} />
           </div>
+
+          <AddressInput onAddressSelect={handleAddressSelect} />
 
           <div className="grid grid-cols-5 gap-4">
               <div className="col-span-3 grid gap-2">

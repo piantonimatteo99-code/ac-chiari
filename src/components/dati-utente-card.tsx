@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useUserData } from "@/src/hooks/use-user-data";
 import { useFirestore } from "@/src/firebase";
 import { doc, updateDoc } from 'firebase/firestore';
+import { AddressInput } from './address-input';
 
 const initialState = {
   nome: '',
@@ -64,6 +65,17 @@ export default function DatiUtenteCard() {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
+
+  const handleAddressSelect = (address: { via: string; numeroCivico: string; citta: string; provincia: string; cap: string; }) => {
+    setFormData(prev => ({
+        ...prev,
+        via: address.via,
+        numeroCivico: address.numeroCivico,
+        citta: address.citta,
+        provincia: address.provincia,
+        cap: address.cap,
+    }));
+  }
 
   const handleSave = async () => {
     if (!userData || !firestore) {
@@ -142,6 +154,8 @@ export default function DatiUtenteCard() {
                 <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
                 <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} disabled={!isEditing} />
             </div>
+            
+            {isEditing && <AddressInput onAddressSelect={handleAddressSelect} />}
 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="md:col-span-3 grid gap-2">
