@@ -14,22 +14,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFirestore, useUser } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-import type { Familiare as FamiliareBase, DefaultAddress } from '@/app/(app)/nucleo-familiare/page';
+import type { Familiare as FamiliareBase } from '@/app/(app)/nucleo-familiare/page';
 
-// Extend base to include address
-interface Familiare extends FamiliareBase {
-  via: string;
-  numeroCivico: string;
-  citta: string;
-  provincia: string;
-  cap: string;
-}
+type Familiare = Omit<FamiliareBase, 'via' | 'numeroCivico' | 'citta' | 'provincia' | 'cap'>;
 
 interface AddFamiliareDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   familiareToEdit?: Familiare | null;
-  defaultAddress?: DefaultAddress;
 }
 
 const initialState: Omit<Familiare, 'id'> = {
@@ -40,11 +32,6 @@ const initialState: Omit<Familiare, 'id'> = {
   luogoNascita: '',
   telefonoPrincipale: '',
   telefonoSecondario: '',
-  via: '',
-  numeroCivico: '',
-  citta: '',
-  provincia: '',
-  cap: '',
 };
 
 const capitalizeWords = (str: string) => {
@@ -52,7 +39,7 @@ const capitalizeWords = (str: string) => {
   return str.replace(/\b\w/g, char => char.toUpperCase());
 };
 
-export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, defaultAddress }: AddFamiliareDialogProps) {
+export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit }: AddFamiliareDialogProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const [formData, setFormData] = useState(initialState);
@@ -71,26 +58,13 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, defa
           luogoNascita: familiareToEdit.luogoNascita || '',
           telefonoPrincipale: familiareToEdit.telefonoPrincipale || '',
           telefonoSecondario: familiareToEdit.telefonoSecondario || '',
-          via: familiareToEdit.via || '',
-          numeroCivico: familiareToEdit.numeroCivico || '',
-          citta: familiareToEdit.citta || '',
-          provincia: familiareToEdit.provincia || '',
-          cap: familiareToEdit.cap || '',
         });
       } else {
-        // Not editing, so we are adding a new familiare
-        setFormData({
-          ...initialState,
-          via: defaultAddress?.via || '',
-          numeroCivico: defaultAddress?.numeroCivico || '',
-          citta: defaultAddress?.citta || '',
-          provincia: defaultAddress?.provincia || '',
-          cap: defaultAddress?.cap || '',
-        });
+        setFormData(initialState);
       }
        setError(null);
     }
-  }, [familiareToEdit, isEditing, isOpen, defaultAddress]);
+  }, [familiareToEdit, isEditing, isOpen]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -160,8 +134,8 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, defa
           <DialogTitle>{isEditing ? 'Modifica Dati Familiare' : 'Aggiungi Familiare'}</DialogTitle>
           <DialogDescription>
             {isEditing 
-                ? 'Aggiorna i dati del membro del nucleo familiare.'
-                : 'Inserisci i dati del nuovo membro.'
+                ? 'Aggiorna i dati del membro del nucleo familiare. L\'indirizzo è condiviso con tutto il nucleo e può essere modificato dalla dashboard.'
+                : 'Inserisci i dati del nuovo membro. L\'indirizzo è condiviso con tutto il nucleo e può essere modificato dalla dashboard.'
             }
           </DialogDescription>
         </DialogHeader>
@@ -188,35 +162,6 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, defa
             <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
             <Input id="luogoNascita" value={formData.luogoNascita} onChange={handleChange} />
           </div>
-
-           <div className="space-y-4">
-              <p className="text-sm font-medium text-muted-foreground pt-2">Indirizzo di Residenza</p>
-              <div className="grid grid-cols-5 gap-4">
-                  <div className="col-span-3 grid gap-2">
-                      <Label htmlFor="citta">Città</Label>
-                      <Input id="citta" value={formData.citta} onChange={handleChange} autoComplete="off"/>
-                  </div>
-                  <div className="grid gap-2">
-                      <Label htmlFor="provincia">Prov.</Label>
-                      <Input id="provincia" value={formData.provincia} onChange={handleChange} maxLength={2} />
-                  </div>
-                  <div className="grid gap-2">
-                      <Label htmlFor="cap">CAP</Label>
-                      <Input id="cap" value={formData.cap} onChange={handleChange} />
-                  </div>
-              </div>
-
-              <div className="grid grid-cols-5 gap-4">
-                  <div className="col-span-4 grid gap-2">
-                      <Label htmlFor="via">Via</Label>
-                      <Input id="via" value={formData.via} onChange={handleChange} autoComplete="off" />
-                  </div>
-                  <div className="col-span-1 grid gap-2">
-                      <Label htmlFor="numeroCivico">N.</Label>
-                      <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} autoComplete="off" />
-                  </div>
-              </div>
-            </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">

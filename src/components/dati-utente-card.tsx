@@ -117,7 +117,7 @@ export default function DatiUtenteCard() {
       <CardHeader>
         <CardTitle>I Miei Dati</CardTitle>
         <CardDescription>
-          Modifica i tuoi dati anagrafici. Questo indirizzo può essere usato come predefinito per i nuovi familiari.
+          Modifica i tuoi dati e l'indirizzo di residenza. L'indirizzo qui specificato sarà condiviso con tutto il tuo nucleo familiare.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -149,7 +149,7 @@ export default function DatiUtenteCard() {
             </div>
             
             <div className="space-y-4">
-              <p className="text-sm font-medium text-muted-foreground pt-2">Indirizzo di Residenza</p>
+              <p className="text-sm font-medium text-muted-foreground pt-2">Indirizzo di Residenza Familiare</p>
               <div className="grid grid-cols-5 gap-4">
                   <div className="col-span-3 grid gap-2">
                       <Label htmlFor="citta">Città</Label>

@@ -100,7 +100,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Familiare",
       "type": "object",
-      "description": "Represents a family member of a user. The address is independent for each member.",
+      "description": "Represents a family member of a user. The address is shared and managed in the main user's document.",
       "properties": {
         "nome": {
           "type": "string",
@@ -122,26 +122,6 @@
         "luogoNascita": {
           "type": "string",
           "description": "Place of birth."
-        },
-        "via": {
-            "type": "string",
-            "description": "Street name."
-        },
-        "numeroCivico": {
-            "type": "string",
-            "description": "Street number."
-        },
-        "citta": {
-            "type": "string",
-            "description": "City."
-        },
-        "provincia": {
-            "type": "string",
-            "description": "Province (e.g., 'BS')."
-        },
-        "cap": {
-            "type": "string",
-            "description": "Postal code (ZIP code)."
         },
         "telefonoPrincipale": {
           "type": "string",
@@ -190,7 +170,7 @@
           "schema": {
             "$ref": "#/entities/User"
           },
-          "description": "Stores user profile data, including roles for authorization and personal address."
+          "description": "Stores user profile data, including roles for authorization and the shared family address."
         }
       },
       {
@@ -200,7 +180,7 @@
           "schema": {
             "$ref": "#/entities/Familiare"
           },
-          "description": "Collection to store family members with their own independent address."
+          "description": "Collection to store family members. Address is managed in the parent User document."
         }
       },
       {

@@ -36,20 +36,7 @@ export interface Familiare {
   luogoNascita: string;
   telefonoPrincipale: string;
   telefonoSecondario: string;
-  via: string;
-  numeroCivico: string;
-  citta: string;
-  provincia: string;
-  cap: string;
   createdAt?: any;
-}
-
-export interface DefaultAddress {
-  via?: string;
-  numeroCivico?: string;
-  citta?: string;
-  provincia?: string;
-  cap?: string;
 }
 
 export default function NucleoFamiliarePage() {
@@ -66,32 +53,7 @@ export default function NucleoFamiliarePage() {
 
   const { data: familiari, isLoading: isFamiliariLoading, error } = useCollection<Familiare>(familiariQuery);
   
-  const isLoading = isFamiliariLoading;
-
-  const getDefaultAddress = (): DefaultAddress | undefined => {
-    if (userData?.via && userData?.citta) {
-      return {
-        via: userData.via,
-        numeroCivico: userData.numeroCivico,
-        citta: userData.citta,
-        provincia: userData.provincia,
-        cap: userData.cap,
-      };
-    }
-    if (familiari && familiari.length > 0) {
-      const lastFamiliareWithAddress = familiari.find(f => f.via && f.citta);
-      if (lastFamiliareWithAddress) {
-        return {
-          via: lastFamiliareWithAddress.via,
-          numeroCivico: lastFamiliareWithAddress.numeroCivico,
-          citta: lastFamiliareWithAddress.citta,
-          provincia: lastFamiliareWithAddress.provincia,
-          cap: lastFamiliareWithAddress.cap,
-        };
-      }
-    }
-    return undefined;
-  };
+  const isLoading = isFamiliariLoading || !userData;
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
@@ -103,8 +65,9 @@ export default function NucleoFamiliarePage() {
     });
   }
   
-  const formatAddress = (familiare: Familiare) => {
-    const { via, numeroCivico, citta, provincia, cap } = familiare;
+  const formatAddress = () => {
+    if (!userData) return 'Indirizzo non specificato';
+    const { via, numeroCivico, citta, provincia, cap } = userData;
     if (!via || !citta) return 'Indirizzo non specificato';
     return `${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`;
   }
@@ -145,7 +108,6 @@ export default function NucleoFamiliarePage() {
         isOpen={isDialogOpen} 
         onOpenChange={setIsDialogOpen}
         familiareToEdit={editingFamiliare}
-        defaultAddress={getDefaultAddress()}
        />
       <Card>
         <CardContent className="p-0">
@@ -174,7 +136,7 @@ export default function NucleoFamiliarePage() {
                   <TableRow key={familiare.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{familiare.nome} {familiare.cognome}</TableCell>
                     <TableCell>{formatDate(familiare.dataNascita)}</TableCell>
-                    <TableCell>{formatAddress(familiare)}</TableCell>
+                    <TableCell>{formatAddress()}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-green-600 border-green-600">Attivo</Badge>
                     </TableCell>
