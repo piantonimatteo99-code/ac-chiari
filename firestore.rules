@@ -42,11 +42,9 @@ service cloud.firestore {
       // Allow read if user's UID matches the uidCapofamiglia in the document
       allow get: if isSignedIn() && resource.data.uidCapofamiglia == request.auth.uid;
 
-      // Allow list only if querying by uidCapofamiglia
-      allow list: if isSignedIn() && request.query.where.size() == 1 &&
-                     request.query.where[0][0] == 'uidCapofamiglia' &&
-                     request.query.where[0][1] == '==' &&
-                     request.query.where[0][2] == request.auth.uid;
+      // Temporarily allow any signed-in user to list families.
+      // This will be refined later.
+      allow list: if isSignedIn();
       
       // Allow create/update if the user is the head of household
       allow write: if isSignedIn() && request.resource.data.uidCapofamiglia == request.auth.uid;
