@@ -56,8 +56,7 @@
         "displayName",
         "nome",
         "cognome",
-        "roles",
-        "createdAt"
+        "roles"
       ]
     },
     "Famiglia": {
