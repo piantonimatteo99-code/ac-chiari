@@ -51,6 +51,7 @@ export default function NucleoFamiliarePage() {
 
   const famigliaQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
+    // Questa è la query sicura che rispetta le regole di Firestore
     return query(collection(firestore, 'famiglie'), where('uidCapofamiglia', '==', user.uid));
   }, [user, firestore]);
   
