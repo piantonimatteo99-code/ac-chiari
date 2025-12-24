@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +24,7 @@ import {
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collection, query, where, doc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { slugify } from '@/lib/utils';
 
@@ -58,13 +58,13 @@ export default function NucleoFamiliarePage() {
   const { data: famigliaData, isLoading: isFamigliaLoading } = useCollection(famigliaQuery);
 
   // Determine famigliaId once the family data is loaded
-  useState(() => {
+  useEffect(() => {
     if (famigliaData && famigliaData.length > 0) {
       setFamigliaId(famigliaData[0].id);
     } else {
-        setFamigliaId(null);
+      setFamigliaId(null);
     }
-  });
+  }, [famigliaData]);
 
   // Query to get members of the identified family
   const membriQuery = useMemoFirebase(() => {
