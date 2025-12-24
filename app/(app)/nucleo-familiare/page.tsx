@@ -48,6 +48,7 @@ export default function NucleoFamiliarePage() {
   const { userData, isLoading: isUserDataLoading } = useUserData();
 
   const [famigliaId, setFamigliaId] = useState<string | null>(null);
+  const [familyAddress, setFamilyAddress] = useState('Nessun indirizzo specificato');
 
   // Query per trovare il documento famiglia dell'utente loggato
   const famigliaQuery = useMemoFirebase(() => {
@@ -57,14 +58,27 @@ export default function NucleoFamiliarePage() {
   
   const { data: famigliaData, isLoading: isFamigliaLoading } = useCollection(famigliaQuery);
 
-  // Una volta trovato il documento famiglia, impostiamo il suo ID
+  // Una volta trovato il documento famiglia, impostiamo il suo ID e l'indirizzo
   useEffect(() => {
     if (famigliaData && famigliaData.length > 0) {
-      setFamigliaId(famigliaData[0].id);
-    } else {
+      const famiglia = famigliaData[0];
+      setFamigliaId(famiglia.id);
+      const { via, numeroCivico, citta, provincia, cap } = famiglia;
+      if (via && citta) {
+        setFamilyAddress(`${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`);
+      }
+    } else if (!isFamigliaLoading) {
       setFamigliaId(null);
+      if (userData) {
+         const { via, numeroCivico, citta, provincia, cap } = userData;
+         if (via && citta) {
+            setFamilyAddress(`${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`);
+         } else {
+            setFamilyAddress('Indirizzo non specificato');
+         }
+      }
     }
-  }, [famigliaData]);
+  }, [famigliaData, isFamigliaLoading, userData]);
 
   // Query per ottenere i membri dalla sotto-collezione, si attiva solo quando abbiamo un famigliaId
   const membriQuery = useMemoFirebase(() => {
@@ -76,21 +90,6 @@ export default function NucleoFamiliarePage() {
   
   const isLoading = isUserDataLoading || isFamigliaLoading || (famigliaId ? isMembriLoading : false);
   
-  const getFamilyAddress = () => {
-    if (famigliaData && famigliaData.length > 0) {
-        const { via, numeroCivico, citta, provincia, cap } = famigliaData[0];
-        if (!via || !citta) return 'Indirizzo non specificato';
-        return `${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`;
-    }
-    // Se non c'è famiglia, usiamo i dati dell'utente come fallback
-    if (userData) {
-      const { via, numeroCivico, citta, provincia, cap } = userData;
-      if (via && citta) {
-        return `${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`;
-      }
-    }
-    return 'Nessun indirizzo specificato';
-  }
 
   const handleEdit = (membro: Membro) => {
     setEditingMembro(membro);
@@ -184,7 +183,7 @@ export default function NucleoFamiliarePage() {
                   <TableRow key={membro.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{membro.nome} {membro.cognome}</TableCell>
                     <TableCell>{formatDate(membro.dataNascita)}</TableCell>
-                    <TableCell>{getFamilyAddress()}</TableCell>
+                    <TableCell>{familyAddress}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-green-600 border-green-600">Attivo</Badge>
                     </TableCell>
