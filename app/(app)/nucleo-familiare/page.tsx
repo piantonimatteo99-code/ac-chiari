@@ -49,14 +49,15 @@ export default function NucleoFamiliarePage() {
 
   const [famigliaId, setFamigliaId] = useState<string | null>(null);
 
+  // Query per trovare il documento famiglia dell'utente loggato
   const famigliaQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
-    // Questa è la query sicura che rispetta le regole di Firestore
     return query(collection(firestore, 'famiglie'), where('uidCapofamiglia', '==', user.uid));
   }, [user, firestore]);
   
   const { data: famigliaData, isLoading: isFamigliaLoading } = useCollection(famigliaQuery);
 
+  // Una volta trovato il documento famiglia, impostiamo il suo ID
   useEffect(() => {
     if (famigliaData && famigliaData.length > 0) {
       setFamigliaId(famigliaData[0].id);
@@ -65,6 +66,7 @@ export default function NucleoFamiliarePage() {
     }
   }, [famigliaData]);
 
+  // Query per ottenere i membri dalla sotto-collezione, si attiva solo quando abbiamo un famigliaId
   const membriQuery = useMemoFirebase(() => {
     if (!famigliaId || !firestore) return null;
     return collection(firestore, 'famiglie', famigliaId, 'membri');
@@ -80,6 +82,7 @@ export default function NucleoFamiliarePage() {
         if (!via || !citta) return 'Indirizzo non specificato';
         return `${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`;
     }
+    // Se non c'è famiglia, usiamo i dati dell'utente come fallback
     if (userData) {
       const { via, numeroCivico, citta, provincia, cap } = userData;
       if (via && citta) {
@@ -122,6 +125,7 @@ export default function NucleoFamiliarePage() {
     });
   }
 
+  // Funzione per derivare l'ID famiglia se non è ancora stato caricato
   const getDerivedFamigliaId = () => {
     if (famigliaId) return famigliaId;
     if (userData) {
@@ -212,7 +216,8 @@ export default function NucleoFamiliarePage() {
                {error && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-destructive">
-                    Si è verificato un errore nel caricamento dei dati: {error.message}
+                    Si è verificato un errore nel caricamento dei dati.
+                    Se hai appena cancellato i dati, prova ad aggiungere un nuovo membro per creare una nuova famiglia.
                   </TableCell>
                 </TableRow>
               )}
