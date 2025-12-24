@@ -12,9 +12,12 @@ export interface UserData {
     roles: ('admin' | 'utente' | 'educatore')[];
     createdAt: any; // Can be a Timestamp object
     
-    // Anagrafica
+    // Personal data, might be distinct from family data
     nome?: string;
     cognome?: string;
+
+    // Address data might be here, but we now store it in the 'famiglie' collection
+    // These fields are kept for potential future use or legacy data, but are not primary.
     dataNascita?: string;
     codiceFiscale?: string;
     luogoNascita?: string;

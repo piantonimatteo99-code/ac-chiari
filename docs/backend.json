@@ -27,47 +27,6 @@
           "type": "string",
           "description": "Last name of the user."
         },
-        "dataNascita": {
-          "type": "string",
-          "format": "date",
-          "description": "Date of birth."
-        },
-        "codiceFiscale": {
-          "type": "string",
-          "description": "Italian fiscal code."
-        },
-        "luogoNascita": {
-          "type": "string",
-          "description": "Place of birth."
-        },
-        "via": {
-          "type": "string",
-          "description": "Street name."
-        },
-        "numeroCivico": {
-          "type": "string",
-          "description": "Street number."
-        },
-        "citta": {
-          "type": "string",
-          "description": "City."
-        },
-        "provincia": {
-          "type": "string",
-          "description": "Province (e.g., 'BS')."
-        },
-        "cap": {
-          "type": "string",
-          "description": "Postal code (ZIP code)."
-        },
-        "telefonoPrincipale": {
-          "type": "string",
-          "description": "Primary phone number."
-        },
-        "telefonoSecondario": {
-          "type": "string",
-          "description": "Secondary phone number."
-        },
         "roles": {
           "type": "array",
           "description": "A list of roles assigned to the user.",
@@ -96,64 +55,77 @@
         "createdAt"
       ]
     },
-    "Familiare": {
+    "Famiglia": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Familiare",
+      "title": "Famiglia",
       "type": "object",
-      "description": "Represents a family member of a user. The address is shared and managed in the main user's document.",
+      "description": "Represents a family unit, identified by a unique address.",
+      "properties": {
+        "emailCapofamiglia": {
+          "type": "string",
+          "format": "email",
+          "description": "The email of the main user associated with this family."
+        },
+        "uidCapofamiglia": {
+          "type": "string",
+          "description": "The UID of the main user associated with this family."
+        },
+        "via": {
+          "type": "string"
+        },
+        "numeroCivico": {
+          "type": "string"
+        },
+        "citta": {
+          "type": "string"
+        },
+        "provincia": {
+          "type": "string"
+        },
+        "cap": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["emailCapofamiglia", "uidCapofamiglia", "via", "citta", "cap", "updatedAt"]
+    },
+    "Membro": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Membro",
+      "type": "object",
+      "description": "Represents an individual member within a family.",
       "properties": {
         "nome": {
-          "type": "string",
-          "description": "First name of the family member."
+          "type": "string"
         },
         "cognome": {
-          "type": "string",
-          "description": "Last name of the family member."
+          "type": "string"
         },
         "dataNascita": {
           "type": "string",
-          "format": "date",
-          "description": "Date of birth."
+          "format": "date"
         },
         "codiceFiscale": {
-          "type": "string",
-          "description": "Italian fiscal code."
+          "type": "string"
         },
         "luogoNascita": {
-          "type": "string",
-          "description": "Place of birth."
+          "type": "string"
         },
         "telefonoPrincipale": {
-          "type": "string",
-          "description": "Primary phone number."
+          "type": "string"
         },
         "telefonoSecondario": {
-          "type": "string",
-          "description": "Secondary phone number."
-        },
-        "registratoDa": {
-          "type": "string",
-          "description": "The UID of the user who registered this family member."
-        },
-        "emailRiferimento": {
-          "type": "string",
-          "format": "email",
-          "description": "The email of the user who registered this family member."
+          "type": "string"
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the family member document was created."
+          "format": "date-time"
         }
       },
-      "required": [
-        "nome",
-        "cognome",
-        "dataNascita",
-        "registratoDa",
-        "emailRiferimento",
-        "createdAt"
-      ]
+      "required": ["nome", "cognome", "dataNascita", "createdAt"]
     }
   },
   "auth": {
@@ -170,29 +142,25 @@
           "schema": {
             "$ref": "#/entities/User"
           },
-          "description": "Stores user profile data, including roles for authorization and the shared family address."
+          "description": "Stores user profile data, including roles for authorization."
         }
       },
       {
-        "path": "/familiari/{familiareId}",
+        "path": "/famiglie/{famigliaId}",
         "definition": {
-          "entityName": "Familiare",
+          "entityName": "Famiglia",
           "schema": {
-            "$ref": "#/entities/Familiare"
+            "$ref": "#/entities/Famiglia"
           },
-          "description": "Collection to store family members. Address is managed in the parent User document."
+          "description": "Collection where each document represents a family at a unique address."
         }
       },
       {
-        "path": "/gruppi/{gruppoId}",
+        "path": "/famiglie/{famigliaId}/membri/{membroId}",
         "definition": {
-          "description": "Collection to store groups."
-        }
-      },
-      {
-        "path": "/ruoli-educatori/{ruoloEducatoreId}",
-        "definition": {
-          "description": "Collection to store educator roles."
+            "entityName": "Membro",
+            "schema": { "$ref": "#/entities/Membro" },
+            "description": "Sub-collection for individual family members."
         }
       }
     ]

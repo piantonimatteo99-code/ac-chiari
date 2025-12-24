@@ -12,21 +12,24 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useFirestore, useUser } from '@/src/firebase';
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-import type { Familiare as FamiliareBase } from '@/app/(app)/nucleo-familiare/page';
-import type { UserData } from '@/src/hooks/use-user-data';
+import { useFirestore } from '@/src/firebase';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
+import type { Membro as MembroBase } from '@/app/(app)/nucleo-familiare/page';
+import { User } from 'firebase/auth';
+import { slugify } from '@/lib/utils';
 
-type Familiare = Omit<FamiliareBase, 'id'>;
+
+type Membro = Omit<MembroBase, 'id'>;
 
 interface AddFamiliareDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  familiareToEdit?: FamiliareBase | null;
-  userAnagrafica?: UserData | null;
+  membroToEdit?: MembroBase | null;
+  user: User;
+  famigliaId: string | null;
 }
 
-const initialFamiliareState: Familiare = {
+const initialMembroState: Membro = {
   nome: '',
   cognome: '',
   dataNascita: '',
@@ -49,47 +52,53 @@ const capitalizeWords = (str: string) => {
   return str.replace(/\b\w/g, char => char.toUpperCase());
 };
 
-export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, userAnagrafica }: AddFamiliareDialogProps) {
+export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, famigliaId: initialFamigliaId }: AddFamiliareDialogProps) {
   const firestore = useFirestore();
-  const { user } = useUser();
   
-  const [familiareData, setFamiliareData] = useState(initialFamiliareState);
+  const [membroData, setMembroData] = useState(initialMembroState);
   const [anagraficaData, setAnagraficaData] = useState(initialAnagraficaState);
   const [error, setError] = useState<string | null>(null);
 
-  const isEditing = familiareToEdit != null;
+  const isEditing = membroToEdit != null;
 
   useEffect(() => {
+    async function fetchFamilyData() {
+        if (initialFamigliaId && firestore) {
+            const famigliaDocRef = doc(firestore, 'famiglie', initialFamigliaId);
+            const famigliaDocSnap = await getDoc(famigliaDocRef);
+            if (famigliaDocSnap.exists()) {
+                const data = famigliaDocSnap.data();
+                setAnagraficaData({
+                    via: data.via || '',
+                    numeroCivico: data.numeroCivico || '',
+                    citta: data.citta || '',
+                    provincia: data.provincia || '',
+                    cap: data.cap || '',
+                });
+            }
+        } else {
+             setAnagraficaData(initialAnagraficaState);
+        }
+    }
+
     if (isOpen) {
-      if (isEditing && familiareToEdit) {
-        setFamiliareData({
-          nome: familiareToEdit.nome || '',
-          cognome: familiareToEdit.cognome || '',
-          dataNascita: familiareToEdit.dataNascita || '',
-          codiceFiscale: familiareToEdit.codiceFiscale || '',
-          luogoNascita: familiareToEdit.luogoNascita || '',
-          telefonoPrincipale: familiareToEdit.telefonoPrincipale || '',
-          telefonoSecondario: familiareToEdit.telefonoSecondario || '',
+      if (isEditing && membroToEdit) {
+        setMembroData({
+          nome: membroToEdit.nome || '',
+          cognome: membroToEdit.cognome || '',
+          dataNascita: membroToEdit.dataNascita || '',
+          codiceFiscale: membroToEdit.codiceFiscale || '',
+          luogoNascita: membroToEdit.luogoNascita || '',
+          telefonoPrincipale: membroToEdit.telefonoPrincipale || '',
+          telefonoSecondario: membroToEdit.telefonoSecondario || '',
         });
       } else {
-        setFamiliareData(initialFamiliareState);
+        setMembroData(initialMembroState);
       }
-
-      if (userAnagrafica) {
-          setAnagraficaData({
-              via: userAnagrafica.via || '',
-              numeroCivico: userAnagrafica.numeroCivico || '',
-              citta: userAnagrafica.citta || '',
-              provincia: userAnagrafica.provincia || '',
-              cap: userAnagrafica.cap || '',
-          });
-      } else {
-          setAnagraficaData(initialAnagraficaState);
-      }
-
-       setError(null);
+      fetchFamilyData();
+      setError(null);
     }
-  }, [familiareToEdit, isEditing, isOpen, userAnagrafica]);
+  }, [membroToEdit, isEditing, isOpen, initialFamigliaId, firestore]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -117,7 +126,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, user
     if (isAnagraficaField) {
         setAnagraficaData((prev) => ({ ...prev, [id]: formattedValue }));
     } else {
-        setFamiliareData((prev) => ({ ...prev, [id]: formattedValue as any }));
+        setMembroData((prev) => ({ ...prev, [id]: formattedValue as any }));
     }
   };
 
@@ -132,30 +141,38 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, user
       return;
     }
 
-    if (!familiareData.nome || !familiareData.cognome || !familiareData.dataNascita) {
-      setError('Nome, cognome e data di nascita del familiare sono obbligatori.');
+    if (!membroData.nome || !membroData.cognome || !membroData.dataNascita) {
+      setError('Nome, cognome e data di nascita del membro sono obbligatori.');
       return;
     }
+    
+    if (!anagraficaData.via || !anagraficaData.citta || !anagraficaData.cap) {
+        setError('L\'indirizzo della famiglia (via, città, CAP) è obbligatorio.');
+        return;
+    }
+
+    const newFamigliaId = slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
 
     try {
-      // 1. Save anagrafica data to the user's document
-      const userDocRef = doc(firestore, 'users', user.uid);
-      await updateDoc(userDocRef, {
-        ...anagraficaData
-      });
+      // 1. Save family data (address)
+      const famigliaDocRef = doc(firestore, 'famiglie', newFamigliaId);
+      await setDoc(famigliaDocRef, {
+        ...anagraficaData,
+        uidCapofamiglia: user.uid,
+        emailCapofamiglia: user.email,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
 
-      // 2. Save familiare data
-      if (isEditing && familiareToEdit) {
-        const docRef = doc(firestore, 'familiari', familiareToEdit.id);
-        await updateDoc(docRef, {
-            ...familiareData,
+      // 2. Save membro data
+      if (isEditing && membroToEdit && initialFamigliaId) {
+        const membroDocRef = doc(firestore, 'famiglie', initialFamigliaId, 'membri', membroToEdit.id);
+        await updateDoc(membroDocRef, {
+            ...membroData,
         });
       } else {
-        const familiariCollection = collection(firestore, 'familiari');
-        await addDoc(familiariCollection, {
-            ...familiareData,
-            registratoDa: user.uid,
-            emailRiferimento: user.email,
+        const membriCollectionRef = collection(firestore, 'famiglie', newFamigliaId, 'membri');
+        await addDoc(membriCollectionRef, {
+            ...membroData,
             createdAt: serverTimestamp(),
         });
       }
@@ -171,40 +188,41 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, user
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[475px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Modifica Dati Familiare' : 'Aggiungi Familiare'}</DialogTitle>
+          <DialogTitle>{isEditing ? 'Modifica Dati Membro' : 'Aggiungi Membro Familiare'}</DialogTitle>
           <DialogDescription>
             {isEditing 
-                ? 'Aggiorna i dati del membro del nucleo familiare. L\'indirizzo qui sotto è condiviso con tutto il nucleo.'
-                : 'Inserisci i dati del nuovo membro. L\'indirizzo è condiviso con tutto il nucleo familiare.'
+                ? "Aggiorna i dati di questo membro della famiglia."
+                : "Inserisci i dati del nuovo membro e l'indirizzo condiviso del nucleo familiare."
             }
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <p className="text-sm font-medium">Dati del Membro</p>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="nome">Nome</Label>
-              <Input id="nome" value={familiareData.nome} onChange={handleChange} />
+              <Input id="nome" value={membroData.nome} onChange={handleChange} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="cognome">Cognome</Label>
-              <Input id="cognome" value={familiareData.cognome} onChange={handleChange} />
+              <Input id="cognome" value={membroData.cognome} onChange={handleChange} />
             </div>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="dataNascita">Data di Nascita</Label>
-            <Input id="dataNascita" type="date" value={familiareData.dataNascita} onChange={handleChange} />
+            <Input id="dataNascita" type="date" value={membroData.dataNascita} onChange={handleChange} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="codiceFiscale">Codice Fiscale</Label>
-            <Input id="codiceFiscale" value={familiareData.codiceFiscale} onChange={handleChange} />
+            <Input id="codiceFiscale" value={membroData.codiceFiscale} onChange={handleChange} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
-            <Input id="luogoNascita" value={familiareData.luogoNascita} onChange={handleChange} />
+            <Input id="luogoNascita" value={membroData.luogoNascita} onChange={handleChange} />
           </div>
 
-          <div className="space-y-4">
-              <p className="text-sm font-medium text-muted-foreground pt-2 border-t">Indirizzo di Residenza Familiare</p>
+          <div className="space-y-4 border-t pt-4">
+              <p className="text-sm font-medium">Indirizzo del Nucleo Familiare</p>
               <div className="grid grid-cols-5 gap-4">
                   <div className="col-span-3 grid gap-2">
                       <Label htmlFor="citta">Città</Label>
@@ -235,11 +253,11 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, familiareToEdit, user
           <div className="grid grid-cols-2 gap-4 border-t pt-4">
             <div className="grid gap-2">
               <Label htmlFor="telefonoPrincipale">Tel. Principale</Label>
-              <Input id="telefonoPrincipale" value={familiareData.telefonoPrincipale} onChange={handleChange} />
+              <Input id="telefonoPrincipale" value={membroData.telefonoPrincipale} onChange={handleChange} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="telefonoSecondario">Tel. Secondario</Label>
-              <Input id="telefonoSecondario" value={familiareData.telefonoSecondario} onChange={handleChange} />
+              <Input id="telefonoSecondario" value={membroData.telefonoSecondario} onChange={handleChange} />
             </div>
           </div>
         </div>

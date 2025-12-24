@@ -1,21 +1,7 @@
 /**
- * Core Philosophy: This ruleset enforces a strict user-ownership model. Users have full control over their own profile document, but no access to other users' data. It establishes a foundation for role-based access control by associating users with categories, but primarily focuses on securing individual user data.
- *
- * Data Structure: The data is organized into two top-level collections: `/users` and `/categories`.
- * - /users/{userId}: Contains private user profile information. Access is locked down to the owner of the document.
- * - /categories/{categoryId}: Contains public reference data that describes different user categories. This data is readable by anyone but not writable by clients.
- *
- * Key Security Decisions:
- * - User Isolation: A user can only create, read, update, or delete their own document within the `/users` collection.
- * - No User Enumeration: Listing the entire `/users` collection is explicitly disallowed to protect user privacy and prevent data scraping.
- * - Read-Only Reference Data: The `/categories` collection is publicly readable to allow clients to fetch category information, but it is immutable from the client-side to ensure data integrity. It is assumed this data is managed by a trusted backend or seeded directly.
- *
- * Denormalization for Authorization:
- * - The `User` document is designed for authorization independence. It includes a `categoryId` to avoid costly `get()` calls to other collections in more advanced scenarios.
- * - Relational integrity is maintained by ensuring the `id` field within a user's document always matches the document's ID in the path (`userId`). This link is enforced on creation and made immutable on update.
- *
- * Structural Segregation:
- * - User data (`/users`) and category metadata (`/categories`) are kept in separate top-level collections. This provides clear and secure access boundaries, allowing public read access to categories without exposing any user data.
+ * This ruleset is designed around a family-centric data model.
+ * A "Famiglia" is identified by a unique address and contains members.
+ * Access is primarily granted to the head of the household (capofamiglia).
  */
 rules_version = '2';
 service cloud.firestore {
@@ -24,70 +10,64 @@ service cloud.firestore {
     // ----------------------------------------------------------------------
     // Helper Functions
     // ----------------------------------------------------------------------
-
-    /**
-     * Checks if the user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Checks if the authenticated user's UID matches the provided userId.
-     * This is the primary function for verifying document ownership.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * Checks for ownership on an existing document. Used for safe updates and deletes.
-     * Denies requests that target non-existent documents.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
     // ----------------------------------------------------------------------
-    // Collection Rules
+    // User Profile Rules
     // ----------------------------------------------------------------------
-
-    /**
-     * @description Secures a user's profile document. Only the owner can read, create, update, or delete their own document. Listing all users is forbidden.
-     * @path /users/{userId}
-     * @allow (get) An authenticated user with UID 'user123' can get their own document at /users/user123.
-     * @deny (get) A user with UID 'user456' is denied access to /users/user123.
-     * @deny (list) No user can list the /users collection to prevent enumeration of all users.
-     * @principle Restricts access to a user's own data tree and enforces relational integrity.
-     */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
+      allow get, update: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
-    
-    match /familiari/{familiareId} {
-        allow get: if isSignedIn() && resource.data.registratoDa == request.auth.uid;
-        allow list: if isSignedIn() && request.query.where[0][2] == request.auth.uid;
-        allow create: if isSignedIn() && request.resource.data.registratoDa == request.auth.uid;
-        allow update, delete: if isSignedIn() && resource.data.registratoDa == request.auth.uid;
+      // Disallow list/delete for privacy and data integrity.
+      allow list, delete: if false;
     }
 
+    // ----------------------------------------------------------------------
+    // Family Rules
+    // ----------------------------------------------------------------------
+
     /**
-     * @description Defines rules for the public categories collection. This data is readable by anyone but is not writable from the client.
-     * @path /categories/{categoryId}
-     * @allow (get, list) Any user, including unauthenticated ones, can read a specific category or list all categories.
-     * @deny (create, update, delete) No client is permitted to modify the categories collection to protect data integrity.
-     * @principle Provides public, read-only access to application-wide reference data.
+     * @description Secures the 'famiglie' collection. A family document is identified by
+     * a composite key derived from its address.
+     * Reading a family document is allowed if the requesting user is the head of that family.
+     * Writing (create/update) is allowed for the head of the family.
      */
-    match /categories/{categoryId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
+    match /famiglie/{famigliaId} {
+      // Allow read if user's UID matches the uidCapofamiglia in the document
+      allow get: if isSignedIn() && resource.data.uidCapofamiglia == request.auth.uid;
+
+      // Allow list only if querying by uidCapofamiglia
+      allow list: if isSignedIn() && request.query.where.size() == 1 &&
+                     request.query.where[0][0] == 'uidCapofamiglia' &&
+                     request.query.where[0][1] == '==' &&
+                     request.query.where[0][2] == request.auth.uid;
+      
+      // Allow create/update if the user is the head of household
+      allow write: if isSignedIn() && request.resource.data.uidCapofamiglia == request.auth.uid;
+      
+      // Deleting a whole family is a sensitive operation, disable from client.
       allow delete: if false;
+      
+      /**
+       * @description Secures the 'membri' sub-collection within each family.
+       * The head of the household has full control over the members of their family.
+       */
+      match /membri/{membroId} {
+        // To read/list members, we must first verify access to the parent family document.
+        // The get() call checks the 'famiglie' document for the correct UID.
+        function canAccessParentFamily() {
+          return isSignedIn() && get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia == request.auth.uid;
+        }
+
+        allow read, list: if canAccessParentFamily();
+        allow write, delete: if canAccessParentFamily();
+      }
     }
   }
 }
