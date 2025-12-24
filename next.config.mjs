@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  experimental: {
+    allowedDevOrigins: ['*.cloudworkstations.dev'],
+  },
+};
 
 export default nextConfig;
