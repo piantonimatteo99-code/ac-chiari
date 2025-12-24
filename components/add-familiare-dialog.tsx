@@ -13,10 +13,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFirestore } from '@/src/firebase';
-import { collection, addDoc, serverTimestamp, doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, setDoc } from 'firebase/firestore';
 import type { Membro as MembroBase } from '@/app/(app)/nucleo-familiare/page';
 import { User } from 'firebase/auth';
 import { slugify } from '@/lib/utils';
+import { UserData } from '@/src/hooks/use-user-data';
 
 
 type Membro = Omit<MembroBase, 'id'>;
@@ -27,6 +28,7 @@ interface AddFamiliareDialogProps {
   membroToEdit?: MembroBase | null;
   user: User;
   famigliaId: string | null;
+  userData: UserData;
 }
 
 const initialMembroState: Membro = {
@@ -52,7 +54,7 @@ const capitalizeWords = (str: string) => {
   return str.replace(/\b\w/g, char => char.toUpperCase());
 };
 
-export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, famigliaId: initialFamigliaId }: AddFamiliareDialogProps) {
+export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, famigliaId: initialFamigliaId, userData }: AddFamiliareDialogProps) {
   const firestore = useFirestore();
   
   const [membroData, setMembroData] = useState(initialMembroState);
@@ -62,25 +64,6 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
   const isEditing = membroToEdit != null;
 
   useEffect(() => {
-    async function fetchFamilyData() {
-        if (initialFamigliaId && firestore) {
-            const famigliaDocRef = doc(firestore, 'famiglie', initialFamigliaId);
-            const famigliaDocSnap = await getDoc(famigliaDocRef);
-            if (famigliaDocSnap.exists()) {
-                const data = famigliaDocSnap.data();
-                setAnagraficaData({
-                    via: data.via || '',
-                    numeroCivico: data.numeroCivico || '',
-                    citta: data.citta || '',
-                    provincia: data.provincia || '',
-                    cap: data.cap || '',
-                });
-            }
-        } else {
-             setAnagraficaData(initialAnagraficaState);
-        }
-    }
-
     if (isOpen) {
       if (isEditing && membroToEdit) {
         setMembroData({
@@ -95,10 +78,23 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
       } else {
         setMembroData(initialMembroState);
       }
-      fetchFamilyData();
+
+      // Pre-fill address from userData
+      if (userData) {
+        setAnagraficaData({
+            via: userData.via || '',
+            numeroCivico: userData.numeroCivico || '',
+            citta: userData.citta || '',
+            provincia: userData.provincia || '',
+            cap: userData.cap || '',
+        });
+      } else {
+        setAnagraficaData(initialAnagraficaState);
+      }
+
       setError(null);
     }
-  }, [membroToEdit, isEditing, isOpen, initialFamigliaId, firestore]);
+  }, [membroToEdit, isEditing, isOpen, userData]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -151,17 +147,22 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
         return;
     }
 
-    const newFamigliaId = slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
+    const newFamigliaId = initialFamigliaId || slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
 
     try {
       // 1. Save family data (address)
       const famigliaDocRef = doc(firestore, 'famiglie', newFamigliaId);
-      await setDoc(famigliaDocRef, {
+      const famigliaPayload = {
         ...anagraficaData,
         uidCapofamiglia: user.uid,
         emailCapofamiglia: user.email,
         updatedAt: serverTimestamp(),
-      }, { merge: true });
+      };
+      await setDoc(famigliaDocRef, famigliaPayload, { merge: true });
+
+      // Also update the user's own document with the (potentially new) address
+      const userDocRef = doc(firestore, 'users', user.uid);
+      await updateDoc(userDocRef, anagraficaData);
 
       // 2. Save membro data
       if (isEditing && membroToEdit && initialFamigliaId) {
@@ -222,7 +223,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
           </div>
 
           <div className="space-y-4 border-t pt-4">
-              <p className="text-sm font-medium">Indirizzo del Nucleo Familiare</p>
+              <p className="text-sm font-medium">Indirizzo del Nucleo Familiare (Condiviso)</p>
               <div className="grid grid-cols-5 gap-4">
                   <div className="col-span-3 grid gap-2">
                       <Label htmlFor="citta">Città</Label>

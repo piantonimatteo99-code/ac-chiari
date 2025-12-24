@@ -49,32 +49,36 @@ export default function NucleoFamiliarePage() {
 
   const [famigliaId, setFamigliaId] = useState<string | null>(null);
 
-  // Query to find the family associated with the current user
+  // 1. Create a query to find the family associated with the current user
   const famigliaQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(collection(firestore, 'famiglie'), where('uidCapofamiglia', '==', user.uid));
   }, [user, firestore]);
   
+  // 2. Fetch the family data
   const { data: famigliaData, isLoading: isFamigliaLoading } = useCollection(famigliaQuery);
 
-  // Determine famigliaId once the family data is loaded
+  // 3. Once family data is loaded, set the famigliaId state
   useEffect(() => {
     if (famigliaData && famigliaData.length > 0) {
       setFamigliaId(famigliaData[0].id);
     } else {
+      // Handle case where user has no family yet
       setFamigliaId(null);
     }
   }, [famigliaData]);
 
-  // Query to get members of the identified family
+  // 4. Create a query for the members, which depends on famigliaId
   const membriQuery = useMemoFirebase(() => {
-    if (!famigliaId || !firestore) return null;
+    if (!famigliaId || !firestore) return null; // This query will wait until famigliaId is set
     return collection(firestore, 'famiglie', famigliaId, 'membri');
   }, [famigliaId, firestore]);
 
+  // 5. Fetch the members of the identified family
   const { data: membri, isLoading: isMembriLoading, error } = useCollection<Membro>(membriQuery);
   
-  const isLoading = isFamigliaLoading || isMembriLoading || isUserDataLoading;
+  // Overall loading state
+  const isLoading = isUserDataLoading || isFamigliaLoading || (famigliaId ? isMembriLoading : false);
   
   const getFamilyAddress = () => {
     if (famigliaData && famigliaData.length > 0) {
@@ -82,7 +86,14 @@ export default function NucleoFamiliarePage() {
         if (!via || !citta) return 'Indirizzo non specificato';
         return `${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`;
     }
-    return 'Nessuna famiglia trovata';
+    // If there's no family document, fall back to user data address
+    if (userData) {
+      const { via, numeroCivico, citta, provincia, cap } = userData;
+      if (via && citta) {
+        return `${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`;
+      }
+    }
+    return 'Nessun indirizzo specificato';
   }
 
   const handleEdit = (membro: Membro) => {
@@ -140,13 +151,14 @@ export default function NucleoFamiliarePage() {
         </Button>
       </div>
       
-      {user && (
+      {user && userData && (
         <AddFamiliareDialog 
           isOpen={isDialogOpen} 
           onOpenChange={setIsDialogOpen}
           membroToEdit={editingMembro}
           user={user}
           famigliaId={getDerivedFamigliaId()}
+          userData={userData}
         />
       )}
 
@@ -198,7 +210,7 @@ export default function NucleoFamiliarePage() {
                   </TableRow>
                 ))
               ) : (
-                !isLoading && (
+                !isLoading && !famigliaId && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center">
                       Nessun membro trovato. Aggiungine uno per creare la tua famiglia.
@@ -209,7 +221,7 @@ export default function NucleoFamiliarePage() {
                {error && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-destructive">
-                    Si è verificato un errore nel caricamento dei dati.
+                    Si è verificato un errore nel caricamento dei dati: {error.message}
                   </TableCell>
                 </TableRow>
               )}
