@@ -49,35 +49,28 @@ export default function NucleoFamiliarePage() {
 
   const [famigliaId, setFamigliaId] = useState<string | null>(null);
 
-  // 1. Create a query to find the family associated with the current user
   const famigliaQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(collection(firestore, 'famiglie'), where('uidCapofamiglia', '==', user.uid));
   }, [user, firestore]);
   
-  // 2. Fetch the family data
   const { data: famigliaData, isLoading: isFamigliaLoading } = useCollection(famigliaQuery);
 
-  // 3. Once family data is loaded, set the famigliaId state
   useEffect(() => {
     if (famigliaData && famigliaData.length > 0) {
       setFamigliaId(famigliaData[0].id);
     } else {
-      // Handle case where user has no family yet
       setFamigliaId(null);
     }
   }, [famigliaData]);
 
-  // 4. Create a query for the members, which depends on famigliaId
   const membriQuery = useMemoFirebase(() => {
-    if (!famigliaId || !firestore) return null; // This query will wait until famigliaId is set
+    if (!famigliaId || !firestore) return null;
     return collection(firestore, 'famiglie', famigliaId, 'membri');
   }, [famigliaId, firestore]);
 
-  // 5. Fetch the members of the identified family
   const { data: membri, isLoading: isMembriLoading, error } = useCollection<Membro>(membriQuery);
   
-  // Overall loading state
   const isLoading = isUserDataLoading || isFamigliaLoading || (famigliaId ? isMembriLoading : false);
   
   const getFamilyAddress = () => {
@@ -86,7 +79,6 @@ export default function NucleoFamiliarePage() {
         if (!via || !citta) return 'Indirizzo non specificato';
         return `${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`;
     }
-    // If there's no family document, fall back to user data address
     if (userData) {
       const { via, numeroCivico, citta, provincia, cap } = userData;
       if (via && citta) {
@@ -129,8 +121,6 @@ export default function NucleoFamiliarePage() {
     });
   }
 
-  // A new user might not have a family document yet.
-  // We derive the famigliaId from the user data address for the dialog.
   const getDerivedFamigliaId = () => {
     if (famigliaId) return famigliaId;
     if (userData) {
@@ -210,7 +200,7 @@ export default function NucleoFamiliarePage() {
                   </TableRow>
                 ))
               ) : (
-                !isLoading && !famigliaId && (
+                !isLoading && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center">
                       Nessun membro trovato. Aggiungine uno per creare la tua famiglia.

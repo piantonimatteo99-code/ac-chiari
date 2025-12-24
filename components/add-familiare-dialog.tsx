@@ -79,7 +79,6 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
         setMembroData(initialMembroState);
       }
 
-      // Pre-fill address from userData
       if (userData) {
         setAnagraficaData({
             via: userData.via || '',
@@ -150,7 +149,6 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
     const newFamigliaId = initialFamigliaId || slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
 
     try {
-      // 1. Save family data (address)
       const famigliaDocRef = doc(firestore, 'famiglie', newFamigliaId);
       const famigliaPayload = {
         ...anagraficaData,
@@ -160,11 +158,9 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
       };
       await setDoc(famigliaDocRef, famigliaPayload, { merge: true });
 
-      // Also update the user's own document with the (potentially new) address
       const userDocRef = doc(firestore, 'users', user.uid);
-      await updateDoc(userDocRef, anagraficaData);
+      await updateDoc(userDocRef, { ...anagraficaData });
 
-      // 2. Save membro data
       if (isEditing && membroToEdit && initialFamigliaId) {
         const membroDocRef = doc(firestore, 'famiglie', initialFamigliaId, 'membri', membroToEdit.id);
         await updateDoc(membroDocRef, {
@@ -224,7 +220,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
 
           <div className="space-y-4 border-t pt-4">
               <p className="text-sm font-medium">Indirizzo del Nucleo Familiare (Condiviso)</p>
-              <div className="grid grid-cols-5 gap-4">
+               <div className="grid grid-cols-5 gap-4">
                   <div className="col-span-3 grid gap-2">
                       <Label htmlFor="citta">Città</Label>
                       <Input id="citta" value={anagraficaData.citta} onChange={handleChange} autoComplete="off"/>
@@ -249,7 +245,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
                       <Input id="numeroCivico" value={anagraficaData.numeroCivico} onChange={handleChange} autoComplete="off" />
                   </div>
               </div>
-            </div>
+          </div>
           
           <div className="grid grid-cols-2 gap-4 border-t pt-4">
             <div className="grid gap-2">

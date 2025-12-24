@@ -43,7 +43,12 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the user document was created."
-        }
+        },
+        "via": { "type": "string" },
+        "numeroCivico": { "type": "string" },
+        "citta": { "type": "string" },
+        "provincia": { "type": "string" },
+        "cap": { "type": "string" }
       },
       "required": [
         "id",
@@ -142,7 +147,7 @@
           "schema": {
             "$ref": "#/entities/User"
           },
-          "description": "Stores user profile data, including roles for authorization."
+          "description": "Stores user profile data, including roles and the shared family address."
         }
       },
       {

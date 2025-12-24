@@ -14,11 +14,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUserData } from "@/src/hooks/use-user-data";
 import { useFirestore, useUser } from "@/src/firebase";
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import { slugify } from '@/lib/utils';
 
-const initialState = {
+
+const initialAnagraficaState = {
   nome: '',
   cognome: '',
+  via: '',
+  numeroCivico: '',
+  citta: '',
+  provincia: '',
+  cap: '',
 };
 
 const capitalizeWords = (str: string) => {
@@ -30,7 +37,7 @@ export default function DatiUtenteCard() {
   const { userData, isLoading: isUserLoading } = useUserData();
   const firestore = useFirestore();
   const { user } = useUser();
-  const [formData, setFormData] = useState(initialState);
+  const [formData, setFormData] = useState(initialAnagraficaState);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -40,6 +47,11 @@ export default function DatiUtenteCard() {
       setFormData({
           nome: userData.nome || '',
           cognome: userData.cognome || '',
+          via: userData.via || '',
+          numeroCivico: userData.numeroCivico || '',
+          citta: userData.citta || '',
+          provincia: userData.provincia || '',
+          cap: userData.cap || '',
       });
       setEmail(userData.email || '');
     }
@@ -52,7 +64,12 @@ export default function DatiUtenteCard() {
     switch (id) {
         case 'nome':
         case 'cognome':
-            formattedValue = capitalizeWords(value);
+        case 'citta':
+        case 'via':
+             formattedValue = capitalizeWords(value);
+            break;
+        case 'provincia':
+            formattedValue = value.toUpperCase();
             break;
         default:
             break;
@@ -69,12 +86,49 @@ export default function DatiUtenteCard() {
     setError(null);
     setSuccess(null);
 
+    const { nome, cognome, ...anagraficaData } = formData;
+
     try {
+      // 1. Update user's personal data
       const userDocRef = doc(firestore, 'users', user.uid);
       await updateDoc(userDocRef, {
-        ...formData,
-        displayName: `${formData.nome} ${formData.cognome}`.trim(),
+        nome,
+        cognome,
+        displayName: `${nome} ${cognome}`.trim(),
+        ...anagraficaData,
       });
+
+      // 2. Find the associated family and update its address too
+      const famigliaQuery = query(collection(firestore, 'famiglie'), where('uidCapofamiglia', '==', user.uid));
+      const famigliaSnapshot = await getDocs(famigliaQuery);
+      
+      let famigliaId;
+
+      if (!famigliaSnapshot.empty) {
+        // Family exists, update it
+        const famigliaDoc = famigliaSnapshot.docs[0];
+        famigliaId = famigliaDoc.id;
+        const newFamigliaId = slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
+
+        if (famigliaId !== newFamigliaId) {
+            // This is complex: address change means family ID changes.
+            // For now, we just update the data. A migration would be needed for a real ID change.
+            console.warn("L'ID della famiglia dovrebbe cambiare, ma questa operazione non è supportata. Aggiorno solo i dati.");
+            await updateDoc(doc(firestore, 'famiglie', famigliaId), anagraficaData);
+        } else {
+            await updateDoc(doc(firestore, 'famiglie', famigliaId), anagraficaData);
+        }
+
+      } else if (anagraficaData.via && anagraficaData.citta && anagraficaData.cap) {
+        // No family exists, but we have an address, so create one.
+        famigliaId = slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
+        await setDoc(doc(firestore, 'famiglie', famigliaId), {
+            ...anagraficaData,
+            uidCapofamiglia: user.uid,
+            emailCapofamiglia: user.email,
+        });
+      }
+
       setSuccess("Dati aggiornati con successo!");
        setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -88,9 +142,9 @@ export default function DatiUtenteCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>I Miei Dati</CardTitle>
+        <CardTitle>I Miei Dati e Residenza</CardTitle>
         <CardDescription>
-          Modifica i tuoi dati personali. Questi dati sono associati al tuo account.
+          Modifica i tuoi dati. L'indirizzo di residenza è condiviso con tutto il tuo nucleo familiare.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -113,6 +167,36 @@ export default function DatiUtenteCard() {
               <Label htmlFor="email">Email (non modificabile)</Label>
               <Input id="email" type="email" value={email} disabled />
             </div>
+
+            <div className="space-y-4 border-t pt-4">
+              <p className="text-sm font-medium">Indirizzo del Nucleo Familiare (Condiviso)</p>
+               <div className="grid grid-cols-5 gap-4">
+                  <div className="col-span-3 grid gap-2">
+                      <Label htmlFor="citta">Città</Label>
+                      <Input id="citta" value={formData.citta} onChange={handleChange} autoComplete="off"/>
+                  </div>
+                  <div className="grid gap-2">
+                      <Label htmlFor="provincia">Prov.</Label>
+                      <Input id="provincia" value={formData.provincia} onChange={handleChange} maxLength={2} />
+                  </div>
+                  <div className="grid gap-2">
+                      <Label htmlFor="cap">CAP</Label>
+                      <Input id="cap" value={formData.cap} onChange={handleChange} />
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-5 gap-4">
+                  <div className="col-span-4 grid gap-2">
+                      <Label htmlFor="via">Via</Label>
+                      <Input id="via" value={formData.via} onChange={handleChange} autoComplete="off" />
+                  </div>
+                  <div className="col-span-1 grid gap-2">
+                      <Label htmlFor="numeroCivico">N.</Label>
+                      <Input id="numeroCivico" value={formData.numeroCivico} onChange={handleChange} autoComplete="off" />
+                  </div>
+              </div>
+            </div>
+
              {error && <p className="text-sm text-destructive">{error}</p>}
              {success && <p className="text-sm text-green-600">{success}</p>}
           </div>
