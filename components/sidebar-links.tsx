@@ -100,16 +100,16 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
                     <span className="flex-1 text-left">Admin Panel</span>
                 </AccordionTrigger>
                 <AccordionContent className="pt-1 pl-4">
-                    <Accordion type="single" collapsible defaultValue={getActiveAdminGroup()} className="w-full space-y-1">
+                    <Accordion type="multiple" defaultValue={adminGroups.map(g => g.title)} className="w-full space-y-1">
                         {adminGroups.map((group) => (
                              <AccordionItem value={group.title} key={group.title} className="border-b-0">
                                 <AccordionTrigger className={cn(
-                                    "py-2 hover:no-underline [&[data-state=open]>svg]:-rotate-90",
+                                    "py-2 hover:no-underline flex justify-start",
                                     { "text-primary": group.links.some(l => pathname.startsWith(l.href)) }
                                 )}>
                                     <div className="flex items-center gap-3 rounded-lg text-sm font-medium">
                                         <group.icon className="h-4 w-4" />
-                                        {group.title}
+                                        <span>{group.title}</span>
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-1 space-y-1">
