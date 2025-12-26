@@ -41,6 +41,12 @@ export default function PermissionsPage() {
   const { userData: adminData, isLoading: isAdminDataLoading } = useUserData();
   const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
 
+  useEffect(() => {
+    if (!isAdminDataLoading && !isUserAdmin) {
+      router.push('/dashboard');
+    }
+  }, [isAdminDataLoading, isUserAdmin, router]);
+  
   const usersQuery = useMemoFirebase(() => 
     firestore && isUserAdmin ? collection(firestore, 'users') : null, 
     [firestore, isUserAdmin]
@@ -48,7 +54,6 @@ export default function PermissionsPage() {
   const { data: usersData, isLoading: isUsersLoading, error: usersError } = useCollection<UserData>(usersQuery);
 
   const [users, setUsers] = useState<UserData[]>([]);
-  
 
   useEffect(() => {
     if (usersData) {
@@ -60,13 +65,6 @@ export default function PermissionsPage() {
       setUsers(sorted);
     }
   }, [usersData, adminData]);
-
-
-  useEffect(() => {
-    if (!isAdminDataLoading && !isUserAdmin) {
-      router.push('/dashboard');
-    }
-  }, [isAdminDataLoading, isUserAdmin, router]);
 
   const handleRoleChange = async (userId: string, role: UserData['roles'][number], checked: boolean) => {
     if (!firestore || !isUserAdmin) return;
