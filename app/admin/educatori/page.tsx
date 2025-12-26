@@ -20,6 +20,7 @@ export default function EducatoriPage() {
   }
   
   if (!isUserAdmin) {
+    // This will be shown briefly before redirection
     return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
   }
   
