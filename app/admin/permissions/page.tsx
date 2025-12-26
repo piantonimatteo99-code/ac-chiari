@@ -38,10 +38,8 @@ export default function PermissionsPage() {
   const firestore = useFirestore();
   const router = useRouter();
   
-  // Hook per i dati dell'admin che sta visualizzando la pagina
   const { userData: adminData, isLoading: isAdminDataLoading } = useUserData();
 
-  // Hook per ottenere tutti gli utenti
   const usersQuery = useMemoFirebase(() => 
     firestore ? collection(firestore, 'users') : null, 
     [firestore]
@@ -52,7 +50,6 @@ export default function PermissionsPage() {
 
   useEffect(() => {
     if (usersData) {
-      // Ordina gli utenti, mettendo l'admin loggato in cima se presente
       const sorted = [...usersData].sort((a, b) => {
         if (a.email === adminData?.email) return -1;
         if (b.email === adminData?.email) return 1;
@@ -62,14 +59,13 @@ export default function PermissionsPage() {
     }
   }, [usersData, adminData]);
 
-  const isCheckingPermissions = isAdminDataLoading;
-  const isUserAdmin = !!adminData && adminData.roles?.includes('admin');
+  const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
 
   useEffect(() => {
-    if (!isCheckingPermissions && !isUserAdmin) {
+    if (!isAdminDataLoading && !isUserAdmin) {
       router.push('/dashboard');
     }
-  }, [isCheckingPermissions, isUserAdmin, router]);
+  }, [isAdminDataLoading, isUserAdmin, router]);
 
   const handleRoleChange = async (userId: string, role: UserData['roles'][number], checked: boolean) => {
     if (!firestore || !isUserAdmin) return;
@@ -82,7 +78,6 @@ export default function PermissionsPage() {
         await updateDoc(userDocRef, { roles: arrayRemove(role) });
       }
       
-      // Aggiorna lo stato locale per riflettere immediatamente il cambiamento
       setUsers(currentUsers => 
         currentUsers.map(u => 
           u.id === userId ? { ...u, roles: checked ? [...(u.roles || []), role] : (u.roles || []).filter(r => r !== role) } : u
@@ -91,11 +86,10 @@ export default function PermissionsPage() {
 
     } catch (error) {
       console.error("Errore durante l'aggiornamento dei ruoli:", error);
-      // Qui potresti mostrare un toast di errore
     }
   };
   
-  if (isCheckingPermissions) {
+  if (isAdminDataLoading) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
   }
   
@@ -148,7 +142,6 @@ export default function PermissionsPage() {
                             aria-haspopup="true"
                             size="sm"
                             variant="outline"
-                            // Non permettere all'admin di modificare i propri ruoli per sicurezza
                             disabled={user.email === 'piantonimatteo.99@gmail.com' && adminData?.email === user.email}
                           >
                             Gestisci
@@ -162,7 +155,7 @@ export default function PermissionsPage() {
                               key={role}
                               checked={user.roles?.includes(role)}
                               onCheckedChange={(checked) => handleRoleChange(user.id, role, checked)}
-                              onSelect={(e) => e.preventDefault()} // Previene la chiusura del menu
+                              onSelect={(e) => e.preventDefault()}
                             >
                               {role.charAt(0).toUpperCase() + role.slice(1)}
                             </DropdownMenuCheckboxItem>

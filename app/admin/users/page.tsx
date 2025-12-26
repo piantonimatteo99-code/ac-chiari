@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,15 +46,23 @@ export default function UsersPage() {
   const router = useRouter();
   const { userData: adminData, isLoading: isAdminDataLoading } = useUserData();
 
+  const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
+
+  useEffect(() => {
+    if (!isAdminDataLoading && !isUserAdmin) {
+      router.push('/dashboard');
+    }
+  }, [isAdminDataLoading, isUserAdmin, router]);
+  
   const usersQuery = useMemoFirebase(() => 
-    firestore ? collection(firestore, 'users') : null, 
-    [firestore]
+    firestore && isUserAdmin ? collection(firestore, 'users') : null, 
+    [firestore, isUserAdmin]
   );
   const { data: usersData, isLoading: isUsersLoading, error: usersError } = useCollection<UserData>(usersQuery);
 
   const membriQuery = useMemoFirebase(() => 
-    firestore ? query(collectionGroup(firestore, 'membri')) : null, 
-    [firestore]
+    firestore && isUserAdmin ? query(collectionGroup(firestore, 'membri')) : null, 
+    [firestore, isUserAdmin]
   );
   const { data: membriData, isLoading: isMembriLoading, error: membriError } = useCollection<Membro>(membriQuery);
   
@@ -90,18 +98,9 @@ export default function UsersPage() {
     return combined.sort((a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto));
   }, [usersData, membriData]);
 
-  const isCheckingPermissions = isAdminDataLoading;
-  const isUserAdmin = !!adminData && adminData.roles?.includes('admin');
   const areTableDataLoading = isUsersLoading || isMembriLoading;
   const dataError = usersError || membriError;
 
-  useEffect(() => {
-    // Redirect only when loading is finished and user is not an admin.
-    if (!isCheckingPermissions && !isUserAdmin) {
-      router.push('/dashboard');
-    }
-  }, [isCheckingPermissions, isUserAdmin, router]);
-  
   const formatDate = (dateString: string) => {
     if (!dateString || dateString === 'N/A') return 'N/A';
     const date = new Date(dateString);
@@ -116,7 +115,7 @@ export default function UsersPage() {
     return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
   
-  if (isCheckingPermissions) {
+  if (isAdminDataLoading) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
   }
   
