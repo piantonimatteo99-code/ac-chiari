@@ -46,8 +46,8 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
 
   const isAdmin = userData?.roles?.includes('admin');
 
-  const getActiveAdminGroup = () => {
-    return adminGroups.find(group => group.links.some(link => pathname.startsWith(link.href)))?.title;
+  const getActiveAdminGroups = () => {
+    return adminGroups.filter(group => group.links.some(link => pathname.startsWith(link.href))).map(g => g.title);
   };
 
   const renderLink = (item: { href: string; icon: React.ElementType; label: string; }) => {
@@ -90,7 +90,7 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
     <div className="flex flex-col gap-2">
       {navItems.map(renderLink)}
       {isAdmin && (
-         <Accordion type="single" collapsible defaultValue="admin-panel" className="w-full">
+         <Accordion type="single" collapsible defaultValue={pathname.startsWith('/admin') ? 'admin-panel' : ''} className="w-full">
             <AccordionItem value="admin-panel" className="border-b-0">
                 <AccordionTrigger className={cn(
                     "flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground",
@@ -100,7 +100,7 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
                     <span className="flex-1 text-left">Admin Panel</span>
                 </AccordionTrigger>
                 <AccordionContent className="pt-1 pl-4">
-                    <Accordion type="multiple" defaultValue={adminGroups.map(g => g.title)} className="w-full space-y-1">
+                    <Accordion type="multiple" defaultValue={getActiveAdminGroups()} className="w-full space-y-1">
                         {adminGroups.map((group) => (
                              <AccordionItem value={group.title} key={group.title} className="border-b-0">
                                 <AccordionTrigger className={cn(
