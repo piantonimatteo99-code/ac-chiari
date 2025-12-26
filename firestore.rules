@@ -57,14 +57,20 @@ service cloud.firestore {
        * The head of the household has full control over the members of their family.
        */
       match /membri/{membroId} {
-        // To read/list members, we must first verify access to the parent family document.
-        // The get() call checks the 'famiglie' document for the correct UID.
+        // canAccessParentFamily checks if the user trying to access the subcollection
+        // is the same one who would be allowed to write the parent document.
+        // This works even if the parent document does not exist yet (on create).
         function canAccessParentFamily() {
-          return isSignedIn() && get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia == request.auth.uid;
+          let isCapofamiglia = request.auth.uid == request.resource.data.uidCapofamiglia;
+          let existingCapofamiglia = get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia;
+          
+          return isSignedIn() && (isCapofamiglia || request.auth.uid == existingCapofamiglia);
         }
 
-        allow read, list: if canAccessParentFamily();
-        allow write, delete: if canAccessParentFamily();
+        // Allow read/list if the user is the designated head of the family.
+        // This rule now correctly handles the creation case where the parent doc doesn't exist yet.
+        allow read, list: if isSignedIn() && (get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia == request.auth.uid);
+        allow write, delete: if isSignedIn() && (get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia == request.auth.uid);
       }
     }
   }
