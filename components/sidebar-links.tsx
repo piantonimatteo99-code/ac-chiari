@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Landmark, Building, Shield, GraduationCap, Lock, UserCog } from 'lucide-react';
+import { Home, Users, Landmark, Building, Shield, GraduationCap, UserCog } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUserData } from '@/src/hooks/use-user-data';
 import {
@@ -23,6 +23,7 @@ const adminGroups = [
   {
     title: 'Area Educatori',
     icon: GraduationCap,
+    href: '/admin/area-educatori',
     links: [
       { href: '/admin/educatori', label: 'Educatori' },
       { href: '/admin/ruoli-educatori', label: 'Ruoli Educatori' },
@@ -31,6 +32,7 @@ const adminGroups = [
   {
     title: 'Gestione Utenti',
     icon: UserCog,
+    href: '/admin/users',
     links: [
       { href: '/admin/users', label: 'Utenti' },
       { href: '/admin/roles', label: 'Ruoli' },
@@ -46,13 +48,8 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
 
   const isAdmin = userData?.roles?.includes('admin');
 
-  const getActiveAccordionItem = () => {
-    for (const group of adminGroups) {
-      if (group.links.some(link => pathname.startsWith(link.href))) {
-        return group.title;
-      }
-    }
-    return undefined;
+  const getActiveAdminGroup = () => {
+    return adminGroups.find(group => group.links.some(link => pathname.startsWith(link.href)))?.title;
   };
 
   const renderLink = (item: { href: string; icon: React.ElementType; label: string; }) => {
@@ -95,7 +92,7 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
     <div className="flex flex-col gap-2">
       {navItems.map(renderLink)}
       {isAdmin && (
-         <Accordion type="single" collapsible defaultValue={getActiveAccordionItem()} className="w-full">
+         <Accordion type="single" collapsible defaultValue="admin-panel" className="w-full">
             <AccordionItem value="admin-panel" className="border-b-0">
                 <AccordionTrigger className={cn(
                     "flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground",
@@ -104,12 +101,15 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
                     <Shield className="h-5 w-5" />
                     <span className="flex-1 text-left">Admin Panel</span>
                 </AccordionTrigger>
-                <AccordionContent className="pt-1">
-                    <Accordion type="multiple" defaultValue={adminGroups.filter(g => g.links.some(l => pathname.startsWith(l.href))).map(g => g.title)} className="w-full space-y-1 pl-4">
+                <AccordionContent className="pt-1 pl-4">
+                    <Accordion type="single" collapsible defaultValue={getActiveAdminGroup()} className="w-full space-y-1">
                         {adminGroups.map((group) => (
                              <AccordionItem value={group.title} key={group.title} className="border-b-0">
-                                <AccordionTrigger className="py-2 hover:no-underline">
-                                    <div className="flex items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground">
+                                <AccordionTrigger className="py-2 hover:no-underline [&[data-state=open]>svg]:-rotate-90">
+                                    <div className={cn(
+                                        "flex items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-primary",
+                                        group.links.some(l => pathname.startsWith(l.href)) && "text-primary"
+                                    )}>
                                         <group.icon className="h-4 w-4" />
                                         {group.title}
                                     </div>
