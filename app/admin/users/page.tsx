@@ -116,27 +116,19 @@ export default function UsersPage() {
     return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
   
-  // Render a loading state while checking permissions.
-  // This prevents the redirect logic from running prematurely.
   if (isCheckingPermissions) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
   }
   
-  // If the user is not an admin, they will be redirected by the useEffect. 
-  // We can show a message in the meantime.
   if (!isUserAdmin) {
     return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
   }
   
   return (
      <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Anagrafe Utenti e Familiari</h1>
-      </div>
-
       <Card>
          <CardHeader>
-          <CardTitle>Elenco Completo</CardTitle>
+          <CardTitle>Anagrafe Utenti e Familiari</CardTitle>
           <CardDescription>
             Questa tabella mostra sia gli utenti registrati al sistema sia i membri dei nuclei familiari.
           </CardDescription>

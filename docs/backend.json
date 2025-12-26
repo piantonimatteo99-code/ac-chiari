@@ -35,7 +35,8 @@
             "enum": [
               "admin",
               "utente",
-              "educatore"
+              "educatore",
+              "genitore"
             ]
           }
         },

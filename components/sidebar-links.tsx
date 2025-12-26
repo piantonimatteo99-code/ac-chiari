@@ -23,7 +23,6 @@ const adminGroups = [
   {
     title: 'Area Educatori',
     icon: GraduationCap,
-    href: '/admin/area-educatori',
     links: [
       { href: '/admin/educatori', label: 'Educatori' },
       { href: '/admin/ruoli-educatori', label: 'Ruoli Educatori' },
@@ -32,9 +31,8 @@ const adminGroups = [
   {
     title: 'Gestione Utenti',
     icon: UserCog,
-    href: '/admin/users',
     links: [
-      { href: '/admin/users', label: 'Utenti' },
+      { href: '/admin/users', label: 'Anagrafe' },
       { href: '/admin/roles', label: 'Ruoli' },
       { href: '/admin/permissions', label: 'Permessi' },
     ],
@@ -105,11 +103,11 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
                     <Accordion type="single" collapsible defaultValue={getActiveAdminGroup()} className="w-full space-y-1">
                         {adminGroups.map((group) => (
                              <AccordionItem value={group.title} key={group.title} className="border-b-0">
-                                <AccordionTrigger className="py-2 hover:no-underline [&[data-state=open]>svg]:-rotate-90">
-                                    <div className={cn(
-                                        "flex items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-primary",
-                                        group.links.some(l => pathname.startsWith(l.href)) && "text-primary"
-                                    )}>
+                                <AccordionTrigger className={cn(
+                                    "py-2 hover:no-underline [&[data-state=open]>svg]:-rotate-90",
+                                    { "text-primary": group.links.some(l => pathname.startsWith(l.href)) }
+                                )}>
+                                    <div className="flex items-center gap-3 rounded-lg text-sm font-medium">
                                         <group.icon className="h-4 w-4" />
                                         {group.title}
                                     </div>
