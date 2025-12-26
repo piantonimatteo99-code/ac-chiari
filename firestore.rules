@@ -18,59 +18,63 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().roles.hasAny(['admin']);
+    }
+
+    function isCapofamiglia(famigliaId) {
+       return isSignedIn() && request.auth.uid == get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia;
+    }
+
     // ----------------------------------------------------------------------
     // User Profile Rules
     // ----------------------------------------------------------------------
     match /users/{userId} {
-      allow get, update: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow update: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      // Disallow list/delete for privacy and data integrity.
-      allow list, delete: if false;
+      // Disallow delete for data integrity.
+      allow delete: if false;
     }
 
     // ----------------------------------------------------------------------
     // Family Rules
     // ----------------------------------------------------------------------
-
-    /**
-     * @description Secures the 'famiglie' collection. A family document is identified by
-     * a composite key derived from its address.
-     * Reading a family document is allowed if the requesting user is the head of that family.
-     * Writing (create/update) is allowed for the head of the family.
-     */
     match /famiglie/{famigliaId} {
-      // Allow read if user's UID matches the uidCapofamiglia in the document
-      allow get: if isSignedIn() && resource.data.uidCapofamiglia == request.auth.uid;
-
-      // Temporarily allow any signed-in user to list families.
-      // This will be refined later.
-      allow list: if isSignedIn();
+      allow get: if isCapofamiglia(famigliaId) || isAdmin();
+      allow list: if isAdmin();
       
-      // Allow create/update if the user is the head of household
       allow write: if isSignedIn() && request.resource.data.uidCapofamiglia == request.auth.uid;
       
-      // Deleting a whole family is a sensitive operation, disable from client.
       allow delete: if false;
       
-      /**
-       * @description Secures the 'membri' sub-collection within each family.
-       * The head of the household has full control over the members of their family.
-       */
       match /membri/{membroId} {
         // canAccessParentFamily checks if the user trying to access the subcollection
         // is the same one who would be allowed to write the parent document.
         // This works even if the parent document does not exist yet (on create).
-        function canAccessParentFamily() {
-          let isCapofamiglia = request.auth.uid == request.resource.data.uidCapofamiglia;
-          let existingCapofamiglia = get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia;
-          
-          return isSignedIn() && (isCapofamiglia || request.auth.uid == existingCapofamiglia);
+        function canWriteParentFamily() {
+          // On create, the parent doc doesn't exist. We check against the incoming data.
+          let isCreating = resource == null;
+          if (isCreating) {
+            // Can't check incoming parent doc data, so we rely on other rules.
+            // This is tricky. Let's assume for creation, we check the incoming member data if possible,
+            // but for now, we simplify. The main `write` on parent collection is the gatekeeper.
+            // A simpler rule for write: if you are the capofamiglia of the PARENT document.
+             return isCapofamiglia(famigliaId);
+          }
+          // On update/delete, the parent doc exists.
+          return isCapofamiglia(famigliaId);
         }
 
-        // Allow read/list if the user is the designated head of the family.
-        // This rule now correctly handles the creation case where the parent doc doesn't exist yet.
-        allow read, list: if isSignedIn() && (get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia == request.auth.uid);
-        allow write, delete: if isSignedIn() && (get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia == request.auth.uid);
+        // Allow list/read to admins OR the head of the specific family.
+        allow list, read: if isAdmin() || isCapofamiglia(famigliaId);
+        // Allow write/delete only to the head of the family.
+        allow write, delete: if isCapofamiglia(famigliaId);
       }
     }
   }
