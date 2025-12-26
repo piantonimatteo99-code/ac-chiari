@@ -6,7 +6,6 @@ import { useUserData } from "@/src/hooks/use-user-data";
 export default function EducatoriPage() {
   const router = useRouter();
   const { userData: adminData, isLoading: isAdminDataLoading } = useUserData();
-
   const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
 
   useEffect(() => {
@@ -15,10 +14,10 @@ export default function EducatoriPage() {
     }
   }, [isAdminDataLoading, isUserAdmin, router]);
 
-  if (isAdminDataLoading || !isUserAdmin) {
+  if (isAdminDataLoading) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
   }
-  
+
   return (
     <div>
       <h1 className="text-2xl font-bold">Gestione Educatori</h1>

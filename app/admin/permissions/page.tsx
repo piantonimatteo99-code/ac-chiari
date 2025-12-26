@@ -22,7 +22,7 @@ export default function PermissionsPage() {
     }
   }, [isAdminDataLoading, isUserAdmin, router]);
   
-  if (isAdminDataLoading || !isUserAdmin) {
+  if (isAdminDataLoading) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
   }
 

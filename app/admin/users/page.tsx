@@ -14,7 +14,6 @@ import {
 export default function UsersPage() {
   const router = useRouter();
   const { userData: adminData, isLoading: isAdminDataLoading } = useUserData();
-
   const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
 
   useEffect(() => {
@@ -23,7 +22,7 @@ export default function UsersPage() {
     }
   }, [isAdminDataLoading, isUserAdmin, router]);
   
-  if (isAdminDataLoading || !isUserAdmin) {
+  if (isAdminDataLoading) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
   }
   
