@@ -1,7 +1,5 @@
-export default function AdminPage() {
-    return (
-      <div>
-        <h1 className="text-2xl font-bold">Admin Panel</h1>
-      </div>
-    );
-  }
+// This file is intentionally left blank to resolve a routing conflict.
+// The active page is now at app/(app)/admin/page.tsx
+function ConflictingAdminPage() {
+  return null;
+}

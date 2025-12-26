@@ -1,8 +1,5 @@
-export default function RolesPage() {
-  return (
-    <div>
-      <h1 className="text-2xl font-bold">Gestione Ruoli</h1>
-      <p>Questa pagina è dedicata alla gestione dei ruoli.</p>
-    </div>
-  );
+// This file is intentionally left blank to resolve a routing conflict.
+// The active page is now at app/(app)/admin/roles/page.tsx
+function ConflictingRolesPage() {
+  return null;
 }

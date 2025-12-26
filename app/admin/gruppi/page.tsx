@@ -1,8 +1,5 @@
-export default function GruppiPage() {
-  return (
-    <div>
-      <h1 className="text-2xl font-bold">Gestione Gruppi</h1>
-      <p>Questa pagina è dedicata alla gestione dei gruppi.</p>
-    </div>
-  );
+// This file is intentionally left blank to resolve a routing conflict.
+// The active page is now at app/(app)/admin/gruppi/page.tsx
+function ConflictingGruppiPage() {
+  return null;
 }
