@@ -47,6 +47,8 @@ export default function PermissionsPage() {
   const { data: usersData, isLoading: isUsersLoading, error: usersError } = useCollection<UserData>(usersQuery);
 
   const [users, setUsers] = useState<UserData[]>([]);
+  
+  const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
 
   useEffect(() => {
     if (usersData) {
@@ -59,7 +61,6 @@ export default function PermissionsPage() {
     }
   }, [usersData, adminData]);
 
-  const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
 
   useEffect(() => {
     if (!isAdminDataLoading && !isUserAdmin) {
