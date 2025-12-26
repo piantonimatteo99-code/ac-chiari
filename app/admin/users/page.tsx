@@ -55,7 +55,7 @@ export default function UsersPage() {
 
   // Collection group query for all 'membri' across all 'famiglie'
   const membriQuery = useMemoFirebase(() => 
-    firestore ? collectionGroup(firestore, 'membri') : null, 
+    firestore ? query(collectionGroup(firestore, 'membri')) : null, 
     [firestore]
   );
   const { data: membriData, isLoading: isMembriLoading, error: membriError } = useCollection<Membro>(membriQuery);
@@ -93,12 +93,18 @@ export default function UsersPage() {
     return combined.sort((a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto));
   }, [usersData, membriData]);
 
-  const isLoading = isAdminLoading || isUsersLoading || isMembriLoading;
+  const isLoading = isUsersLoading || isMembriLoading;
   const error = usersError || membriError;
+  
+  // Wait for admin data to load before checking permissions
+  if (isAdminLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
+  }
 
-  if (!isAdminLoading && (!adminData || !adminData.roles?.includes('admin'))) {
+  // Once loading is complete, check for admin role
+  if (!adminData || !adminData.roles?.includes('admin')) {
      router.push('/dashboard');
-     return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato.</div>;
+     return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
   }
 
   const formatDate = (dateString: string) => {
