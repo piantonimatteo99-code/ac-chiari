@@ -183,7 +183,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[475px]">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Modifica Dati Membro' : 'Aggiungi Membro Familiare'}</DialogTitle>
           <DialogDescription>
@@ -193,73 +193,75 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
             }
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <p className="text-sm font-medium">Dati del Membro</p>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="nome">Nome</Label>
-              <Input id="nome" value={membroData.nome} onChange={handleChange} />
+        <div className="flex-1 overflow-y-auto pr-6 -mr-6">
+            <div className="grid gap-4 py-4">
+            <p className="text-sm font-medium">Dati del Membro</p>
+            <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                <Label htmlFor="nome">Nome</Label>
+                <Input id="nome" value={membroData.nome} onChange={handleChange} />
+                </div>
+                <div className="grid gap-2">
+                <Label htmlFor="cognome">Cognome</Label>
+                <Input id="cognome" value={membroData.cognome} onChange={handleChange} />
+                </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="cognome">Cognome</Label>
-              <Input id="cognome" value={membroData.cognome} onChange={handleChange} />
+                <Label htmlFor="dataNascita">Data di Nascita</Label>
+                <Input id="dataNascita" type="date" value={membroData.dataNascita} onChange={handleChange} />
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="dataNascita">Data di Nascita</Label>
-            <Input id="dataNascita" type="date" value={membroData.dataNascita} onChange={handleChange} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="codiceFiscale">Codice Fiscale</Label>
-            <Input id="codiceFiscale" value={membroData.codiceFiscale} onChange={handleChange} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
-            <Input id="luogoNascita" value={membroData.luogoNascita} onChange={handleChange} />
-          </div>
+            <div className="grid gap-2">
+                <Label htmlFor="codiceFiscale">Codice Fiscale</Label>
+                <Input id="codiceFiscale" value={membroData.codiceFiscale} onChange={handleChange} />
+            </div>
+            <div className="grid gap-2">
+                <Label htmlFor="luogoNascita">Luogo di Nascita</Label>
+                <Input id="luogoNascita" value={membroData.luogoNascita} onChange={handleChange} />
+            </div>
 
-          <div className="space-y-4 border-t pt-4">
-              <p className="text-sm font-medium">Indirizzo del Nucleo Familiare (Condiviso)</p>
-               <div className="grid grid-cols-5 gap-4">
-                  <div className="col-span-3 grid gap-2">
-                      <Label htmlFor="citta">Città</Label>
-                      <Input id="citta" value={anagraficaData.citta} onChange={handleChange} autoComplete="off"/>
-                  </div>
-                  <div className="grid gap-2">
-                      <Label htmlFor="provincia">Prov.</Label>
-                      <Input id="provincia" value={anagraficaData.provincia} onChange={handleChange} maxLength={2} />
-                  </div>
-                  <div className="grid gap-2">
-                      <Label htmlFor="cap">CAP</Label>
-                      <Input id="cap" value={anagraficaData.cap} onChange={handleChange} />
-                  </div>
-              </div>
+            <div className="space-y-4 border-t pt-4">
+                <p className="text-sm font-medium">Indirizzo del Nucleo Familiare (Condiviso)</p>
+                <div className="grid grid-cols-5 gap-4">
+                    <div className="col-span-3 grid gap-2">
+                        <Label htmlFor="citta">Città</Label>
+                        <Input id="citta" value={anagraficaData.citta} onChange={handleChange} autoComplete="off"/>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="provincia">Prov.</Label>
+                        <Input id="provincia" value={anagraficaData.provincia} onChange={handleChange} maxLength={2} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="cap">CAP</Label>
+                        <Input id="cap" value={anagraficaData.cap} onChange={handleChange} />
+                    </div>
+                </div>
 
-              <div className="grid grid-cols-5 gap-4">
-                  <div className="col-span-4 grid gap-2">
-                      <Label htmlFor="via">Via</Label>
-                      <Input id="via" value={anagraficaData.via} onChange={handleChange} autoComplete="off" />
-                  </div>
-                  <div className="col-span-1 grid gap-2">
-                      <Label htmlFor="numeroCivico">N.</Label>
-                      <Input id="numeroCivico" value={anagraficaData.numeroCivico} onChange={handleChange} autoComplete="off" />
-                  </div>
-              </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4 border-t pt-4">
-            <div className="grid gap-2">
-              <Label htmlFor="telefonoPrincipale">Tel. Principale</Label>
-              <Input id="telefonoPrincipale" value={membroData.telefonoPrincipale} onChange={handleChange} />
+                <div className="grid grid-cols-5 gap-4">
+                    <div className="col-span-4 grid gap-2">
+                        <Label htmlFor="via">Via</Label>
+                        <Input id="via" value={anagraficaData.via} onChange={handleChange} autoComplete="off" />
+                    </div>
+                    <div className="col-span-1 grid gap-2">
+                        <Label htmlFor="numeroCivico">N.</Label>
+                        <Input id="numeroCivico" value={anagraficaData.numeroCivico} onChange={handleChange} autoComplete="off" />
+                    </div>
+                </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="telefonoSecondario">Tel. Secondario</Label>
-              <Input id="telefonoSecondario" value={membroData.telefonoSecondario} onChange={handleChange} />
+            
+            <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                <div className="grid gap-2">
+                <Label htmlFor="telefonoPrincipale">Tel. Principale</Label>
+                <Input id="telefonoPrincipale" value={membroData.telefonoPrincipale} onChange={handleChange} />
+                </div>
+                <div className="grid gap-2">
+                <Label htmlFor="telefonoSecondario">Tel. Secondario</Label>
+                <Input id="telefonoSecondario" value={membroData.telefonoSecondario} onChange={handleChange} />
+                </div>
             </div>
-          </div>
+            </div>
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <DialogFooter>
+        <DialogFooter className='pt-4 border-t'>
           <Button variant="outline" onClick={handleClose}>Annulla</Button>
           <Button type="submit" onClick={handleSubmit}>Salva</Button>
         </DialogFooter>
