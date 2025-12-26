@@ -34,7 +34,7 @@ const adminGroups = [
     links: [
       { href: '/admin/users', label: 'Anagrafe' },
       { href: '/admin/roles', label: 'Ruoli' },
-      { href: '/admin/permissions', label: 'Permessi' },
+      { href: '/admin/gestione-utenti/permessi', label: 'Permessi' },
     ],
   },
 ];
@@ -111,6 +111,7 @@ export default function SidebarLinks({ isMobile = false }: { isMobile?: boolean 
                                         <group.icon className="h-4 w-4" />
                                         <span>{group.title}</span>
                                     </div>
+
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-1 space-y-1">
                                     {group.links.map(link => renderSubLink(link.href, link.label))}
