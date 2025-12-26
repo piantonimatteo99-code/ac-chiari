@@ -91,7 +91,7 @@ export default function UsersPage() {
   }, [usersData, membriData]);
 
   const isCheckingPermissions = isAdminDataLoading;
-  const isUserAdmin = adminData?.roles?.includes('admin');
+  const isUserAdmin = !!adminData && adminData.roles?.includes('admin');
   const areTableDataLoading = isUsersLoading || isMembriLoading;
   const dataError = usersError || membriError;
 
