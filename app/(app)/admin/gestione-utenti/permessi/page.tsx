@@ -1,73 +1,115 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
+import { collection, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { UserData } from '@/src/hooks/use-user-data';
+import { Badge } from '@/components/ui/badge';
 
-// Dati mock per ruoli e permessi
-const roles = ["admin", "educatore", "genitore", "utente"];
-const permissions = [
-  "read:users", "write:users", "delete:users",
-  "read:groups", "write:groups", "delete:groups",
-  "read:accounting", "write:accounting",
-  "manage:roles"
-];
-
-const initialPermissions: Record<string, string[]> = {
-  admin: ["read:users", "write:users", "delete:users", "read:groups", "write:groups", "delete:groups", "read:accounting", "write:accounting", "manage:roles"],
-  educatore: ["read:users", "read:groups", "write:groups"],
-  genitore: ["read:users"],
-  utente: [],
-};
+const ALL_ROLES = ["utente", "genitore", "educatore", "admin"] as const;
+type Role = typeof ALL_ROLES[number];
 
 export default function PermissionsPage() {
+  const firestore = useFirestore();
+  
+  // Memoized query to fetch all users
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'users');
+  }, [firestore]);
 
-  // Qui andrebbe la logica per leggere e scrivere i permessi da Firestore
-  // Per ora usiamo uno stato locale.
-  // const [rolePermissions, setRolePermissions] = useState(initialPermissions);
+  const { data: users, isLoading, error } = useCollection<UserData>(usersQuery);
 
-  const handleSave = () => {
-    // Logica per salvare i permessi in Firestore
-    console.log("Salvataggio dei permessi...");
+  const handleRoleChange = async (userId: string, role: Role, isChecked: boolean) => {
+    if (!firestore) return;
+    
+    const userDocRef = doc(firestore, 'users', userId);
+    
+    try {
+      if (isChecked) {
+        await updateDoc(userDocRef, {
+          roles: arrayUnion(role)
+        });
+      } else {
+        await updateDoc(userDocRef, {
+          roles: arrayRemove(role)
+        });
+      }
+    } catch (err) {
+      console.error("Failed to update role:", err);
+      // Optional: Add toast notification for error
+    }
   };
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Gestione Permessi</h1>
+        <h1 className="text-2xl font-bold">Gestione Permessi e Ruoli</h1>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Permessi per Ruolo</CardTitle>
+          <CardTitle>Assegnazione Ruoli Utente</CardTitle>
           <CardDescription>
-            Assegna i permessi specifici per ogni ruolo definito nel sistema.
+            Assegna o revoca i ruoli per ogni utente del sistema. Le modifiche vengono salvate automaticamente.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-6">
-          {roles.map((role) => (
-            <div key={role} className="border-t pt-4">
-              <h3 className="text-lg font-semibold capitalize mb-3">{role}</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {permissions.map((permission) => (
-                  <div key={permission} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`${role}-${permission}`}
-                      // checked={rolePermissions[role]?.includes(permission)}
-                      defaultChecked={initialPermissions[role]?.includes(permission)}
-                    />
-                    <Label htmlFor={`${role}-${permission}`} className="text-sm font-normal">
-                      {permission}
-                    </Label>
-                  </div>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Email</TableHead>
+                {ALL_ROLES.map(role => (
+                   <TableHead key={role} className="capitalize text-center">{role}</TableHead>
                 ))}
-              </div>
-            </div>
-          ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && (
+                <TableRow>
+                  <TableCell colSpan={ALL_ROLES.length + 2} className="text-center">
+                    Caricamento utenti...
+                  </TableCell>
+                </TableRow>
+              )}
+              {!isLoading && users && users.length > 0 ? (
+                users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.displayName}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                    {ALL_ROLES.map(role => (
+                      <TableCell key={role} className="text-center">
+                        <Checkbox
+                          checked={user.roles?.includes(role)}
+                          onCheckedChange={(isChecked) => handleRoleChange(user.id, role, !!isChecked)}
+                          aria-label={`Assegna ruolo ${role} a ${user.displayName}`}
+                        />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                 !isLoading && (
+                    <TableRow>
+                        <TableCell colSpan={ALL_ROLES.length + 2} className="text-center">
+                            Nessun utente trovato.
+                        </TableCell>
+                    </TableRow>
+                 )
+              )}
+               {error && (
+                <TableRow>
+                  <TableCell colSpan={ALL_ROLES.length + 2} className="text-center text-destructive">
+                    Si è verificato un errore nel caricamento degli utenti.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
-         <CardFooter className="border-t px-6 py-4 flex justify-end">
-            <Button onClick={handleSave}>Salva Permessi</Button>
-        </CardFooter>
       </Card>
     </div>
   );
