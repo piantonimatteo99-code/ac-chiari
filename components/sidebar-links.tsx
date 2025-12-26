@@ -32,7 +32,7 @@ const adminGroups = [
     title: 'Gestione Utenti',
     icon: UserCog,
     links: [
-      { href: '/admin/users', label: 'Anagrafe' },
+      { href: '/admin/users', label: 'Database' },
       { href: '/admin/roles', label: 'Ruoli' },
       { href: '/admin/gestione-utenti/permessi', label: 'Permessi' },
     ],
