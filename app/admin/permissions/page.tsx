@@ -39,16 +39,16 @@ export default function PermissionsPage() {
   const router = useRouter();
   
   const { userData: adminData, isLoading: isAdminDataLoading } = useUserData();
+  const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
 
   const usersQuery = useMemoFirebase(() => 
-    firestore ? collection(firestore, 'users') : null, 
-    [firestore]
+    firestore && isUserAdmin ? collection(firestore, 'users') : null, 
+    [firestore, isUserAdmin]
   );
   const { data: usersData, isLoading: isUsersLoading, error: usersError } = useCollection<UserData>(usersQuery);
 
   const [users, setUsers] = useState<UserData[]>([]);
   
-  const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
 
   useEffect(() => {
     if (usersData) {
@@ -90,12 +90,8 @@ export default function PermissionsPage() {
     }
   };
   
-  if (isAdminDataLoading) {
+  if (isAdminDataLoading || !isUserAdmin) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
-  }
-  
-  if (!isUserAdmin) {
-    return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
   }
 
   return (

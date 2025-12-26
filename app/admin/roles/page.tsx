@@ -15,12 +15,8 @@ export default function RolesPage() {
     }
   }, [isAdminDataLoading, isUserAdmin, router]);
 
-  if (isAdminDataLoading) {
+  if (isAdminDataLoading || !isUserAdmin) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
-  }
-
-  if (!isUserAdmin) {
-    return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
   }
 
   return (

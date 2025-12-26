@@ -115,12 +115,8 @@ export default function UsersPage() {
     return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
   
-  if (isAdminDataLoading) {
+  if (isAdminDataLoading || !isUserAdmin) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
-  }
-  
-  if (!isUserAdmin) {
-    return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
   }
   
   return (

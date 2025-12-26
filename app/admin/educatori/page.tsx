@@ -10,20 +10,19 @@ export default function EducatoriPage() {
   const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
 
   useEffect(() => {
+    // Attendi il caricamento, poi controlla.
+    // Se il caricamento è finito e l'utente NON è admin, reindirizza.
     if (!isAdminDataLoading && !isUserAdmin) {
       router.push('/dashboard');
     }
   }, [isAdminDataLoading, isUserAdmin, router]);
 
-  if (isAdminDataLoading) {
+  // Mostra il caricamento finché i dati non sono pronti O se non si è admin (in attesa del redirect)
+  if (isAdminDataLoading || !isUserAdmin) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
   }
   
-  if (!isUserAdmin) {
-    // This will be shown briefly before redirection
-    return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
-  }
-  
+  // Se sei qui, il caricamento è finito E sei un admin.
   return (
     <div>
       <h1 className="text-2xl font-bold">Gestione Educatori</h1>
