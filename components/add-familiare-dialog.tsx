@@ -193,8 +193,8 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
             }
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto pr-6 -mr-6">
-            <div className="grid gap-4 py-4">
+        <div className="flex-1 overflow-y-auto pr-2 p-1">
+            <div className="grid gap-4 py-4 pr-4">
             <p className="text-sm font-medium">Dati del Membro</p>
             <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
