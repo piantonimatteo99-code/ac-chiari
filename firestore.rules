@@ -36,10 +36,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow update: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      // Disallow delete for data integrity.
-      allow delete: if false;
+      allow update: if isOwner(userId) || isAdmin(); // Admin can update user profiles
+      allow create: if isOwner(userId);
+      allow delete: if isAdmin(); // Admin can delete users
     }
 
     // ----------------------------------------------------------------------
@@ -47,35 +46,31 @@ service cloud.firestore {
     // ----------------------------------------------------------------------
     match /famiglie/{famigliaId} {
       allow get: if isCapofamiglia(famigliaId) || isAdmin();
-      allow list: if isAdmin();
+      allow list: if isAdmin(); // Admins can list all families
       
+      // Only head of family can create/update their own family document
       allow write: if isSignedIn() && request.resource.data.uidCapofamiglia == request.auth.uid;
       
-      allow delete: if false;
+      // Admins can delete families
+      allow delete: if isAdmin();
       
+      // Rules for the 'membri' sub-collection
       match /membri/{membroId} {
-        // canAccessParentFamily checks if the user trying to access the subcollection
-        // is the same one who would be allowed to write the parent document.
-        // This works even if the parent document does not exist yet (on create).
-        function canWriteParentFamily() {
-          // On create, the parent doc doesn't exist. We check against the incoming data.
-          let isCreating = resource == null;
-          if (isCreating) {
-            // Can't check incoming parent doc data, so we rely on other rules.
-            // This is tricky. Let's assume for creation, we check the incoming member data if possible,
-            // but for now, we simplify. The main `write` on parent collection is the gatekeeper.
-            // A simpler rule for write: if you are the capofamiglia of the PARENT document.
-             return isCapofamiglia(famigliaId);
-          }
-          // On update/delete, the parent doc exists.
-          return isCapofamiglia(famigliaId);
-        }
-
-        // Allow list/read to admins OR the head of the specific family.
-        allow list, read: if isAdmin() || isCapofamiglia(famigliaId);
-        // Allow write/delete only to the head of the family.
-        allow write, delete: if isCapofamiglia(famigliaId);
+        // Admins can read any member, head of family can read their own members.
+        allow read, list: if isAdmin() || isCapofamiglia(famigliaId);
+        
+        // Head of family can create/update/delete their own family members.
+        allow write: if isCapofamiglia(famigliaId);
+        
+        // Admin can also delete members
+        allow delete: if isAdmin() || isCapofamiglia(famigliaId);
       }
+    }
+    
+    // Rule for the 'membri' collection group query
+    match /{path=**}/membri/{membroId} {
+        // Allow admins to list all members across all families for the admin user table
+        allow list, read: if isAdmin();
     }
   }
 }
