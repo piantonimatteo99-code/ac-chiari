@@ -9,12 +9,15 @@ export default function RuoliEducatoriPage() {
   const isUserAdmin = useMemo(() => adminData?.roles?.includes('admin'), [adminData]);
 
   useEffect(() => {
+    // Esegui il reindirizzamento solo quando il caricamento è terminato e l'utente non è admin.
     if (!isAdminDataLoading && !isUserAdmin) {
       router.push('/dashboard');
     }
   }, [isAdminDataLoading, isUserAdmin, router]);
 
-  if (isAdminDataLoading) {
+  // Mostra lo stato di caricamento finché i dati non sono pronti.
+  // Questo previene il rendering del contenuto della pagina o di un messaggio di errore prima della verifica.
+  if (isAdminDataLoading || !isUserAdmin) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
   }
   
