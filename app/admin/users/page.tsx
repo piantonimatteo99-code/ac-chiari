@@ -93,7 +93,7 @@ export default function UsersPage() {
     return combined.sort((a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto));
   }, [usersData, membriData]);
 
-  const isLoading = isUsersLoading || isMembriLoading;
+  const areTableDataLoading = isUsersLoading || isMembriLoading;
   const error = usersError || membriError;
   
   // Wait for admin data to load before checking permissions
@@ -142,14 +142,14 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && (
+              {areTableDataLoading && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center">
                     Caricamento anagrafe...
                   </TableCell>
                 </TableRow>
               )}
-              {!isLoading && combinedData.length > 0 ? (
+              {!areTableDataLoading && combinedData.length > 0 ? (
                 combinedData.map((item) => (
                   <TableRow key={`${item.type}-${item.id}`} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{item.nomeCompleto}</TableCell>
@@ -181,7 +181,7 @@ export default function UsersPage() {
                   </TableRow>
                 ))
               ) : (
-                !isLoading && (
+                !areTableDataLoading && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center">
                       Nessun utente o familiare trovato nel database.
