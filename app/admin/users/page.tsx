@@ -44,71 +44,82 @@ type CombinedUser = {
 export default function UsersPage() {
   const firestore = useFirestore();
   const router = useRouter();
-  const { userData: adminData, isLoading: isAdminLoading } = useUserData();
+  // Hook per i dati dell'utente corrente (admin)
+  const { userData: adminData, isLoading: isAdminDataLoading } = useUserData();
 
-  // Query for all users
+  // Query per tutti gli utenti registrati
   const usersQuery = useMemoFirebase(() => 
     firestore ? collection(firestore, 'users') : null, 
     [firestore]
   );
   const { data: usersData, isLoading: isUsersLoading, error: usersError } = useCollection<UserData>(usersQuery);
 
-  // Collection group query for all 'membri' across all 'famiglie'
+  // Query di tipo "collection group" per tutti i membri di tutte le famiglie
   const membriQuery = useMemoFirebase(() => 
     firestore ? query(collectionGroup(firestore, 'membri')) : null, 
     [firestore]
   );
   const { data: membriData, isLoading: isMembriLoading, error: membriError } = useCollection<Membro>(membriQuery);
   
+  // Combiniamo i dati solo quando sono pronti
   const combinedData = useMemo(() => {
-    if (!usersData && !membriData) return [];
+    if (!usersData || !membriData) return [];
 
     const combined: CombinedUser[] = [];
 
-    usersData?.forEach(user => {
+    usersData.forEach(user => {
       combined.push({
         id: user.id,
         type: 'Utente',
         nomeCompleto: user.displayName || `${user.nome} ${user.cognome}`,
         identificativo: user.email,
-        data: user.createdAt ? new Date(user.createdAt.seconds * 1000).toLocaleDateString('it-IT') : '-',
-        isUserActive: true, // Assuming all registered users are active
+        data: user.createdAt?.seconds ? new Date(user.createdAt.seconds * 1000).toLocaleDateString('it-IT') : 'N/A',
+        isUserActive: true,
         source: user,
       });
     });
 
-    membriData?.forEach(membro => {
+    membriData.forEach(membro => {
       combined.push({
         id: membro.id,
         type: 'Familiare',
         nomeCompleto: `${membro.nome} ${membro.cognome}`,
         identificativo: membro.codiceFiscale || 'N/A',
-        data: membro.dataNascita ? new Date(membro.dataNascita).toLocaleDateString('it-IT') : '-',
-        isUserActive: false, // Familiari are not users, so they don't have an "active" user state
+        data: membro.dataNascita ? new Date(membro.dataNascita).toLocaleDateString('it-IT') : 'N/A',
+        isUserActive: false,
         source: membro,
       });
     });
 
-    // Sort by name
     return combined.sort((a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto));
   }, [usersData, membriData]);
 
+  // Gestione degli stati di caricamento e permessi
+  const isCheckingPermissions = isAdminDataLoading;
+  const isUserAdmin = adminData?.roles?.includes('admin');
   const areTableDataLoading = isUsersLoading || isMembriLoading;
-  const error = usersError || membriError;
+  const dataError = usersError || membriError;
+
+  // Effetto di reindirizzamento: si attiva solo quando il controllo permessi è finito
+  if (!isCheckingPermissions && !isUserAdmin) {
+    router.push('/dashboard');
+    // Mostra un messaggio mentre il router reindirizza
+    return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
+  }
   
-  if (isAdminLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
-  }
-
-  if (!adminData || !adminData.roles?.includes('admin')) {
-     router.push('/dashboard');
-     return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
-  }
-
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
+    if (!dateString || dateString === 'N/A') return 'N/A';
+    // Controlla se è una data valida prima di formattare
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString; // Return original if it's already formatted
+    if (isNaN(date.getTime())) {
+        // Se non è una data valida, prova a interpretarla diversamente (es. da dd/mm/yyyy a oggetto Date)
+        const parts = dateString.split('/');
+        if (parts.length === 3) {
+            const newDate = new Date(+parts[2], +parts[1] - 1, +parts[0]);
+            if (!isNaN(newDate.getTime())) return dateString;
+        }
+        return dateString; // Restituisce la stringa originale se non può formattarla
+    }
     return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
   
@@ -140,14 +151,13 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {areTableDataLoading && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    Caricamento anagrafe...
-                  </TableCell>
-                </TableRow>
-              )}
-              {!areTableDataLoading && combinedData.length > 0 ? (
+              {isCheckingPermissions ? (
+                 <TableRow><TableCell colSpan={6} className="text-center">Verifica permessi in corso...</TableCell></TableRow>
+              ) : areTableDataLoading ? (
+                <TableRow><TableCell colSpan={6} className="text-center">Caricamento anagrafe...</TableCell></TableRow>
+              ) : dataError ? (
+                <TableRow><TableCell colSpan={6} className="text-center text-destructive">Si è verificato un errore: {dataError.message}</TableCell></TableRow>
+              ) : combinedData.length > 0 ? (
                 combinedData.map((item) => (
                   <TableRow key={`${item.type}-${item.id}`} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{item.nomeCompleto}</TableCell>
@@ -179,20 +189,7 @@ export default function UsersPage() {
                   </TableRow>
                 ))
               ) : (
-                !areTableDataLoading && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center">
-                      Nessun utente o familiare trovato nel database.
-                    </TableCell>
-                  </TableRow>
-                )
-              )}
-               {error && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-destructive">
-                    Si è verificato un errore nel caricamento dei dati: {error.message}
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center">Nessun utente o familiare trovato.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
