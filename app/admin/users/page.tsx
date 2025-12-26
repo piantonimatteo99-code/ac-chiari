@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,24 +44,20 @@ type CombinedUser = {
 export default function UsersPage() {
   const firestore = useFirestore();
   const router = useRouter();
-  // Hook per i dati dell'utente corrente (admin)
   const { userData: adminData, isLoading: isAdminDataLoading } = useUserData();
 
-  // Query per tutti gli utenti registrati
   const usersQuery = useMemoFirebase(() => 
     firestore ? collection(firestore, 'users') : null, 
     [firestore]
   );
   const { data: usersData, isLoading: isUsersLoading, error: usersError } = useCollection<UserData>(usersQuery);
 
-  // Query di tipo "collection group" per tutti i membri di tutte le famiglie
   const membriQuery = useMemoFirebase(() => 
     firestore ? query(collectionGroup(firestore, 'membri')) : null, 
     [firestore]
   );
   const { data: membriData, isLoading: isMembriLoading, error: membriError } = useCollection<Membro>(membriQuery);
   
-  // Combiniamo i dati solo quando sono pronti
   const combinedData = useMemo(() => {
     if (!usersData || !membriData) return [];
 
@@ -94,34 +90,43 @@ export default function UsersPage() {
     return combined.sort((a, b) => a.nomeCompleto.localeCompare(b.nomeCompleto));
   }, [usersData, membriData]);
 
-  // Gestione degli stati di caricamento e permessi
   const isCheckingPermissions = isAdminDataLoading;
   const isUserAdmin = adminData?.roles?.includes('admin');
   const areTableDataLoading = isUsersLoading || isMembriLoading;
   const dataError = usersError || membriError;
 
-  // Effetto di reindirizzamento: si attiva solo quando il controllo permessi è finito
-  if (!isCheckingPermissions && !isUserAdmin) {
-    router.push('/dashboard');
-    // Mostra un messaggio mentre il router reindirizza
-    return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
-  }
+  useEffect(() => {
+    // Redirect only when loading is finished and user is not an admin.
+    if (!isCheckingPermissions && !isUserAdmin) {
+      router.push('/dashboard');
+    }
+  }, [isCheckingPermissions, isUserAdmin, router]);
   
   const formatDate = (dateString: string) => {
     if (!dateString || dateString === 'N/A') return 'N/A';
-    // Controlla se è una data valida prima di formattare
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
-        // Se non è una data valida, prova a interpretarla diversamente (es. da dd/mm/yyyy a oggetto Date)
         const parts = dateString.split('/');
         if (parts.length === 3) {
             const newDate = new Date(+parts[2], +parts[1] - 1, +parts[0]);
             if (!isNaN(newDate.getTime())) return dateString;
         }
-        return dateString; // Restituisce la stringa originale se non può formattarla
+        return dateString;
     }
     return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
+  
+  // Render a loading state while checking permissions.
+  // This prevents the redirect logic from running prematurely.
+  if (isCheckingPermissions) {
+    return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
+  }
+  
+  // If the user is not an admin, they will be redirected by the useEffect. 
+  // We can show a message in the meantime.
+  if (!isUserAdmin) {
+    return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
+  }
   
   return (
      <div className="flex flex-col gap-4">
@@ -151,9 +156,7 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isCheckingPermissions ? (
-                 <TableRow><TableCell colSpan={6} className="text-center">Verifica permessi in corso...</TableCell></TableRow>
-              ) : areTableDataLoading ? (
+              {areTableDataLoading ? (
                 <TableRow><TableCell colSpan={6} className="text-center">Caricamento anagrafe...</TableCell></TableRow>
               ) : dataError ? (
                 <TableRow><TableCell colSpan={6} className="text-center text-destructive">Si è verificato un errore: {dataError.message}</TableCell></TableRow>
