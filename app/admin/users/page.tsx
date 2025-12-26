@@ -96,12 +96,10 @@ export default function UsersPage() {
   const areTableDataLoading = isUsersLoading || isMembriLoading;
   const error = usersError || membriError;
   
-  // Wait for admin data to load before checking permissions
   if (isAdminLoading) {
     return <div className="flex items-center justify-center min-h-screen">Verifica permessi in corso...</div>;
   }
 
-  // Once loading is complete, check for admin role
   if (!adminData || !adminData.roles?.includes('admin')) {
      router.push('/dashboard');
      return <div className="flex items-center justify-center min-h-screen">Accesso non autorizzato. Reindirizzamento...</div>;
