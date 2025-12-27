@@ -10,11 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from "@/components/ui/input";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { File, ListFilter, Search } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 
 
@@ -55,13 +52,25 @@ interface CombinedData {
   isCapofamiglia: boolean;
 }
 
+const initialFilters = {
+    nome: '',
+    cognome: '',
+    dataNascita: '',
+    luogoNascita: '',
+    codiceFiscale: '',
+    residenza: '',
+    membriNucleo: '',
+    classe: '',
+};
+
 export default function DatabasePage() {
   const firestore = useFirestore();
   const [data, setData] = useState<CombinedData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
+  const [filters, setFilters] = useState(initialFilters);
+  const [debouncedFilters] = useDebounce(filters, 300);
+  
 
   useEffect(() => {
     const fetchData = async () => {
@@ -142,30 +151,56 @@ export default function DatabasePage() {
 
     fetchData();
   }, [firestore]);
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
   
-  const filteredData = useMemo(() => {
-    if (!debouncedSearchTerm) {
-      return data;
-    }
-    const lowercasedTerm = debouncedSearchTerm.toLowerCase();
-    return data.filter(item => 
-      item.nome?.toLowerCase().includes(lowercasedTerm) ||
-      item.cognome?.toLowerCase().includes(lowercasedTerm) ||
-      item.codiceFiscale?.toLowerCase().includes(lowercasedTerm)
-    );
-  }, [data, debouncedSearchTerm]);
-
-
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return '';
     try {
         const date = new Date(dateString);
-        if (isNaN(date.getTime())) return 'Data non valida';
+        if (isNaN(date.getTime())) return '';
         return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch {
-        return 'Data non valida'
+        return ''
     }
   }
+  
+  const filteredData = useMemo(() => {
+    return data.filter(item => {
+        return Object.keys(debouncedFilters).every(key => {
+            const filterValue = debouncedFilters[key as keyof typeof debouncedFilters].toLowerCase();
+            if (!filterValue) return true;
+
+            switch (key as keyof typeof debouncedFilters) {
+                case 'nome':
+                    return item.nome?.toLowerCase().includes(filterValue);
+                case 'cognome':
+                    return item.cognome?.toLowerCase().includes(filterValue);
+                case 'dataNascita':
+                    return formatDate(item.dataNascita).includes(filterValue);
+                case 'luogoNascita':
+                    return item.luogoNascita?.toLowerCase().includes(filterValue);
+                case 'codiceFiscale':
+                    return item.codiceFiscale?.toLowerCase().includes(filterValue);
+                case 'residenza':
+                    return item.residenza?.toLowerCase().includes(filterValue);
+                case 'membriNucleo': {
+                     const membriString = item.isCapofamiglia 
+                        ? item.membriNucleo.map(m => m.nome).join(', ')
+                        : 'Membro';
+                    return membriString.toLowerCase().includes(filterValue);
+                }
+                case 'classe':
+                     return true; // Placeholder
+                default:
+                    return true;
+            }
+        });
+    });
+  }, [data, debouncedFilters]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -173,48 +208,10 @@ export default function DatabasePage() {
         <h1 className="text-2xl font-bold">Database Anagrafico</h1>
       </div>
       <Card>
-        <CardContent>
-             <div className="flex items-center justify-between gap-4 py-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        type="search"
-                        placeholder="Cerca per nome, cognome, codice fiscale..."
-                        className="pl-8 sm:w-1/2 md:w-1/3"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <div className="flex items-center gap-2">
-                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 gap-1">
-                            <ListFilter className="h-3.5 w-3.5" />
-                            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                            Filtra
-                            </span>
-                        </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Filtra per</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuCheckboxItem checked>
-                            Attivo
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem>Archiviato</DropdownMenuCheckboxItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                     <Button size="sm" variant="outline" className="h-8 gap-1">
-                        <File className="h-3.5 w-3.5" />
-                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Esporta
-                        </span>
-                    </Button>
-                </div>
-            </div>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>Nome</TableHead>
                 <TableHead>Cognome</TableHead>
                 <TableHead>Data di Nascita</TableHead>
@@ -223,6 +220,16 @@ export default function DatabasePage() {
                 <TableHead>Residenza</TableHead>
                 <TableHead>Componenti Nucleo</TableHead>
                 <TableHead>Classe</TableHead>
+              </TableRow>
+              <TableRow className="hover:bg-transparent">
+                  <TableHead><Input placeholder="Filtra..." name="nome" value={filters.nome} onChange={handleFilterChange} className="h-8"/></TableHead>
+                  <TableHead><Input placeholder="Filtra..." name="cognome" value={filters.cognome} onChange={handleFilterChange} className="h-8"/></TableHead>
+                  <TableHead><Input placeholder="Filtra..." name="dataNascita" value={filters.dataNascita} onChange={handleFilterChange} className="h-8"/></TableHead>
+                  <TableHead><Input placeholder="Filtra..." name="luogoNascita" value={filters.luogoNascita} onChange={handleFilterChange} className="h-8"/></TableHead>
+                  <TableHead><Input placeholder="Filtra..." name="codiceFiscale" value={filters.codiceFiscale} onChange={handleFilterChange} className="h-8"/></TableHead>
+                  <TableHead><Input placeholder="Filtra..." name="residenza" value={filters.residenza} onChange={handleFilterChange} className="h-8"/></TableHead>
+                  <TableHead><Input placeholder="Filtra..." name="membriNucleo" value={filters.membriNucleo} onChange={handleFilterChange} className="h-8"/></TableHead>
+                  <TableHead><Input placeholder="Filtra..." name="classe" value={filters.classe} onChange={handleFilterChange} className="h-8"/></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -234,7 +241,7 @@ export default function DatabasePage() {
               {!isLoading && filteredData.length === 0 && (
                  <TableRow>
                     <TableCell colSpan={8} className="text-center">
-                        {debouncedSearchTerm ? 'Nessun risultato per la tua ricerca.' : 'Nessun dato trovato.'}
+                        Nessun risultato per la tua ricerca.
                     </TableCell>
                 </TableRow>
               )}
