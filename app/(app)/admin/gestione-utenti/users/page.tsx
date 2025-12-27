@@ -16,6 +16,7 @@ import { useDebounce } from 'use-debounce';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Settings, FileDown } from 'lucide-react';
+import Papa from 'papaparse';
 
 
 // Definiamo i tipi per i dati che useremo
@@ -63,7 +64,19 @@ export default function DatabasePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
-  const [columnVisibility, setColumnVisibility] = useState({
+  type ColumnVisibility = {
+    [key: string]: boolean;
+    nome: boolean;
+    cognome: boolean;
+    dataNascita: boolean;
+    luogoNascita: boolean;
+    codiceFiscale: boolean;
+    residenza: boolean;
+    componentiNucleo: boolean;
+    classe: boolean;
+  }
+
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
     nome: true,
     cognome: true,
     dataNascita: true,
@@ -188,6 +201,46 @@ export default function DatabasePage() {
     });
   }, [data, debouncedSearchTerm]);
 
+  const handleExport = () => {
+    const columnLabels: { [key in keyof ColumnVisibility]: string } = {
+        nome: "Nome",
+        cognome: "Cognome",
+        dataNascita: "Data di Nascita",
+        luogoNascita: "Luogo di Nascita",
+        codiceFiscale: "Codice Fiscale",
+        residenza: "Residenza",
+        componentiNucleo: "Componenti Nucleo",
+        classe: "Classe"
+    }
+
+    const exportData = filteredData.map(item => {
+        const row: { [key: string]: any } = {};
+        if (columnVisibility.nome) row[columnLabels.nome] = item.nome;
+        if (columnVisibility.cognome) row[columnLabels.cognome] = item.cognome;
+        if (columnVisibility.dataNascita) row[columnLabels.dataNascita] = formatDate(item.dataNascita);
+        if (columnVisibility.luogoNascita) row[columnLabels.luogoNascita] = item.luogoNascita || 'N/A';
+        if (columnVisibility.codiceFiscale) row[columnLabels.codiceFiscale] = item.codiceFiscale || 'N/A';
+        if (columnVisibility.residenza) row[columnLabels.residenza] = item.residenza || 'N/A';
+        if (columnVisibility.componentiNucleo) row[columnLabels.componentiNucleo] = item.isCapofamiglia 
+            ? item.membriNucleo.map(m => `${m.nome} ${m.cognome}`).join(', ') || 'Nessuno'
+            : 'Membro';
+        if (columnVisibility.classe) row[columnLabels.classe] = '_';
+        
+        return row;
+    });
+
+    const csv = Papa.unparse(exportData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'database_anagrafico.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex flex-col gap-4">
        <div className="flex items-center justify-between">
@@ -212,57 +265,18 @@ export default function DatabasePage() {
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Mostra/Nascondi Colonne</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuCheckboxItem
-                            checked={columnVisibility.nome}
-                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, nome: !!value}))}
-                        >
-                            Nome
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                            checked={columnVisibility.cognome}
-                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, cognome: !!value}))}
-                        >
-                            Cognome
-                        </DropdownMenuCheckboxItem>
-                         <DropdownMenuCheckboxItem
-                            checked={columnVisibility.dataNascita}
-                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, dataNascita: !!value}))}
-                        >
-                            Data di Nascita
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                            checked={columnVisibility.luogoNascita}
-                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, luogoNascita: !!value}))}
-                        >
-                            Luogo di Nascita
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                            checked={columnVisibility.codiceFiscale}
-                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, codiceFiscale: !!value}))}
-                        >
-                            Codice Fiscale
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                            checked={columnVisibility.residenza}
-                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, residenza: !!value}))}
-                        >
-                            Residenza
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                            checked={columnVisibility.componentiNucleo}
-                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, componentiNucleo: !!value}))}
-                        >
-                            Componenti Nucleo
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem
-                            checked={columnVisibility.classe}
-                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, classe: !!value}))}
-                        >
-                            Classe
-                        </DropdownMenuCheckboxItem>
+                        {Object.keys(columnVisibility).map(key => (
+                           <DropdownMenuCheckboxItem
+                            key={key}
+                            checked={columnVisibility[key as keyof ColumnVisibility]}
+                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, [key]: !!value}))}
+                           >
+                            {key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}
+                           </DropdownMenuCheckboxItem>
+                        ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="outline">
+                <Button variant="outline" onClick={handleExport}>
                     <FileDown className="mr-2 h-4 w-4" />
                     Esporta
                 </Button>
