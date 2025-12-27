@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUserData } from "@/src/hooks/use-user-data";
 import { useFirestore, useUser } from "@/src/firebase";
-import { doc, updateDoc, setDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, query, collection, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { slugify } from '@/lib/utils';
 
 
@@ -89,7 +89,6 @@ export default function DatiUtenteCard() {
     const { nome, cognome, ...anagraficaData } = formData;
 
     try {
-      // 1. Update user's personal data
       const userDocRef = doc(firestore, 'users', user.uid);
       await updateDoc(userDocRef, {
         nome,
@@ -98,41 +97,32 @@ export default function DatiUtenteCard() {
         ...anagraficaData,
       });
 
-      // 2. Find the associated family and update its address too
       const famigliaQuery = query(collection(firestore, 'famiglie'), where('uidCapofamiglia', '==', user.uid));
       const famigliaSnapshot = await getDocs(famigliaQuery);
-      
-      let famigliaId;
 
       if (!famigliaSnapshot.empty) {
-        // Family exists, update it
         const famigliaDoc = famigliaSnapshot.docs[0];
-        famigliaId = famigliaDoc.id;
-        const newFamigliaId = slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
-
-        if (famigliaId !== newFamigliaId) {
-            // This is complex: address change means family ID changes.
-            // For now, we just update the data. A migration would be needed for a real ID change.
-            console.warn("L'ID della famiglia dovrebbe cambiare, ma questa operazione non è supportata. Aggiorno solo i dati.");
-            await updateDoc(doc(firestore, 'famiglie', famigliaId), anagraficaData);
-        } else {
-            await updateDoc(doc(firestore, 'famiglie', famigliaId), anagraficaData);
-        }
-
+        // Family exists, just update it with the latest address data.
+        await updateDoc(doc(firestore, 'famiglie', famigliaDoc.id), {
+            ...anagraficaData,
+            updatedAt: serverTimestamp(),
+        });
       } else if (anagraficaData.via && anagraficaData.citta && anagraficaData.cap) {
-        // No family exists, but we have an address, so create one.
-        famigliaId = slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
-        await setDoc(doc(firestore, 'famiglie', famigliaId), {
+        // No family exists for this user, but we have address data, so create one.
+        // The ID is based on the new address.
+        const newFamigliaId = slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
+        await setDoc(doc(firestore, 'famiglie', newFamigliaId), {
             ...anagraficaData,
             uidCapofamiglia: user.uid,
             emailCapofamiglia: user.email,
+            updatedAt: serverTimestamp(),
         });
       }
 
       setSuccess("Dati aggiornati con successo!");
        setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      console.error(err);
+      console.error("Errore durante l'aggiornamento dei dati:", err);
       setError("Si è verificato un errore durante l'aggiornamento.");
     }
   };
