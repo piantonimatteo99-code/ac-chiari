@@ -1,7 +1,7 @@
 'use client';
 import { useFirestore } from '@/src/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -11,6 +11,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { File, ListFilter, Search } from 'lucide-react';
+import { useDebounce } from 'use-debounce';
+
 
 // Definiamo i tipi per i dati che useremo
 interface User {
@@ -54,6 +60,8 @@ export default function DatabasePage() {
   const [data, setData] = useState<CombinedData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -135,6 +143,19 @@ export default function DatabasePage() {
     fetchData();
   }, [firestore]);
   
+  const filteredData = useMemo(() => {
+    if (!debouncedSearchTerm) {
+      return data;
+    }
+    const lowercasedTerm = debouncedSearchTerm.toLowerCase();
+    return data.filter(item => 
+      item.nome?.toLowerCase().includes(lowercasedTerm) ||
+      item.cognome?.toLowerCase().includes(lowercasedTerm) ||
+      item.codiceFiscale?.toLowerCase().includes(lowercasedTerm)
+    );
+  }, [data, debouncedSearchTerm]);
+
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
     try {
@@ -152,13 +173,45 @@ export default function DatabasePage() {
         <h1 className="text-2xl font-bold">Database Anagrafico</h1>
       </div>
       <Card>
-         <CardHeader>
-          <CardTitle>Anagrafe Completa</CardTitle>
-          <CardDescription>
-            Vista aggregata di tutti gli utenti e i membri dei nuclei familiari registrati nel sistema.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
+        <CardContent>
+             <div className="flex items-center justify-between gap-4 py-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        placeholder="Cerca per nome, cognome, codice fiscale..."
+                        className="pl-8 sm:w-1/2 md:w-1/3"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                <div className="flex items-center gap-2">
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 gap-1">
+                            <ListFilter className="h-3.5 w-3.5" />
+                            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                            Filtra
+                            </span>
+                        </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Filtra per</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuCheckboxItem checked>
+                            Attivo
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem>Archiviato</DropdownMenuCheckboxItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                     <Button size="sm" variant="outline" className="h-8 gap-1">
+                        <File className="h-3.5 w-3.5" />
+                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                        Esporta
+                        </span>
+                    </Button>
+                </div>
+            </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -178,9 +231,11 @@ export default function DatabasePage() {
                   <TableCell colSpan={8} className="text-center">Caricamento...</TableCell>
                 </TableRow>
               )}
-              {!isLoading && data.length === 0 && (
+              {!isLoading && filteredData.length === 0 && (
                  <TableRow>
-                    <TableCell colSpan={8} className="text-center">Nessun dato trovato.</TableCell>
+                    <TableCell colSpan={8} className="text-center">
+                        {debouncedSearchTerm ? 'Nessun risultato per la tua ricerca.' : 'Nessun dato trovato.'}
+                    </TableCell>
                 </TableRow>
               )}
                {!isLoading && error && (
@@ -188,7 +243,7 @@ export default function DatabasePage() {
                     <TableCell colSpan={8} className="text-center text-destructive">{error}</TableCell>
                 </TableRow>
               )}
-              {!isLoading && data.map((item) => (
+              {!isLoading && filteredData.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.nome}</TableCell>
                   <TableCell>{item.cognome}</TableCell>
