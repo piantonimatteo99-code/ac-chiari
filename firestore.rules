@@ -19,27 +19,29 @@ service cloud.firestore {
     }
 
     function getUserData() {
+      // It's better to read the user doc from the specific path.
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAdmin() {
+      // Check if user is signed in and has 'admin' in their roles array.
       return isSignedIn() && getUserData().roles.hasAny(['admin']);
     }
-
-    // This function is no longer needed as we use isOwner(famigliaId)
-    // function isCapofamiglia(famigliaId) {
-    //    return isSignedIn() && request.auth.uid == get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia;
-    // }
 
     // ----------------------------------------------------------------------
     // User Profile Rules
     // ----------------------------------------------------------------------
     match /users/{userId} {
+      // Admin can read any user profile, a user can read their own.
       allow get: if isOwner(userId) || isAdmin();
+      // Only admins can list all users.
       allow list: if isAdmin();
-      allow update: if isOwner(userId) || isAdmin(); // Admin can update user profiles
+      // An admin can update any user's roles, a user can update their own profile.
+      allow update: if isOwner(userId) || isAdmin();
+      // A user can create their own profile document.
       allow create: if isOwner(userId);
-      allow delete: if isAdmin(); // Admin can delete users
+      // Only admins can delete users.
+      allow delete: if isAdmin();
     }
 
     // ----------------------------------------------------------------------
@@ -47,32 +49,30 @@ service cloud.firestore {
     // The document ID {famigliaId} MUST be the same as the user's UID.
     // ----------------------------------------------------------------------
     match /famiglie/{famigliaId} {
-      // An admin can get any family doc. A user can get their own family doc.
+      // An admin can read any family doc. A user can read their own.
       allow get: if isOwner(famigliaId) || isAdmin();
       
-      // Only admins can list all families. Users must read their family doc directly.
+      // Only admins can list all families for database purposes.
       allow list: if isAdmin();
       
-      // A user can create/update their own family document.
+      // ONLY the owner (capofamiglia) can create, update, or delete their family doc.
+      // Admin write access is removed from here.
       allow write: if isOwner(famigliaId);
-      
-      // Admins or the owner can delete families
-      allow delete: if isAdmin() || isOwner(famigliaId);
       
       // Rules for the 'membri' sub-collection
       match /membri/{membroId} {
-        // Admins or the head of family can read members.
-        allow read: if isAdmin() || isOwner(famigliaId);
+        // Admins can read members for the database view. The owner can read their own.
+        allow read: if isOwner(famigliaId) || isAdmin();
         
-        // Head of family can create/update/delete their own family members.
+        // ONLY the owner (capofamiglia) can create, update, or delete members.
         allow write: if isOwner(famigliaId);
       }
     }
     
-    // Rule for the 'membri' collection group query
+    // Rule for the 'membri' collection group query, needed for the admin database page.
     match /{path=**}/membri/{membroId} {
-        // Allow admins to list all members across all families for the admin user table
-        allow list, read: if isAdmin();
+        // Allow admins to list all members across all families.
+        allow read: if isAdmin();
     }
   }
 }
