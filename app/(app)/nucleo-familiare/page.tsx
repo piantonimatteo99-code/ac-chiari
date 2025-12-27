@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/src/firebase';
+import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/src/firebase';
 import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { slugify } from '@/lib/utils';
@@ -50,33 +50,41 @@ export default function NucleoFamiliarePage() {
   const [famigliaId, setFamigliaId] = useState<string | null>(null);
   const [familyAddress, setFamilyAddress] = useState('Nessun indirizzo specificato');
 
-  // Query per trovare il documento famiglia dell'utente loggato
-  const famigliaQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(collection(firestore, 'famiglie'), where('uidCapofamiglia', '==', user.uid));
-  }, [user, firestore]);
-  
-  const { data: famigliaData, isLoading: isFamigliaLoading } = useCollection(famigliaQuery);
-
-  // Una volta trovato il documento famiglia, impostiamo il suo ID e l'indirizzo
+  // Trova l'ID della famiglia basato sull'indirizzo salvato nei dati utente (capofamiglia)
   useEffect(() => {
-    if (famigliaData && famigliaData.length > 0) {
-      const famiglia = famigliaData[0];
-      setFamigliaId(famiglia.id);
-      const { via, numeroCivico, citta, provincia, cap } = famiglia;
+    if (userData) {
+      const { via, citta, cap } = userData;
+      if (via && citta && cap) {
+        const derivedId = slugify(`${via} ${citta} ${cap}`);
+        setFamigliaId(derivedId);
+      } else {
+        setFamigliaId(null);
+      }
+    }
+  }, [userData]);
+
+  // Una volta trovato l'ID della famiglia, leggiamo i dati di quel documento
+  const famigliaDocRef = useMemoFirebase(() => {
+    if (!famigliaId || !firestore) return null;
+    return doc(firestore, 'famiglie', famigliaId);
+  }, [famigliaId, firestore]);
+  
+  const { data: famigliaData, isLoading: isFamigliaLoading } = useDoc(famigliaDocRef);
+
+  // Una volta caricato il documento famiglia, impostiamo l'indirizzo
+  useEffect(() => {
+    if (famigliaData) {
+      const { via, numeroCivico, citta, provincia, cap } = famigliaData;
       if (via && citta) {
         setFamilyAddress(`${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`);
       }
-    } else if (!isFamigliaLoading) {
-      setFamigliaId(null);
-      if (userData) {
-         const { via, numeroCivico, citta, provincia, cap } = userData;
-         if (via && citta) {
-            setFamilyAddress(`${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`);
-         } else {
-            setFamilyAddress('Indirizzo non specificato');
-         }
-      }
+    } else if (!isFamigliaLoading && userData) {
+       const { via, numeroCivico, citta, provincia, cap } = userData;
+       if (via && citta) {
+          setFamilyAddress(`${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`);
+       } else {
+          setFamilyAddress('Indirizzo non specificato');
+       }
     }
   }, [famigliaData, isFamigliaLoading, userData]);
 
@@ -124,18 +132,6 @@ export default function NucleoFamiliarePage() {
     });
   }
 
-  // Funzione per derivare l'ID famiglia se non è ancora stato caricato
-  const getDerivedFamigliaId = () => {
-    if (famigliaId) return famigliaId;
-    if (userData) {
-      const { via, citta, cap } = userData;
-      if (via && citta && cap) {
-        return slugify(`${via} ${citta} ${cap}`);
-      }
-    }
-    return null;
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -151,7 +147,7 @@ export default function NucleoFamiliarePage() {
           onOpenChange={setIsDialogOpen}
           membroToEdit={editingMembro}
           user={user}
-          famigliaId={getDerivedFamigliaId()}
+          famigliaId={famigliaId}
           userData={userData}
         />
       )}

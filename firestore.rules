@@ -46,9 +46,8 @@ service cloud.firestore {
     // ----------------------------------------------------------------------
     match /famiglie/{famigliaId} {
       allow get: if isCapofamiglia(famigliaId) || isAdmin();
-      // Allow an admin to list all families.
-      // Allow a regular user to query for their own family document based on their UID.
-      allow list: if isAdmin() || (isSignedIn() && request.query.get('uidCapofamiglia') == request.auth.uid);
+      // Only admins can list all families. Users must read their family doc directly.
+      allow list: if isAdmin();
       
       // Only head of family can create/update their own family document
       allow write: if isSignedIn() && request.resource.data.uidCapofamiglia == request.auth.uid;
@@ -59,7 +58,7 @@ service cloud.firestore {
       // Rules for the 'membri' sub-collection
       match /membri/{membroId} {
         // Admins can read any member, head of family can read their own members.
-        allow read, list: if isAdmin() || isCapofamiglia(famigliaId);
+        allow read: if isAdmin() || isCapofamiglia(famigliaId);
         
         // Head of family can create/update/delete their own family members.
         allow write: if isCapofamiglia(famigliaId);
