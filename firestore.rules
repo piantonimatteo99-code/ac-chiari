@@ -46,8 +46,8 @@ service cloud.firestore {
     // ----------------------------------------------------------------------
     match /famiglie/{famigliaId} {
       allow get: if isCapofamiglia(famigliaId) || isAdmin();
-      // Allow a user to query for their own family document based on their UID,
-      // and allow admins to list all families.
+      // Allow an admin to list all families.
+      // Allow a regular user to query for their own family document based on their UID.
       allow list: if isAdmin() || (isSignedIn() && request.query.get('uidCapofamiglia') == request.auth.uid);
       
       // Only head of family can create/update their own family document
