@@ -13,6 +13,9 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from "@/components/ui/input";
 import { useDebounce } from 'use-debounce';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Settings, FileDown } from 'lucide-react';
 
 
 // Definiamo i tipi per i dati che useremo
@@ -59,6 +62,17 @@ export default function DatabasePage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
+
+  const [columnVisibility, setColumnVisibility] = useState({
+    nome: true,
+    cognome: true,
+    dataNascita: true,
+    luogoNascita: true,
+    codiceFiscale: true,
+    residenza: true,
+    componentiNucleo: true,
+    classe: true,
+  });
   
 
   useEffect(() => {
@@ -181,36 +195,102 @@ export default function DatabasePage() {
       </div>
       <Card>
         <CardHeader>
-             <Input 
-                placeholder="Cerca in tutto il database..." 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-12 text-base"
-             />
+            <div className="flex items-center gap-4">
+                <Input 
+                    placeholder="Cerca in tutto il database..." 
+                    value={searchTerm} 
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="h-12 text-base flex-1"
+                />
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="ml-auto">
+                            <Settings className="mr-2 h-4 w-4" />
+                            Personalizza Tabella
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Mostra/Nascondi Colonne</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuCheckboxItem
+                            checked={columnVisibility.nome}
+                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, nome: !!value}))}
+                        >
+                            Nome
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                            checked={columnVisibility.cognome}
+                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, cognome: !!value}))}
+                        >
+                            Cognome
+                        </DropdownMenuCheckboxItem>
+                         <DropdownMenuCheckboxItem
+                            checked={columnVisibility.dataNascita}
+                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, dataNascita: !!value}))}
+                        >
+                            Data di Nascita
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                            checked={columnVisibility.luogoNascita}
+                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, luogoNascita: !!value}))}
+                        >
+                            Luogo di Nascita
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                            checked={columnVisibility.codiceFiscale}
+                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, codiceFiscale: !!value}))}
+                        >
+                            Codice Fiscale
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                            checked={columnVisibility.residenza}
+                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, residenza: !!value}))}
+                        >
+                            Residenza
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                            checked={columnVisibility.componentiNucleo}
+                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, componentiNucleo: !!value}))}
+                        >
+                            Componenti Nucleo
+                        </DropdownMenuCheckboxItem>
+                        <DropdownMenuCheckboxItem
+                            checked={columnVisibility.classe}
+                            onCheckedChange={(value) => setColumnVisibility(prev => ({...prev, classe: !!value}))}
+                        >
+                            Classe
+                        </DropdownMenuCheckboxItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline">
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Esporta
+                </Button>
+            </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Cognome</TableHead>
-                <TableHead>Data di Nascita</TableHead>
-                <TableHead>Luogo di Nascita</TableHead>
-                <TableHead>Codice Fiscale</TableHead>
-                <TableHead>Residenza</TableHead>
-                <TableHead>Componenti Nucleo</TableHead>
-                <TableHead>Classe</TableHead>
+                {columnVisibility.nome && <TableHead>Nome</TableHead>}
+                {columnVisibility.cognome && <TableHead>Cognome</TableHead>}
+                {columnVisibility.dataNascita && <TableHead>Data di Nascita</TableHead>}
+                {columnVisibility.luogoNascita && <TableHead>Luogo di Nascita</TableHead>}
+                {columnVisibility.codiceFiscale && <TableHead>Codice Fiscale</TableHead>}
+                {columnVisibility.residenza && <TableHead>Residenza</TableHead>}
+                {columnVisibility.componentiNucleo && <TableHead>Componenti Nucleo</TableHead>}
+                {columnVisibility.classe && <TableHead>Classe</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">Caricamento...</TableCell>
+                  <TableCell colSpan={Object.values(columnVisibility).filter(Boolean).length} className="text-center">Caricamento...</TableCell>
                 </TableRow>
               )}
               {!isLoading && filteredData.length === 0 && (
                  <TableRow>
-                    <TableCell colSpan={8} className="text-center">
+                    <TableCell colSpan={Object.values(columnVisibility).filter(Boolean).length} className="text-center">
                         {debouncedSearchTerm 
                             ? "Nessun risultato per la tua ricerca."
                             : "Nessun dato presente nel database."
@@ -220,24 +300,24 @@ export default function DatabasePage() {
               )}
                {!isLoading && error && (
                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-destructive">{error}</TableCell>
+                    <TableCell colSpan={Object.values(columnVisibility).filter(Boolean).length} className="text-center text-destructive">{error}</TableCell>
                 </TableRow>
               )}
               {!isLoading && filteredData.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.nome}</TableCell>
-                  <TableCell>{item.cognome}</TableCell>
-                  <TableCell>{formatDate(item.dataNascita)}</TableCell>
-                  <TableCell>{item.luogoNascita || 'N/A'}</TableCell>
-                  <TableCell>{item.codiceFiscale || 'N/A'}</TableCell>
-                  <TableCell>{item.residenza || 'N/A'}</TableCell>
-                  <TableCell>
+                  {columnVisibility.nome && <TableCell className="font-medium">{item.nome}</TableCell>}
+                  {columnVisibility.cognome && <TableCell>{item.cognome}</TableCell>}
+                  {columnVisibility.dataNascita && <TableCell>{formatDate(item.dataNascita)}</TableCell>}
+                  {columnVisibility.luogoNascita && <TableCell>{item.luogoNascita || 'N/A'}</TableCell>}
+                  {columnVisibility.codiceFiscale && <TableCell>{item.codiceFiscale || 'N/A'}</TableCell>}
+                  {columnVisibility.residenza && <TableCell>{item.residenza || 'N/A'}</TableCell>}
+                  {columnVisibility.componentiNucleo && <TableCell>
                     {item.isCapofamiglia 
                         ? item.membriNucleo.map(m => m.nome).join(', ') || 'Nessuno'
                         : 'Membro'
                     }
-                  </TableCell>
-                  <TableCell>_</TableCell>
+                  </TableCell>}
+                  {columnVisibility.classe && <TableCell>_</TableCell>}
                 </TableRow>
               ))}
             </TableBody>
@@ -246,4 +326,3 @@ export default function DatabasePage() {
       </Card>
     </div>
   );
-}
