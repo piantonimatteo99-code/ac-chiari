@@ -234,7 +234,7 @@ export default function DatabasePage() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', 'database_anagrafico.csv');
+    link.setAttribute('download', 'database.csv');
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -244,7 +244,7 @@ export default function DatabasePage() {
   return (
     <div className="flex flex-col gap-4">
        <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Database Anagrafico</h1>
+        <h1 className="text-2xl font-bold">Database</h1>
       </div>
       <Card>
         <CardHeader>
