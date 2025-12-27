@@ -26,9 +26,10 @@ service cloud.firestore {
       return isSignedIn() && getUserData().roles.hasAny(['admin']);
     }
 
-    function isCapofamiglia(famigliaId) {
-       return isSignedIn() && request.auth.uid == get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia;
-    }
+    // This function is no longer needed as we use isOwner(famigliaId)
+    // function isCapofamiglia(famigliaId) {
+    //    return isSignedIn() && request.auth.uid == get(/databases/$(database)/documents/famiglie/$(famigliaId)).data.uidCapofamiglia;
+    // }
 
     // ----------------------------------------------------------------------
     // User Profile Rules
@@ -43,28 +44,28 @@ service cloud.firestore {
 
     // ----------------------------------------------------------------------
     // Family Rules
+    // The document ID {famigliaId} MUST be the same as the user's UID.
     // ----------------------------------------------------------------------
     match /famiglie/{famigliaId} {
-      allow get: if isCapofamiglia(famigliaId) || isAdmin();
+      // An admin can get any family doc. A user can get their own family doc.
+      allow get: if isOwner(famigliaId) || isAdmin();
+      
       // Only admins can list all families. Users must read their family doc directly.
       allow list: if isAdmin();
       
-      // Only head of family can create/update their own family document
-      allow write: if isSignedIn() && request.resource.data.uidCapofamiglia == request.auth.uid;
+      // A user can create/update their own family document.
+      allow write: if isOwner(famigliaId);
       
-      // Admins can delete families
-      allow delete: if isAdmin();
+      // Admins or the owner can delete families
+      allow delete: if isAdmin() || isOwner(famigliaId);
       
       // Rules for the 'membri' sub-collection
       match /membri/{membroId} {
-        // Admins can read any member, head of family can read their own members.
-        allow read: if isAdmin() || isCapofamiglia(famigliaId);
+        // Admins or the head of family can read members.
+        allow read: if isAdmin() || isOwner(famigliaId);
         
         // Head of family can create/update/delete their own family members.
-        allow write: if isCapofamiglia(famigliaId);
-        
-        // Admin can also delete members
-        allow delete: if isAdmin() || isCapofamiglia(famigliaId);
+        allow write: if isOwner(famigliaId);
       }
     }
     

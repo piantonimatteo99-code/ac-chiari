@@ -24,9 +24,8 @@ import {
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/src/firebase';
-import { collection, query, where, doc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
-import { slugify } from '@/lib/utils';
 
 export interface Membro {
   id: string;
@@ -47,23 +46,10 @@ export default function NucleoFamiliarePage() {
   const { user } = useUser();
   const { userData, isLoading: isUserDataLoading } = useUserData();
 
-  const [famigliaId, setFamigliaId] = useState<string | null>(null);
+  const famigliaId = user?.uid; // L'ID della famiglia è ora l'UID dell'utente
   const [familyAddress, setFamilyAddress] = useState('Nessun indirizzo specificato');
 
-  // Trova l'ID della famiglia basato sull'indirizzo salvato nei dati utente (capofamiglia)
-  useEffect(() => {
-    if (userData) {
-      const { via, citta, cap } = userData;
-      if (via && citta && cap) {
-        const derivedId = slugify(`${via} ${citta} ${cap}`);
-        setFamigliaId(derivedId);
-      } else {
-        setFamigliaId(null);
-      }
-    }
-  }, [userData]);
-
-  // Una volta trovato l'ID della famiglia, leggiamo i dati di quel documento
+  // Il documento famiglia è direttamente referenziato dall'UID dell'utente
   const famigliaDocRef = useMemoFirebase(() => {
     if (!famigliaId || !firestore) return null;
     return doc(firestore, 'famiglie', famigliaId);
@@ -77,13 +63,15 @@ export default function NucleoFamiliarePage() {
       const { via, numeroCivico, citta, provincia, cap } = famigliaData;
       if (via && citta) {
         setFamilyAddress(`${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`);
+      } else {
+        setFamilyAddress('Indirizzo non ancora specificato');
       }
     } else if (!isFamigliaLoading && userData) {
        const { via, numeroCivico, citta, provincia, cap } = userData;
        if (via && citta) {
           setFamilyAddress(`${via} ${numeroCivico || ''}, ${cap || ''} ${citta} (${provincia || ''})`);
        } else {
-          setFamilyAddress('Indirizzo non specificato');
+          setFamilyAddress('Indirizzo non ancora specificato');
        }
     }
   }, [famigliaData, isFamigliaLoading, userData]);
@@ -96,7 +84,7 @@ export default function NucleoFamiliarePage() {
 
   const { data: membri, isLoading: isMembriLoading, error } = useCollection<Membro>(membriQuery);
   
-  const isLoading = isUserDataLoading || isFamigliaLoading || (famigliaId ? isMembriLoading : false);
+  const isLoading = isUserDataLoading || (famigliaId ? isMembriLoading : false);
   
 
   const handleEdit = (membro: Membro) => {
@@ -147,7 +135,6 @@ export default function NucleoFamiliarePage() {
           onOpenChange={setIsDialogOpen}
           membroToEdit={editingMembro}
           user={user}
-          famigliaId={famigliaId}
           userData={userData}
         />
       )}
@@ -211,8 +198,8 @@ export default function NucleoFamiliarePage() {
                {error && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-destructive">
-                    Si è verificato un errore nel caricamento dei dati.
-                    Se hai appena cancellato i dati, prova ad aggiungere un nuovo membro per creare una nuova famiglia.
+                    Si è verificato un errore nel caricamento dei dati. 
+                    Potrebbe essere un problema di permessi o l'indirizzo non è stato ancora salvato.
                   </TableCell>
                 </TableRow>
               )}

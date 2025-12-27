@@ -14,9 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUserData } from "@/src/hooks/use-user-data";
 import { useFirestore, useUser } from "@/src/firebase";
-import { doc, updateDoc, setDoc, query, collection, where, getDocs, serverTimestamp } from 'firebase/firestore';
-import { slugify } from '@/lib/utils';
-
+import { doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 const initialAnagraficaState = {
   nome: '',
@@ -89,6 +87,7 @@ export default function DatiUtenteCard() {
     const { nome, cognome, ...anagraficaData } = formData;
 
     try {
+      // 1. Update user document
       const userDocRef = doc(firestore, 'users', user.uid);
       await updateDoc(userDocRef, {
         nome,
@@ -97,27 +96,14 @@ export default function DatiUtenteCard() {
         ...anagraficaData,
       });
 
-      const famigliaQuery = query(collection(firestore, 'famiglie'), where('uidCapofamiglia', '==', user.uid));
-      const famigliaSnapshot = await getDocs(famigliaQuery);
-
-      if (!famigliaSnapshot.empty) {
-        const famigliaDoc = famigliaSnapshot.docs[0];
-        // Family exists, just update it with the latest address data.
-        await updateDoc(doc(firestore, 'famiglie', famigliaDoc.id), {
-            ...anagraficaData,
-            updatedAt: serverTimestamp(),
-        });
-      } else if (anagraficaData.via && anagraficaData.citta && anagraficaData.cap) {
-        // No family exists for this user, but we have address data, so create one.
-        // The ID is based on the new address.
-        const newFamigliaId = slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
-        await setDoc(doc(firestore, 'famiglie', newFamigliaId), {
-            ...anagraficaData,
-            uidCapofamiglia: user.uid,
-            emailCapofamiglia: user.email,
-            updatedAt: serverTimestamp(),
-        });
-      }
+      // 2. Create or update the family document. The doc ID is the user's UID.
+      const famigliaDocRef = doc(firestore, 'famiglie', user.uid);
+      await setDoc(famigliaDocRef, {
+          ...anagraficaData,
+          uidCapofamiglia: user.uid,
+          emailCapofamiglia: user.email,
+          updatedAt: serverTimestamp(),
+      }, { merge: true }); // Use merge:true to create or update without overwriting subcollections
 
       setSuccess("Dati aggiornati con successo!");
        setTimeout(() => setSuccess(null), 3000);

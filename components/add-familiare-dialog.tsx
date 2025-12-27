@@ -16,7 +16,6 @@ import { useFirestore } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, setDoc } from 'firebase/firestore';
 import type { Membro as MembroBase } from '@/app/(app)/nucleo-familiare/page';
 import { User } from 'firebase/auth';
-import { slugify } from '@/lib/utils';
 import { UserData } from '@/src/hooks/use-user-data';
 
 
@@ -27,7 +26,6 @@ interface AddFamiliareDialogProps {
   onOpenChange: (isOpen: boolean) => void;
   membroToEdit?: MembroBase | null;
   user: User;
-  famigliaId: string | null;
   userData: UserData;
 }
 
@@ -54,7 +52,7 @@ const capitalizeWords = (str: string) => {
   return str.replace(/\b\w/g, char => char.toUpperCase());
 };
 
-export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, famigliaId: initialFamigliaId, userData }: AddFamiliareDialogProps) {
+export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, userData }: AddFamiliareDialogProps) {
   const firestore = useFirestore();
   
   const [membroData, setMembroData] = useState(initialMembroState);
@@ -62,6 +60,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = membroToEdit != null;
+  const famigliaId = user.uid; // L'ID della famiglia è sempre l'UID dell'utente
 
   useEffect(() => {
     if (isOpen) {
@@ -146,28 +145,32 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, f
         return;
     }
 
-    const newFamigliaId = initialFamigliaId || slugify(`${anagraficaData.via} ${anagraficaData.citta} ${anagraficaData.cap}`);
 
     try {
-      const famigliaDocRef = doc(firestore, 'famiglie', newFamigliaId);
+      // L'ID del documento famiglia è l'UID dell'utente
+      const famigliaDocRef = doc(firestore, 'famiglie', famigliaId);
       const famigliaPayload = {
         ...anagraficaData,
         uidCapofamiglia: user.uid,
         emailCapofamiglia: user.email,
         updatedAt: serverTimestamp(),
       };
+      // Usiamo set con merge per creare o aggiornare il documento famiglia
       await setDoc(famigliaDocRef, famigliaPayload, { merge: true });
 
+      // Aggiorniamo anche i dati dell'indirizzo nel profilo dell'utente
       const userDocRef = doc(firestore, 'users', user.uid);
       await updateDoc(userDocRef, { ...anagraficaData });
 
-      if (isEditing && membroToEdit && initialFamigliaId) {
-        const membroDocRef = doc(firestore, 'famiglie', initialFamigliaId, 'membri', membroToEdit.id);
+      if (isEditing && membroToEdit) {
+        // Se stiamo modificando, aggiorniamo il documento del membro esistente
+        const membroDocRef = doc(firestore, 'famiglie', famigliaId, 'membri', membroToEdit.id);
         await updateDoc(membroDocRef, {
             ...membroData,
         });
       } else {
-        const membriCollectionRef = collection(firestore, 'famiglie', newFamigliaId, 'membri');
+        // Se stiamo aggiungendo, creiamo un nuovo documento nella sottocollezione membri
+        const membriCollectionRef = collection(firestore, 'famiglie', famigliaId, 'membri');
         await addDoc(membriCollectionRef, {
             ...membroData,
             createdAt: serverTimestamp(),
