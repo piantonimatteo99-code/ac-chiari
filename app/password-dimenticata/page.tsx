@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/src/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { AlertCircle, CheckCircle2, ArrowLeft, Mail } from 'lucide-react';
+import { AcChiariLogo } from '@/components/ac-logo';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 

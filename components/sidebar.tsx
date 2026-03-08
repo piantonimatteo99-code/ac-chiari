@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Settings } from 'lucide-react';
 import SidebarLinks from './sidebar-links';
+import { AcChiariLogo } from './ac-logo';
 
 export default function Sidebar() {
   return (
@@ -14,24 +15,7 @@ export default function Sidebar() {
           href="/dashboard"
           className="flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 hover:opacity-90"
         >
-          {/* Logo AC Chiari */}
-          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 shrink-0">
-            <circle cx="20" cy="20" r="20" fill="hsl(218 58% 42%)" />
-            <g stroke="hsl(218 40% 65%)" strokeWidth="0.5" opacity="0.55">
-              <line x1="20" y1="2" x2="20" y2="38" />
-              <line x1="2" y1="20" x2="38" y2="20" />
-              <line x1="6" y1="6" x2="34" y2="34" />
-              <line x1="34" y1="6" x2="6" y2="34" />
-              <line x1="20" y1="2" x2="6" y2="34" />
-              <line x1="20" y1="2" x2="34" y2="34" />
-              <line x1="2" y1="20" x2="34" y2="6" />
-              <line x1="38" y1="20" x2="6" y2="6" />
-              <circle cx="20" cy="20" r="12" strokeDasharray="1.5 2" />
-              <circle cx="20" cy="20" r="7" strokeDasharray="1 2" />
-            </g>
-            <rect x="16" y="7" width="8" height="26" rx="2" fill="hsl(44 92% 62%)" />
-            <rect x="7" y="16" width="26" height="8" rx="2" fill="hsl(44 92% 62%)" />
-          </svg>
+          <AcChiariLogo size={40} className="shrink-0" />
           <div>
             <p className="text-sm font-bold leading-tight text-sidebar-fg">AC Chiari</p>
             <p className="text-xs leading-tight text-sidebar-muted">Azione Cattolica</p>

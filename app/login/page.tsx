@@ -9,36 +9,8 @@ import { Label } from '@/components/ui/label';
 import { useAuth, useUser } from '@/src/firebase';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Eye, EyeOff, AlertCircle, InfoIcon } from 'lucide-react';
+import { AcChiariLogo } from '@/components/ac-logo';
 
-// ---- Logo SVG AC Chiari ----
-function AcChiariLogo({ size = 64 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" width={size} height={size}>
-      {/* Cerchio blu principale */}
-      <circle cx="32" cy="32" r="32" fill="hsl(218 58% 42%)" />
-      {/* Rete geometrica sottile — stile logo AC */}
-      <g stroke="hsl(218 40% 65%)" strokeWidth="0.7" opacity="0.55">
-        {/* Linee orizzontali e verticali */}
-        <line x1="32" y1="4" x2="32" y2="60" />
-        <line x1="4" y1="32" x2="60" y2="32" />
-        {/* Diagonali */}
-        <line x1="10" y1="10" x2="54" y2="54" />
-        <line x1="54" y1="10" x2="10" y2="54" />
-        {/* Linee oblique aggiuntive */}
-        <line x1="32" y1="4" x2="10" y2="54" />
-        <line x1="32" y1="4" x2="54" y2="54" />
-        <line x1="4" y1="32" x2="54" y2="10" />
-        <line x1="60" y1="32" x2="10" y2="10" />
-        {/* Cerchio interno tratteggiato */}
-        <circle cx="32" cy="32" r="20" strokeDasharray="2 3" />
-        <circle cx="32" cy="32" r="12" strokeDasharray="1.5 2.5" />
-      </g>
-      {/* Croce gialla — spessa, prominente, con angoli arrotondati */}
-      <rect x="26" y="12" width="12" height="40" rx="3" fill="hsl(44 92% 62%)" />
-      <rect x="12" y="26" width="40" height="12" rx="3" fill="hsl(44 92% 62%)" />
-    </svg>
-  );
-}
 
 // ---- Componente interno che usa useSearchParams ----
 function LoginForm() {
