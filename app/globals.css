@@ -4,48 +4,83 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* === Palette AC Chiari — Pastello Blu + Oro === */
+
+    /* Sfondo principale: bianco caldo con leggerissima tinta blu */
+    --background: 220 30% 97%;
+    --foreground: 218 40% 15%;
+
+    /* Card e pannelli: bianco puro */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 218 40% 15%;
+
+    /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
+    --popover-foreground: 218 40% 15%;
+
+    /* Primary: Blu AC Chiari (pastello medio) */
+    --primary: 218 62% 48%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Blu molto chiaro */
+    --secondary: 218 40% 92%;
+    --secondary-foreground: 218 50% 25%;
+
+    /* Muted: Grigio-blu leggerissimo */
+    --muted: 220 25% 94%;
+    --muted-foreground: 218 20% 50%;
+
+    /* Accent: Giallo oro AC Chiari (pastello) — elementi attivi nav */
+    --accent: 44 85% 90%;
+    --accent-foreground: 40 70% 25%;
+
+    /* Destructive: Rosso morbido */
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Bordi e input: grigi-blu delicati */
+    --border: 218 20% 88%;
+    --input: 218 20% 88%;
+    --ring: 218 62% 48%;
+
+    /* Border radius più arrotondato per look moderno */
+    --radius: 0.75rem;
+
+    /* === Token Sidebar AC Chiari === */
+    --sidebar-bg: 218 55% 25%;
+    --sidebar-fg: 218 40% 92%;
+    --sidebar-active-bg: 218 62% 38%;
+    --sidebar-hover-bg: 218 50% 32%;
+    --sidebar-border: 218 50% 20%;
+    --sidebar-muted: 218 30% 65%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 217.2 91.2% 59.8%;
+    --background: 218 40% 8%;
+    --foreground: 218 20% 92%;
+    --card: 218 40% 11%;
+    --card-foreground: 218 20% 92%;
+    --popover: 218 40% 11%;
+    --popover-foreground: 218 20% 92%;
+    --primary: 218 62% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 218 35% 18%;
+    --secondary-foreground: 218 20% 85%;
+    --muted: 218 30% 16%;
+    --muted-foreground: 218 20% 55%;
+    --accent: 44 60% 35%;
+    --accent-foreground: 44 85% 90%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 218 30% 20%;
+    --input: 218 30% 20%;
+    --ring: 218 62% 58%;
+    --sidebar-bg: 218 50% 10%;
+    --sidebar-fg: 218 20% 85%;
+    --sidebar-active-bg: 218 55% 20%;
+    --sidebar-hover-bg: 218 45% 16%;
+    --sidebar-border: 218 40% 14%;
+    --sidebar-muted: 218 20% 50%;
   }
 }
 
@@ -55,5 +90,21 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* === Animazioni micro-interazioni === */
+@layer utilities {
+  .transition-nav {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  .shadow-card {
+    box-shadow: 0 1px 3px 0 hsl(218 30% 80% / 0.3), 0 1px 2px -1px hsl(218 30% 80% / 0.2);
+  }
+  .shadow-sidebar {
+    box-shadow: 2px 0 8px 0 hsl(218 50% 15% / 0.15);
   }
 }

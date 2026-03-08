@@ -1,7 +1,7 @@
 'use client';
 
 import { signOut } from 'firebase/auth';
-import { useAuth } from '@/src/firebase';
+import { useAuth, useUser } from '@/src/firebase';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from './ui/button';
-import { CircleUser, PanelLeft, Church } from 'lucide-react';
+import { CircleUser, PanelLeft, LogOut, User } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import SidebarLinks from './sidebar-links';
 import { useState } from 'react';
@@ -19,6 +19,7 @@ import Link from 'next/link';
 
 export default function Header() {
   const auth = useAuth();
+  const { user } = useUser();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -27,54 +28,77 @@ export default function Header() {
       await signOut(auth);
       window.location.href = '/login';
     } catch (error) {
-      console.error('Error signing out: ', error);
+      console.error('Errore durante il logout: ', error);
     }
   };
-
 
   const closeSheet = () => setIsSheetOpen(false);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-card/80 backdrop-blur-sm px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+      {/* Bottone hamburger mobile */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetTrigger asChild>
-          <Button size="icon" variant="outline" className="sm:hidden">
+          <Button size="icon" variant="outline" className="sm:hidden rounded-xl">
             <PanelLeft className="h-5 w-5" />
-            <span className="sr-only">Toggle Menu</span>
+            <span className="sr-only">Apri menu</span>
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="sm:max-w-xs">
-          <nav className="grid gap-6 text-lg font-medium">
-            <Link
-              href="/dashboard"
-              onClick={closeSheet}
-              className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
-            >
-              <Church className="h-8 w-8 text-primary-foreground" />
-              <span className="sr-only">AC Chiari</span>
+        <SheetContent side="left" className="p-0 w-72 bg-sidebar-bg border-sidebar-border">
+          {/* Header del drawer mobile */}
+          <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-yellow-400/90">
+              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-6 w-6">
+                <circle cx="16" cy="16" r="15" fill="hsl(218 62% 35%)" />
+                <rect x="14" y="5" width="4" height="22" rx="1.5" fill="hsl(44 90% 72%)" />
+                <rect x="5" y="13" width="22" height="4" rx="1.5" fill="hsl(44 90% 72%)" />
+              </svg>
+            </div>
+            <Link href="/dashboard" onClick={closeSheet}>
+              <p className="text-sm font-bold text-sidebar-fg">AC Chiari</p>
+              <p className="text-xs text-sidebar-muted">Azione Cattolica</p>
             </Link>
+          </div>
+          {/* Link navigazione mobile */}
+          <nav className="px-3 py-4">
             <SidebarLinks isMobile={true} onLinkClick={closeSheet} />
           </nav>
         </SheetContent>
       </Sheet>
-      <div className="relative ml-auto flex-1 md:grow-0">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="icon" className="rounded-full">
-              <CircleUser className="h-5 w-5" />
-              <span className="sr-only">Toggle user menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Support</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={handleLogout}>Logout</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Menu utente */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="secondary" size="icon" className="rounded-full shadow-sm">
+            <CircleUser className="h-5 w-5" />
+            <span className="sr-only">Menu utente</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-semibold text-foreground">Il mio account</p>
+              {user?.email && (
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              )}
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="gap-2">
+            <User className="h-4 w-4" />
+            Profilo
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={handleLogout} className="gap-2 text-destructive focus:text-destructive">
+            <LogOut className="h-4 w-4" />
+            Esci
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
   );
 }
+
