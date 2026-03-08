@@ -1,9 +1,8 @@
 /**
  * Logo ufficiale Azione Cattolica Chiari
- * Cerchio blu con raggi solari giori e croce luminosa
+ * Cerchio blu con raggi solari gialli e croce luminosa
  */
 export function AcChiariLogo({ size = 64, className = '' }: { size?: number; className?: string }) {
-  // Ogni raggio è un triangolo dal centro ai bordi del cerchio, ruotato di 22.5°
   const rays = Array.from({ length: 16 }, (_, i) => i * 22.5);
 
   return (
@@ -15,24 +14,31 @@ export function AcChiariLogo({ size = 64, className = '' }: { size?: number; cla
       height={size}
       className={className}
     >
-      {/* Cerchio di sfondo - blu AC */}
-      <circle cx="32" cy="32" r="32" fill="#2256a8" />
+      <defs>
+        {/* Clip path per mantenere i raggi dentro il cerchio */}
+        <clipPath id="circle-clip">
+          <circle cx="32" cy="32" r="32" />
+        </clipPath>
+      </defs>
 
-      {/* Raggi solari - triangoli giori che si irradiano dal centro */}
-      <g fill="#f5c520">
+      {/* 1. Cerchio blu di sfondo */}
+      <circle cx="32" cy="32" r="32" fill="#1e4d9a" />
+
+      {/* 2. Raggi solari gialli — clippati dentro il cerchio */}
+      <g clipPath="url(#circle-clip)" fill="#f5c520">
         {rays.map((angle) => (
           <g key={angle} transform={`rotate(${angle} 32 32)`}>
-            {/* Triangolo dal centro (32,32) verso la cima del cerchio, largo ~14° */}
-            <polygon points="32,32 27.5,0 36.5,0" />
+            {/* Triangolo stretto dal centro verso l'alto — larghezza ~13° */}
+            <polygon points="32,32 27,0 37,0" />
           </g>
         ))}
       </g>
 
-      {/* Croce - bande luminose orizzontali e verticali */}
+      {/* 3. Croce chiara/luminosa in primo piano */}
       {/* Verticale */}
-      <rect x="26" y="2" width="12" height="60" rx="1" fill="#fde680" />
+      <rect x="26.5" y="3" width="11" height="58" rx="1.5" fill="#fde88a" />
       {/* Orizzontale */}
-      <rect x="2" y="26" width="60" height="12" rx="1" fill="#fde680" />
+      <rect x="3" y="26.5" width="58" height="11" rx="1.5" fill="#fde88a" />
     </svg>
   );
 }
