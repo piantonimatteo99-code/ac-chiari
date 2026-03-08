@@ -14,19 +14,28 @@ import { Eye, EyeOff, AlertCircle, InfoIcon } from 'lucide-react';
 function AcChiariLogo({ size = 64 }: { size?: number }) {
   return (
     <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" width={size} height={size}>
-      <circle cx="32" cy="32" r="31" fill="hsl(218 62% 40%)" />
-      <g opacity="0.25" stroke="hsl(44 90% 78%)" strokeWidth="1">
-        <line x1="32" y1="1" x2="32" y2="63" />
-        <line x1="1" y1="32" x2="63" y2="32" />
-        <line x1="9" y1="9" x2="55" y2="55" />
-        <line x1="55" y1="9" x2="9" y2="55" />
-        <line x1="32" y1="1" x2="9" y2="55" />
-        <line x1="32" y1="1" x2="55" y2="55" />
-        <line x1="1" y1="32" x2="55" y2="9" />
-        <line x1="63" y1="32" x2="9" y2="9" />
+      {/* Cerchio blu principale */}
+      <circle cx="32" cy="32" r="32" fill="hsl(218 58% 42%)" />
+      {/* Rete geometrica sottile — stile logo AC */}
+      <g stroke="hsl(218 40% 65%)" strokeWidth="0.7" opacity="0.55">
+        {/* Linee orizzontali e verticali */}
+        <line x1="32" y1="4" x2="32" y2="60" />
+        <line x1="4" y1="32" x2="60" y2="32" />
+        {/* Diagonali */}
+        <line x1="10" y1="10" x2="54" y2="54" />
+        <line x1="54" y1="10" x2="10" y2="54" />
+        {/* Linee oblique aggiuntive */}
+        <line x1="32" y1="4" x2="10" y2="54" />
+        <line x1="32" y1="4" x2="54" y2="54" />
+        <line x1="4" y1="32" x2="54" y2="10" />
+        <line x1="60" y1="32" x2="10" y2="10" />
+        {/* Cerchio interno tratteggiato */}
+        <circle cx="32" cy="32" r="20" strokeDasharray="2 3" />
+        <circle cx="32" cy="32" r="12" strokeDasharray="1.5 2.5" />
       </g>
-      <rect x="28" y="10" width="8" height="44" rx="3" fill="hsl(44 90% 72%)" />
-      <rect x="10" y="26" width="44" height="8" rx="3" fill="hsl(44 90% 72%)" />
+      {/* Croce gialla — spessa, prominente, con angoli arrotondati */}
+      <rect x="26" y="12" width="12" height="40" rx="3" fill="hsl(44 92% 62%)" />
+      <rect x="12" y="26" width="40" height="12" rx="3" fill="hsl(44 92% 62%)" />
     </svg>
   );
 }

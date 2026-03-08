@@ -47,11 +47,23 @@ export default function Header() {
         <SheetContent side="left" className="p-0 w-72 bg-sidebar-bg border-sidebar-border">
           {/* Header del drawer mobile */}
           <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-yellow-400/90">
-              <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-6 w-6">
-                <circle cx="16" cy="16" r="15" fill="hsl(218 62% 35%)" />
-                <rect x="14" y="5" width="4" height="22" rx="1.5" fill="hsl(44 90% 72%)" />
-                <rect x="5" y="13" width="22" height="4" rx="1.5" fill="hsl(44 90% 72%)" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center">
+              <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-9 w-9">
+                <circle cx="20" cy="20" r="20" fill="hsl(218 58% 42%)" />
+                <g stroke="hsl(218 40% 65%)" strokeWidth="0.5" opacity="0.55">
+                  <line x1="20" y1="2" x2="20" y2="38" />
+                  <line x1="2" y1="20" x2="38" y2="20" />
+                  <line x1="6" y1="6" x2="34" y2="34" />
+                  <line x1="34" y1="6" x2="6" y2="34" />
+                  <line x1="20" y1="2" x2="6" y2="34" />
+                  <line x1="20" y1="2" x2="34" y2="34" />
+                  <line x1="2" y1="20" x2="34" y2="6" />
+                  <line x1="38" y1="20" x2="6" y2="6" />
+                  <circle cx="20" cy="20" r="12" strokeDasharray="1.5 2" />
+                  <circle cx="20" cy="20" r="7" strokeDasharray="1 2" />
+                </g>
+                <rect x="16" y="7" width="8" height="26" rx="2" fill="hsl(44 92% 62%)" />
+                <rect x="7" y="16" width="26" height="8" rx="2" fill="hsl(44 92% 62%)" />
               </svg>
             </div>
             <Link href="/dashboard" onClick={closeSheet}>

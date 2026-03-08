@@ -14,24 +14,24 @@ export default function Sidebar() {
           href="/dashboard"
           className="flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 hover:opacity-90"
         >
-          {/* Icona Brand — Croce AC Chiari */}
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-400/90">
-            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-7 w-7">
-              <circle cx="16" cy="16" r="15" fill="hsl(218 62% 35%)" />
-              <g opacity="0.3" stroke="hsl(44 90% 75%)" strokeWidth="0.8">
-                <line x1="16" y1="1" x2="16" y2="31" />
-                <line x1="1" y1="16" x2="31" y2="16" />
-                <line x1="4.7" y1="4.7" x2="27.3" y2="27.3" />
-                <line x1="27.3" y1="4.7" x2="4.7" y2="27.3" />
-                <line x1="16" y1="1" x2="4.7" y2="27.3" />
-                <line x1="16" y1="1" x2="27.3" y2="27.3" />
-                <line x1="1" y1="16" x2="27.3" y2="4.7" />
-                <line x1="31" y1="16" x2="4.7" y2="4.7" />
-              </g>
-              <rect x="14" y="5" width="4" height="22" rx="1.5" fill="hsl(44 90% 72%)" />
-              <rect x="5" y="13" width="22" height="4" rx="1.5" fill="hsl(44 90% 72%)" />
-            </svg>
-          </div>
+          {/* Logo AC Chiari */}
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 shrink-0">
+            <circle cx="20" cy="20" r="20" fill="hsl(218 58% 42%)" />
+            <g stroke="hsl(218 40% 65%)" strokeWidth="0.5" opacity="0.55">
+              <line x1="20" y1="2" x2="20" y2="38" />
+              <line x1="2" y1="20" x2="38" y2="20" />
+              <line x1="6" y1="6" x2="34" y2="34" />
+              <line x1="34" y1="6" x2="6" y2="34" />
+              <line x1="20" y1="2" x2="6" y2="34" />
+              <line x1="20" y1="2" x2="34" y2="34" />
+              <line x1="2" y1="20" x2="34" y2="6" />
+              <line x1="38" y1="20" x2="6" y2="6" />
+              <circle cx="20" cy="20" r="12" strokeDasharray="1.5 2" />
+              <circle cx="20" cy="20" r="7" strokeDasharray="1 2" />
+            </g>
+            <rect x="16" y="7" width="8" height="26" rx="2" fill="hsl(44 92% 62%)" />
+            <rect x="7" y="16" width="26" height="8" rx="2" fill="hsl(44 92% 62%)" />
+          </svg>
           <div>
             <p className="text-sm font-bold leading-tight text-sidebar-fg">AC Chiari</p>
             <p className="text-xs leading-tight text-sidebar-muted">Azione Cattolica</p>
