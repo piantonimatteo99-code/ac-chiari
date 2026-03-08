@@ -159,11 +159,11 @@ export default function CalendarioPage() {
         eventToEdit={editingEvent}
       />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Calendario</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canAddEvents && (
-            <Button onClick={handleAddNew}>
+            <Button onClick={handleAddNew} className="w-full sm:w-auto">
               <PlusCircle className="mr-2 h-4 w-4" />
               Aggiungi Impegno
             </Button>
@@ -171,12 +171,14 @@ export default function CalendarioPage() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                {selectedGroup === 'tutti' ? 'Tutti i gruppi' : groups?.find(g => g.id === selectedGroup)?.name}
-                <ChevronDown className="ml-2 h-4 w-4" />
+              <Button variant="outline" className="flex-1 sm:flex-none justify-between">
+                <span className="truncate">
+                  {selectedGroup === 'tutti' ? 'Tutti i gruppi' : groups?.find(g => g.id === selectedGroup)?.name}
+                </span>
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent className="w-[calc(100vw-2rem)] sm:w-auto max-w-[300px]">
               <DropdownMenuRadioGroup value={selectedGroup} onValueChange={setSelectedGroup}>
                 <DropdownMenuRadioItem value="tutti">Tutti i gruppi</DropdownMenuRadioItem>
                 {groups?.map(group => (
@@ -189,7 +191,7 @@ export default function CalendarioPage() {
           </DropdownMenu>
 
             <Select value={view} onValueChange={(value) => setView(value as CalendarView)}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="flex-1 sm:flex-none sm:w-[180px]">
                     <SelectValue placeholder="Visualizzazione" />
                 </SelectTrigger>
                 <SelectContent>

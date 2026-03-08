@@ -48,6 +48,7 @@ export interface Progetto {
     allDay: boolean;
     groupIds: string[];
     createdAt: any;
+    driveFolderId?: string;
 }
 
 
@@ -233,6 +234,14 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
                     batch.set(eventoDocRef, eventoData);
 
                     await batch.commit();
+
+                    // Fire-and-forget: create Drive folder in background (non-blocking)
+                    // This will silently fail if Drive is not yet configured, which is fine
+                    fetch('/api/drive/folders', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projectId: progettoId, projectName: title }),
+                    }).catch((e) => console.warn('Drive folder creation skipped (Drive not configured):', e));
 
                 } else {
                     // Create a simple Event

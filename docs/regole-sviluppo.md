@@ -76,26 +76,30 @@ I ruoli sono definiti in `userData.roles` (array di stringhe):
 
 ## 🎨 Regole di Stile
 
-### Colori — Palette AC Chiari
+### Colori — Palette AC Chiari (Pastello Tenui + Bianco Panna)
 Il design system usa variabili HSL definite in `app/globals.css`. **Non usare mai colori hardcoded** (es. `text-blue-500`). Usa le classi semantiche:
 
 | Classe semantica | Uso |
 |---|---|
-| `text-primary` / `bg-primary` | Blu AC Chiari (colore principale) |
-| `text-primary-foreground` | Testo su sfondo primary (bianco/chiaro) |
-| `bg-accent` / `text-accent-foreground` | Elementi attivi nella nav |
+| `text-primary` / `bg-primary` | Blu AC Chiari — pastello morbido (`hsl(218 55% 58%)`) |
+| `text-primary-foreground` | Testo su sfondo primary (bianco) |
+| `bg-accent` / `text-accent-foreground` | Oro pastello caldo — elementi attivi nella nav (`hsl(43 80% 88%)`) |
 | `text-muted-foreground` | Testo secondario/disabilitato |
-| `text-destructive` | Errori e azioni distruttive |
-| `bg-background` | Sfondo pagina principale |
-| `bg-card` | Sfondo card/pannelli |
-| `border-border` | Tutti i bordi |
+| `text-destructive` | Errori e azioni distruttive (rosa-rosso morbido) |
+| `bg-background` | Sfondo pagina: **Bianco Panna** (`hsl(40 33% 98%)`) |
+| `bg-card` | Sfondo card/pannelli: panna leggermente più calda |
+| `border-border` | Tutti i bordi: beige-grigio delicato |
+| `bg-sidebar-bg` | Sidebar: azzurro pastello chiaro (`hsl(218 55% 96%)`) |
+
+> **Nota**: La sidebar è diventata **chiara** (sfondo azzurro pastello, testo scuro). Non usare `var(--sidebar-bg)` come se fosse scuro.
 
 ### Icone
 - Usa **esclusivamente** `lucide-react`
 - Dimensioni standard: `h-5 w-5` (inline), `h-8 w-8` (logo/grande)
 
 ### Font
-- Font principale: `Inter` (caricato da Google Fonts in `layout.tsx`)
+- Font principale: **`Nunito`** (caricato da Google Fonts in `layout.tsx`, pesi: 400, 500, 600, 700, 800)
+- Font scelto per il suo aspetto arrotondato, pulito e rilassante, coerente con la palette pastello
 - Nessun font hardcoded inline
 
 ### Responsive

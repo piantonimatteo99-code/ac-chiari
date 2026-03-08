@@ -54,8 +54,7 @@ export default function Header() {
               <p className="text-xs text-sidebar-muted">Azione Cattolica</p>
             </Link>
           </div>
-          {/* Link navigazione mobile */}
-          <nav className="px-3 py-4">
+          <nav className="sidebar-scroll px-3 py-4 flex-1 overflow-y-auto">
             <SidebarLinks isMobile={true} onLinkClick={closeSheet} />
           </nav>
         </SheetContent>

@@ -1,7 +1,7 @@
 'use client';
 import { useParams } from 'next/navigation';
 import { useFirestore, useUser, useMemoFirebase, useCollection, useDoc } from '@/src/firebase';
-import { collection, query, where, doc, writeBatch, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, writeBatch, getDocs, updateDoc } from 'firebase/firestore';
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useUserData } from '@/src/hooks/use-user-data';
 import type { Progetto } from '../page';
@@ -10,7 +10,7 @@ import type { Group } from '../../admin/gestione-gruppi/tutti-i-gruppi/page';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Loader2, Pencil } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { Raccolta } from '@/components/raccolta-card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { NuovaRaccoltaDialog } from '@/components/nuova-raccolta-dialog';
 import { Accordion } from '@/components/ui/accordion';
 import { RaccoltaCard } from '@/components/raccolta-card';
+import DocumentManager from '@/components/document-manager';
 
 export default function ProgettoDettaglioPage() {
     const params = useParams();
@@ -193,6 +194,7 @@ export default function ProgettoDettaglioPage() {
                     <TabsTrigger value="iscrizioni" disabled={!canEdit}>Iscrizioni</TabsTrigger>
                     <TabsTrigger value="gruppi" disabled={!canEdit}>Gruppi</TabsTrigger>
                     <TabsTrigger value="piano" disabled={!canEdit}>Piano Impegni</TabsTrigger>
+                    <TabsTrigger value="documenti">Documenti</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="generale" className="mt-4">
@@ -283,6 +285,21 @@ export default function ProgettoDettaglioPage() {
                             </p>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="documenti" className="mt-4">
+                    <DocumentManager
+                        projectId={progetto.id}
+                        projectName={progetto.name}
+                        driveFolderId={progetto.driveFolderId}
+                        canEdit={canEdit}
+                        onFolderCreated={async (folderId) => {
+                            // Update local firestore doc reference so the UI refreshes
+                            if (firestore && progetto) {
+                                await updateDoc(doc(firestore, 'progetti', progetto.id), { driveFolderId: folderId });
+                            }
+                        }}
+                    />
                 </TabsContent>
             </Tabs>
         </div>

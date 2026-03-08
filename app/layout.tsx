@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Nunito } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { FirebaseClientProvider } from "@/src/firebase/client-provider";
 import { Toaster } from "@/components/ui/toaster";
 
-const inter = Inter({
+const nunito = Nunito({
   subsets: ["latin"],
   variable: "--font-sans",
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 
@@ -27,7 +27,7 @@ export default function RootLayout({
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased",
-          inter.variable
+          nunito.variable
         )}
       >
         <FirebaseClientProvider>{children}</FirebaseClientProvider>

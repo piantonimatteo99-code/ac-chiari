@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collection, doc, updateDoc, getDocs, collectionGroup, writeBatch, arrayRemove, deleteField, arrayUnion, query, where, getDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, getDocs, collectionGroup, writeBatch, arrayRemove, deleteField, arrayUnion, query, where, getDoc, limit } from 'firebase/firestore';
 import type { Membro } from '../../nucleo-familiare/page';
 import type { Group } from '../../admin/gestione-gruppi/tutti-i-gruppi/page';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
@@ -47,15 +47,15 @@ export default function TesseratiSubPage() {
 
   const allMembersQuery = useMemoFirebase(() => {
     if (!firestore || (!isAdmin && !isEducatore)) return null;
-    return collectionGroup(firestore, 'membri');
+    return query(collectionGroup(firestore, 'membri'), limit(1000));
   }, [firestore, isAdmin, isEducatore]);
-  const { data: allMembersData, isLoading: isLoadingMembers } = useCollection<any>(allMembersQuery);
+  const { data: allMembersData, isLoading: isLoadingMembers } = useCollection<any>(allMembersQuery, { includeRef: true });
 
   const allUsersQuery = useMemoFirebase(() => {
     if (!firestore || (!isAdmin && !isEducatore)) return null;
-    return collection(firestore, 'users');
+    return query(collection(firestore, 'users'), limit(1000));
   }, [firestore, isAdmin, isEducatore]);
-  const { data: allUsersData, isLoading: isLoadingUsers } = useCollection<UserData>(allUsersQuery);
+  const { data: allUsersData, isLoading: isLoadingUsers } = useCollection<UserData>(allUsersQuery, { includeRef: true });
 
   const groupsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -114,17 +114,23 @@ export default function TesseratiSubPage() {
   const getMemberDocRef = async (memberId: string): Promise<any | null> => {
     if (!firestore || !memberId) return null;
 
+    // 1. Controlla prima se è un utente principale tra i dati già caricati
+    const userMatch = allUsersData?.find(u => u.id === memberId);
+    if (userMatch) {
+        return doc(firestore, 'users', memberId);
+    }
+
+    // 2. Controlla se è un membro familiare tra i dati già caricati
+    const memberMatch = allMembersData?.find(m => m.id === memberId);
+    if (memberMatch && memberMatch.ref) {
+        return memberMatch.ref;
+    }
+
+    // 3. Fallback: cerca esplicitamente l'utente su Firestore se non in memoria (raro)
     const userDocRef = doc(firestore, 'users', memberId);
     const userDocSnap = await getDoc(userDocRef);
     if (userDocSnap.exists()) {
         return userDocRef;
-    }
-
-    const membersSnapshot = await getDocs(collectionGroup(firestore, 'membri'));
-    const memberDoc = membersSnapshot.docs.find(doc => doc.id === memberId);
-
-    if (memberDoc) {
-        return memberDoc.ref;
     }
 
     console.error("Could not find document reference for member:", memberId);

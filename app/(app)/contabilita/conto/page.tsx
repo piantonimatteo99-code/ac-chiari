@@ -2,13 +2,14 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/src/firebase';
-import { collection, query, collectionGroup, doc, getDoc, writeBatch, serverTimestamp, addDoc, getDocs, where, deleteField, arrayRemove } from 'firebase/firestore';
+import { collection, query, collectionGroup, doc, getDoc, writeBatch, serverTimestamp, addDoc, getDocs, where, deleteField, arrayRemove, limit } from 'firebase/firestore';
 import type { Raccolta } from '@/components/raccolta-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { FileText, PlusCircle, CheckCircle2, AlertCircle, UserSquare, Loader2, ArrowRight, MoreHorizontal, CreditCard, CheckCheck, Trash2 } from 'lucide-react';
 import { format, getYear, parseISO, isValid, parse } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 import { it } from 'date-fns/locale';
 import { AddMovimentoDialog } from '@/components/add-movimento-dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -114,25 +115,25 @@ export default function ContoPage() {
 
     const usersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return collection(firestore, 'users');
+        return query(collection(firestore, 'users'), limit(1000));
     }, [firestore]);
     const { data: users, isLoading: isLoadingUsers } = useCollection<UserData & { familyId?: string }>(usersQuery);
 
     const membriQuery = useMemoFirebase(() => {
         if(!firestore) return null;
-        return collectionGroup(firestore, 'membri');
+        return query(collectionGroup(firestore, 'membri'), limit(1000));
     }, [firestore]);
     const { data: membri, isLoading: isLoadingMembri } = useCollection<Membro & { ref?: any }>(membriQuery, { includeRef: true });
 
     const movimentiContantiQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return collection(firestore, 'movimenti-contanti');
+        return query(collection(firestore, 'movimenti-contanti'), limit(1000));
     }, [firestore]);
     const { data: movimentiContanti, isLoading: isLoadingMovimentiContanti } = useCollection<MovimentoContante>(movimentiContantiQuery);
 
     const speseQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return collection(firestore, 'spese');
+        return query(collection(firestore, 'spese'), limit(1000));
     }, [firestore]);
     const { data: spese, isLoading: isLoadingSpese } = useCollection<Spesa>(speseQuery);
 
@@ -646,10 +647,6 @@ export default function ContoPage() {
 
     const isLoading = isLoadingRaccolte || isLoadingUsers || isLoadingMembri || isLoadingMovimentiContanti || isLoadingSpese;
 
-    if (isLoading) {
-        return <p>Caricamento...</p>
-    }
-
     return (
         <div className="space-y-8">
             <AddMovimentoDialog isOpen={isDialogOpen} onOpenChange={setIsDialogOpen} />
@@ -698,37 +695,45 @@ export default function ContoPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Conto</TableHead>
-                                <TableHead className="text-right">Entrate</TableHead>
-                                <TableHead className="text-right">Uscite</TableHead>
-                                <TableHead className="text-right">Saldo</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {summaryData.map(conto => {
-                                if(!conto.nome) return null;
-                                return (
-                                    <TableRow key={conto.nome}>
-                                        <TableCell className='font-medium'>{conto.nome}</TableCell>
-                                        <TableCell className="text-right text-green-600">€ {conto.entrate.toFixed(2)}</TableCell>
-                                        <TableCell className="text-right text-destructive">€ {conto.uscite.toFixed(2)}</TableCell>
-                                        <TableCell className={`text-right font-bold ${conto.saldo >= 0 ? 'text-green-600' : 'text-destructive'}`}>€ {conto.saldo.toFixed(2)}</TableCell>
-                                    </TableRow>
+                    {isLoading ? (
+                        <div className="space-y-4 pt-4">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Conto</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">Entrate</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">Uscite</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">Saldo</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {summaryData.map(conto => {
+                                    if(!conto.nome) return null;
+                                    return (
+                                        <TableRow key={conto.nome}>
+                                            <TableCell className='font-medium'>{conto.nome}</TableCell>
+                                            <TableCell className="text-right whitespace-nowrap text-green-600">€ {conto.entrate.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right whitespace-nowrap text-destructive">€ {conto.uscite.toFixed(2)}</TableCell>
+                                            <TableCell className={`text-right whitespace-nowrap font-bold ${conto.saldo >= 0 ? 'text-green-600' : 'text-destructive'}`}>€ {conto.saldo.toFixed(2)}</TableCell>
+                                        </TableRow>
+                                    )}
                                 )}
-                            )}
-                        </TableBody>
-                         <TableFooter>
-                            <TableRow>
-                                <TableCell className='font-bold'>TOTALE</TableCell>
-                                <TableCell className="text-right font-bold text-green-600">€ {summaryData.reduce((acc, c) => acc + c.entrate, 0).toFixed(2)}</TableCell>
-                                <TableCell className="text-right font-bold text-destructive">€ {summaryData.reduce((acc, c) => acc + c.uscite, 0).toFixed(2)}</TableCell>
-                                <TableCell className={`text-right font-bold ${summaryData.reduce((acc, c) => acc + c.saldo, 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>€ {summaryData.reduce((acc, c) => acc + c.saldo, 0).toFixed(2)}</TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
+                            </TableBody>
+                             <TableFooter>
+                                <TableRow>
+                                    <TableCell className='font-bold'>TOTALE</TableCell>
+                                    <TableCell className="text-right whitespace-nowrap font-bold text-green-600">€ {summaryData.reduce((acc, c) => acc + c.entrate, 0).toFixed(2)}</TableCell>
+                                    <TableCell className="text-right whitespace-nowrap font-bold text-destructive">€ {summaryData.reduce((acc, c) => acc + c.uscite, 0).toFixed(2)}</TableCell>
+                                    <TableCell className={`text-right whitespace-nowrap font-bold ${summaryData.reduce((acc, c) => acc + c.saldo, 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>€ {summaryData.reduce((acc, c) => acc + c.saldo, 0).toFixed(2)}</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    )}
                 </CardContent>
             </Card>
             
@@ -745,7 +750,7 @@ export default function ContoPage() {
                                 <TableRow>
                                     <TableHead></TableHead>
                                     <TableHead>Cassiere</TableHead>
-                                    <TableHead className="text-right">Importo da Depositare</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">Importo da Depositare</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -759,7 +764,7 @@ export default function ContoPage() {
                                             />
                                         </TableCell>
                                         <TableCell>{summary.cashierName}</TableCell>
-                                        <TableCell className="text-right font-medium">€{summary.totalAmount.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right whitespace-nowrap font-medium">€{summary.totalAmount.toFixed(2)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -826,9 +831,9 @@ export default function ContoPage() {
                                     <TableHead>Conto</TableHead>
                                     <TableHead>Descrizione</TableHead>
                                     <TableHead>Transazione</TableHead>
-                                    <TableHead className="text-right">Entrata</TableHead>
-                                    <TableHead className="text-right">Uscita</TableHead>
-                                    <TableHead className="text-right">Valore Transazione</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">Entrata</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">Uscita</TableHead>
+                                    <TableHead className="text-right whitespace-nowrap">Valore Transazione</TableHead>
                                      <TableHead className="text-right">Azioni</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -848,13 +853,13 @@ export default function ContoPage() {
                                         <TableCell>{movimento.mastroNome}</TableCell>
                                         <TableCell>{movimento.descrizione}</TableCell>
                                         <TableCell>{renderTransactionCell(movimento)}</TableCell>
-                                        <TableCell className="text-right text-green-600">
+                                        <TableCell className="text-right whitespace-nowrap text-green-600">
                                             {movimento.tipo === 'entrata' && movimento.importo > 0 ? `€ ${movimento.importo.toFixed(2)}` : ''}
                                         </TableCell>
-                                        <TableCell className="text-right text-destructive">
+                                        <TableCell className="text-right whitespace-nowrap text-destructive">
                                             {movimento.tipo === 'uscita' ? `€ ${movimento.importo.toFixed(2)}` : ''}
                                         </TableCell>
-                                        <TableCell className="text-right text-muted-foreground">
+                                        <TableCell className="text-right whitespace-nowrap text-muted-foreground">
                                              {movimento.valoreTransazione ? `€ ${movimento.valoreTransazione.toFixed(2)}` : ''}
                                         </TableCell>
                                         <TableCell className="text-right">
@@ -946,9 +951,9 @@ export default function ContoPage() {
                                                         <TableHead>Data</TableHead>
                                                         <TableHead>Descrizione</TableHead>
                                                         <TableHead>Transazione</TableHead>
-                                                        <TableHead className="text-right">Entrata</TableHead>
-                                                        <TableHead className="text-right">Uscita</TableHead>
-                                                        <TableHead className="text-right">Valore Transazione</TableHead>
+                                                        <TableHead className="text-right whitespace-nowrap">Entrata</TableHead>
+                                                        <TableHead className="text-right whitespace-nowrap">Uscita</TableHead>
+                                                        <TableHead className="text-right whitespace-nowrap">Valore Transazione</TableHead>
                                                         <TableHead className="text-right">Azioni</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
@@ -966,13 +971,13 @@ export default function ContoPage() {
                                                             <TableCell>{formatDate(movimento.data)}</TableCell>
                                                             <TableCell>{movimento.descrizione}</TableCell>
                                                             <TableCell>{renderTransactionCell(movimento)}</TableCell>
-                                                            <TableCell className="text-right text-green-600">
+                                                            <TableCell className="text-right whitespace-nowrap text-green-600">
                                                                 {movimento.tipo === 'entrata' && movimento.importo > 0 ? `€ ${movimento.importo.toFixed(2)}` : ''}
                                                             </TableCell>
-                                                            <TableCell className="text-right text-destructive">
+                                                            <TableCell className="text-right whitespace-nowrap text-destructive">
                                                                 {movimento.tipo === 'uscita' ? `€ ${movimento.importo.toFixed(2)}` : ''}
                                                             </TableCell>
-                                                            <TableCell className="text-right text-muted-foreground">
+                                                            <TableCell className="text-right whitespace-nowrap text-muted-foreground">
                                                                 {movimento.valoreTransazione ? `€ ${movimento.valoreTransazione.toFixed(2)}` : ''}
                                                             </TableCell>
                                                              <TableCell className="text-right">
@@ -1017,8 +1022,8 @@ export default function ContoPage() {
                                                 <TableFooter>
                                                     <TableRow>
                                                         <TableCell colSpan={5} className="font-bold">Totale</TableCell>
-                                                        <TableCell className="text-right font-bold text-green-600">€ {stats.entrate.toFixed(2)}</TableCell>
-                                                        <TableCell className="text-right font-bold text-destructive">€ {stats.uscite.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right whitespace-nowrap font-bold text-green-600">€ {stats.entrate.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right whitespace-nowrap font-bold text-destructive">€ {stats.uscite.toFixed(2)}</TableCell>
                                                         <TableCell />
                                                         <TableCell />
                                                     </TableRow>

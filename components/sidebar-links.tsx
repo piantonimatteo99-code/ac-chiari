@@ -16,7 +16,7 @@ import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { PagePermission } from '@/app/(app)/admin/configurazione/gestione-pagine/page';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import type { EducatorRole } from '@/app/(app)/admin/area-educatori/ruoli-educatori/page';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, memo } from 'react';
 import type { Progetto } from '@/app/(app)/progetti/page';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
 
@@ -89,7 +89,7 @@ const adminGroups = [
 ];
 
 
-export default function SidebarLinks({ isMobile = false, onLinkClick }: { isMobile?: boolean, onLinkClick?: () => void }) {
+export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?: boolean, onLinkClick?: () => void }) => {
   const pathname = usePathname();
   const { user } = useUser();
   const { userData, isLoading: isUserLoading } = useUserData();
@@ -242,7 +242,7 @@ export default function SidebarLinks({ isMobile = false, onLinkClick }: { isMobi
         <AccordionItem value={`${item.id}-panel`} className="border-b-0">
           <AccordionTrigger
             className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground", {'bg-accent text-accent-foreground': isInside})}>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 pointer-events-none">
               <Icon className="h-5 w-5" />
               <span className="flex-1 text-left">{item.label}</span>
             </div>
@@ -277,7 +277,7 @@ export default function SidebarLinks({ isMobile = false, onLinkClick }: { isMobi
         <AccordionItem value="miei-gruppi-panel" className="border-b-0">
           <AccordionTrigger
             className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground", {'bg-accent text-accent-foreground': isInside})}>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 pointer-events-none">
               <Icon className="h-5 w-5" />
               <span className="flex-1 text-left">{pageConfig.label}</span>
             </div>
@@ -317,7 +317,7 @@ export default function SidebarLinks({ isMobile = false, onLinkClick }: { isMobi
         <AccordionItem value="progetti-panel" className="border-b-0">
           <AccordionTrigger
             className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground", {'bg-accent text-accent-foreground': isInside})}>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 pointer-events-none">
               <Icon className="h-5 w-5" />
               <span className="flex-1 text-left">{pageConfig.label}</span>
             </div>
@@ -330,7 +330,7 @@ export default function SidebarLinks({ isMobile = false, onLinkClick }: { isMobi
               const href = `/progetti/${progetto.slug}`;
               return (
                 <Link key={progetto.id} href={href} onClick={onLinkClick} className={cn("flex w-full text-left items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary", pathname === href ? "text-primary" : "text-muted-foreground")}>
-                  {progetto.name}
+                  {progetto.name.charAt(0).toUpperCase() + progetto.name.slice(1)}
                 </Link>
               );
             })}
@@ -377,7 +377,7 @@ export default function SidebarLinks({ isMobile = false, onLinkClick }: { isMobi
                 <AccordionTrigger
                   className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground", {'bg-accent text-accent-foreground': pathname.startsWith('/admin')})}
                 >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 pointer-events-none">
                         <Shield className="h-5 w-5" />
                         <span className="flex-1 text-left">Admin Panel</span>
                     </div>
@@ -387,7 +387,7 @@ export default function SidebarLinks({ isMobile = false, onLinkClick }: { isMobi
                         {adminGroups.map((group) => (
                             <AccordionItem value={group.title} key={group.title} className="border-b-0">
                                 <AccordionTrigger className={cn("py-2 pl-3 hover:no-underline flex justify-start", { "text-primary": group.links.some(l => pathname.startsWith(l.href)) })}>
-                                    <div className="flex items-center gap-3 rounded-lg text-sm font-medium">
+                                    <div className="flex items-center gap-3 rounded-lg text-sm font-medium pointer-events-none">
                                         <group.icon className="h-4 w-4" />
                                         <span>{group.title}</span>
                                     </div>
@@ -405,3 +405,5 @@ export default function SidebarLinks({ isMobile = false, onLinkClick }: { isMobi
     </div>
   );
 }
+
+export default memo(SidebarLinksInner);

@@ -23,6 +23,7 @@ export interface Progetto {
     allDay: boolean;
     groupIds: string[];
     raccoltaId?: string;
+    driveFolderId?: string;
     createdAt: any;
 }
 

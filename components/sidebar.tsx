@@ -24,7 +24,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigazione scorrevole */}
-      <div className="flex-grow overflow-y-auto px-3 py-4">
+      <div className="flex-grow sidebar-scroll px-3 py-4">
         <nav className="flex flex-col gap-1">
           <SidebarLinks />
         </nav>
