@@ -1,0 +1,401 @@
+'use client';
+import { useState, useEffect, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
+import { collection, addDoc, serverTimestamp, doc, setDoc, writeBatch, deleteDoc } from 'firebase/firestore';
+import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Textarea } from './ui/textarea';
+import { Switch } from './ui/switch';
+import { Loader2, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { Separator } from './ui/separator';
+import { slugify } from '@/lib/utils';
+import { ConfirmationDialog } from './confirmation-dialog';
+
+export interface Evento {
+    id: string;
+    title: string;
+    description?: string;
+    startDate: any;
+    endDate: any;
+    allDay: boolean;
+    groupIds: string[];
+    isProject?: boolean;
+    projectId?: string;
+    raccoltaId?: string;
+}
+
+export interface Progetto {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string;
+    startDate: any;
+    endDate: any;
+    allDay: boolean;
+    groupIds: string[];
+    createdAt: any;
+}
+
+
+interface AddEventDialogProps {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  eventToEdit?: Evento | null;
+}
+
+export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDialogProps) {
+    const firestore = useFirestore();
+    const isEditing = !!eventToEdit;
+
+    // Event state
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [startDate, setStartDate] = useState<Date | undefined>(new Date());
+    const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+    const [allDay, setAllDay] = useState(true);
+    const [startTime, setStartTime] = useState('09:00');
+    const [endTime, setEndTime] = useState('10:00');
+    const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+    
+    // Project state
+    const [isProject, setIsProject] = useState(false);
+    
+    const [error, setError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+
+    const groupsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'gruppi');
+    }, [firestore]);
+    const { data: groups, isLoading: isLoadingGroups } = useCollection<Group>(groupsQuery);
+    
+    const resetForm = useCallback(() => {
+        const now = new Date();
+        setTitle('');
+        setDescription('');
+        setStartDate(now);
+        setEndDate(now);
+        setAllDay(true);
+        setStartTime('09:00');
+        setEndTime('10:00');
+        setSelectedGroups([]);
+        setError(null);
+        setIsSaving(false);
+        setIsProject(false);
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+             if (isEditing && eventToEdit) {
+                setTitle(eventToEdit.title);
+                setDescription(eventToEdit.description || '');
+                const start = eventToEdit.startDate?.toDate ? eventToEdit.startDate.toDate() : new Date(eventToEdit.startDate);
+                const end = eventToEdit.endDate?.toDate ? eventToEdit.endDate.toDate() : new Date(eventToEdit.endDate);
+                setStartDate(start);
+                setEndDate(end);
+                setAllDay(eventToEdit.allDay);
+                 if (!eventToEdit.allDay) {
+                    setStartTime(format(start, 'HH:mm'));
+                    setEndTime(format(end, 'HH:mm'));
+                }
+                setSelectedGroups(eventToEdit.groupIds);
+                setIsProject(eventToEdit.isProject || false);
+
+             } else {
+                resetForm();
+            }
+        }
+    }, [isOpen, eventToEdit, isEditing, resetForm]);
+
+    useEffect(() => {
+        if (startDate && endDate && startDate > endDate) {
+            setEndDate(startDate);
+        }
+    }, [startDate, endDate]);
+    
+    const handleGroupToggle = (groupId: string, isChecked: boolean) => {
+        setSelectedGroups(prev => 
+            isChecked ? [...prev, groupId] : prev.filter(id => id !== groupId)
+        );
+    };
+
+    const handleSave = async () => {
+        setError(null);
+        if (!title) { setError("Il titolo è obbligatorio."); return; }
+        if (!startDate || !endDate) { setError("Le date di inizio e fine sono obbligatorie."); return; }
+        if (selectedGroups.length === 0) { setError("Seleziona almeno un gruppo."); return; }
+        
+        const finalStartDate = new Date(startDate);
+        const finalEndDate = new Date(endDate);
+
+        if (!allDay) {
+            const [startHours, startMinutes] = startTime.split(':').map(Number);
+            finalStartDate.setHours(startHours, startMinutes, 0, 0);
+
+            const [endHours, endMinutes] = endTime.split(':').map(Number);
+            finalEndDate.setHours(endHours, endMinutes, 0, 0);
+        } else {
+            finalStartDate.setHours(0, 0, 0, 0);
+            finalEndDate.setHours(23, 59, 59, 999);
+        }
+        
+        if (finalEndDate < finalStartDate) {
+            setError("La data e l'ora di fine non possono essere precedenti a quelle di inizio.");
+            return;
+        }
+
+        setIsSaving(true);
+        
+        try {
+            if (!firestore) throw new Error("Firestore non disponibile.");
+
+            if (isEditing && eventToEdit) {
+                // --- UPDATE LOGIC ---
+                const batch = writeBatch(firestore);
+
+                // 1. Update the Event document
+                const eventDocRef = doc(firestore, 'eventi', eventToEdit.id);
+                const eventData = {
+                    title,
+                    description,
+                    startDate: finalStartDate,
+                    endDate: finalEndDate,
+                    allDay,
+                    groupIds: selectedGroups,
+                };
+                batch.update(eventDocRef, eventData);
+
+                // 2. If it's a project, update the linked Project document
+                if (eventToEdit.isProject && eventToEdit.projectId) {
+                    const projectDocRef = doc(firestore, 'progetti', eventToEdit.projectId);
+                    const projectData = {
+                        name: title,
+                        slug: slugify(title),
+                        description,
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        allDay,
+                        groupIds: selectedGroups,
+                    };
+                    batch.update(projectDocRef, projectData);
+                }
+
+                await batch.commit();
+
+            } else {
+                // --- CREATE LOGIC ---
+                if (isProject) {
+                    // Create both Progetto and Evento
+                    const batch = writeBatch(firestore);
+                    
+                    const progettoDocRef = doc(collection(firestore, 'progetti'));
+                    const progettoId = progettoDocRef.id;
+                    const progettoData: Omit<Progetto, 'id'> = {
+                        name: title,
+                        slug: slugify(title),
+                        description,
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        allDay,
+                        groupIds: selectedGroups,
+                        createdAt: serverTimestamp(),
+                    };
+                    batch.set(progettoDocRef, progettoData);
+
+                    const eventoDocRef = doc(collection(firestore, 'eventi'));
+                    const eventoData: Omit<Evento, 'id' | 'raccoltaId'> = {
+                        title,
+                        description,
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        allDay,
+                        groupIds: selectedGroups,
+                        isProject: true,
+                        projectId: progettoId,
+                    };
+                    batch.set(eventoDocRef, eventoData);
+
+                    await batch.commit();
+
+                } else {
+                    // Create a simple Event
+                    const eventData: Omit<Evento, 'id' | 'projectId' | 'isProject'> = {
+                        title,
+                        description,
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        allDay,
+                        groupIds: selectedGroups,
+                    };
+                    await addDoc(collection(firestore, 'eventi'), { ...eventData, createdAt: serverTimestamp() });
+                }
+            }
+
+            onOpenChange(false);
+        } catch (error) {
+            console.error("Errore durante il salvataggio:", error);
+            setError(`Si è verificato un errore: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    const handleDelete = async () => {
+        if (!firestore || !eventToEdit) return;
+        
+        setIsSaving(true);
+        setError(null);
+        
+        try {
+            const batch = writeBatch(firestore);
+
+            // Delete the event
+            const eventDocRef = doc(firestore, 'eventi', eventToEdit.id);
+            batch.delete(eventDocRef);
+
+            // If it's a project, delete the project as well
+            if (eventToEdit.isProject && eventToEdit.projectId) {
+                const projectDocRef = doc(firestore, 'progetti', eventToEdit.projectId);
+                batch.delete(projectDocRef);
+            }
+            
+            await batch.commit();
+            onOpenChange(false);
+
+        } catch (err) {
+            setError(`Errore durante l'eliminazione: ${err instanceof Error ? err.message : 'Errore sconosciuto'}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <>
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>{isEditing ? 'Modifica Impegno' : 'Nuovo Impegno'}</DialogTitle>
+                    <DialogDescription>
+                        Aggiungi un nuovo impegno al calendario per i gruppi selezionati.
+                    </DialogDescription>
+                </DialogHeader>
+                 <div className="flex-1 overflow-y-auto p-1 -mr-2 pr-4">
+                    <div className="space-y-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="title">Titolo</Label>
+                            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="description">Descrizione</Label>
+                            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
+                        </div>
+                         <div className="grid gap-3">
+                            <Label>Gruppi di destinazione</Label>
+                            <ScrollArea className="h-24 rounded-md border p-2">
+                                {isLoadingGroups ? <p>Caricamento...</p> : (
+                                <div className="space-y-2">
+                                    {groups && groups.length > 0 ? groups.map(group => (
+                                        <div key={group.id} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`group-${group.id}`}
+                                                checked={selectedGroups.includes(group.id)}
+                                                onCheckedChange={(checked) => handleGroupToggle(group.id, !!checked)}
+                                            />
+                                            <label htmlFor={`group-${group.id}`} className="text-sm font-medium leading-none">
+                                                {group.name}
+                                            </label>
+                                        </div>
+                                    )) : <p className="text-sm text-muted-foreground">Nessun gruppo trovato.</p>}
+                                </div>
+                                )}
+                            </ScrollArea>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 items-start">
+                            <div className="grid gap-2">
+                                <Label htmlFor="start-date">Inizio</Label>
+                                <div className="grid grid-cols-[1fr_auto] gap-2">
+                                    <DatePicker date={startDate} setDate={setStartDate}/>
+                                    {!allDay && <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-[120px]"/>}
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="end-date">Fine</Label>
+                                <div className="grid grid-cols-[1fr_auto] gap-2">
+                                    <DatePicker date={endDate} setDate={setEndDate} disabled={startDate ? { before: startDate } : undefined} />
+                                    {!allDay && <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-[120px]"/>}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Switch id="all-day" checked={allDay} onCheckedChange={setAllDay} />
+                            <Label htmlFor="all-day">Tutto il giorno</Label>
+                        </div>
+
+                        <Separator />
+                        
+                        <div className="flex items-center space-x-2">
+                           <Switch id="is-project" checked={isProject} onCheckedChange={setIsProject} disabled={isEditing}/>
+                           <Label htmlFor="is-project">Crea un progetto da questo impegno</Label>
+                       </div>
+                       {isProject && (
+                           <div className="pl-6 text-sm text-muted-foreground">
+                               Verrà creata una pagina dedicata al progetto in `/progetti/{slugify(title)}`. Potrai gestire la raccolta fondi e altri dettagli da lì.
+                           </div>
+                       )}
+                    </div>
+                </div>
+
+                {error && <p className="text-destructive text-sm">{error}</p>}
+                
+                <DialogFooter className="border-t pt-4 sm:justify-between">
+                     <div className='flex justify-start'>
+                        {isEditing && (
+                            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isSaving}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Elimina
+                            </Button>
+                        )}
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+                            Annulla
+                        </Button>
+                        <Button onClick={handleSave} disabled={isSaving}>
+                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            {isSaving ? 'Salvataggio...' : (isEditing ? 'Salva Modifiche' : 'Crea Impegno')}
+                        </Button>
+                    </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        {isEditing && (
+            <ConfirmationDialog
+                isOpen={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+                title="Sei sicuro di voler eliminare questo impegno?"
+                description="Se l'impegno è legato a un progetto, anche il progetto verrà eliminato. L'operazione non è reversibile."
+                onConfirm={handleDelete}
+                confirmLabel="Elimina"
+                confirmVariant="destructive"
+            />
+        )}
+        </>
+    );
+}

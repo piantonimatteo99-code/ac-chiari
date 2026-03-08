@@ -1,0 +1,553 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user (matches Firebase Auth UID)."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address for login and communication.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's full name, composed from nome and cognome."
+        },
+        "nome": {
+          "type": "string",
+          "description": "First name of the user."
+        },
+        "cognome": {
+          "type": "string",
+          "description": "Last name of the user."
+        },
+        "roles": {
+          "type": "array",
+          "description": "A list of roles assigned to the user.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "utente",
+              "educatore",
+              "genitore"
+            ]
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the user document was created."
+        },
+        "via": { "type": "string" },
+        "numeroCivico": { "type": "string" },
+        "citta": { "type": "string" },
+        "provincia": { "type": "string" },
+        "cap": { "type": "string" },
+        "archived": {
+          "type": "boolean",
+          "description": "Whether the user is archived."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "displayName",
+        "nome",
+        "cognome",
+        "roles"
+      ]
+    },
+    "Progetto": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Progetto",
+      "type": "object",
+      "description": "Represents a special project or event, potentially with an associated fundraiser.",
+      "properties": {
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "description": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "allDay": { "type": "boolean" },
+        "groupIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "raccoltaId": { "type": "string", "description": "ID of the associated Raccolta, if any." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug", "startDate", "endDate", "groupIds", "createdAt"]
+    },
+    "Documento": {
+      "title": "Documento",
+      "type": "object",
+      "description": "Represents a document associated with a project.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The display name of the document."
+        },
+        "projectId": {
+          "type": "string",
+          "description": "The ID of the project this document belongs to."
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "The public URL to access the file (e.g., a Firebase Storage download URL)."
+        },
+        "storagePath": {
+          "type": "string",
+          "description": "The full path to the file in Firebase Storage."
+        },
+        "fileType": {
+          "type": "string",
+          "description": "The MIME type of the file."
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "The size of the file in bytes."
+        },
+        "uploadedBy": {
+          "type": "string",
+          "description": "The UID of the user who uploaded the document."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["name", "projectId", "url", "storagePath", "fileType", "fileSize", "uploadedBy", "createdAt"]
+    },
+    "Famiglia": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Famiglia",
+      "type": "object",
+      "description": "Represents a family unit, identified by a unique address.",
+      "properties": {
+        "emailCapofamiglia": {
+          "type": "string",
+          "format": "email",
+          "description": "The email of the main user associated with this family."
+        },
+        "uidCapofamiglia": {
+          "type": "string",
+          "description": "The UID of the main user associated with this family."
+        },
+        "via": {
+          "type": "string"
+        },
+        "numeroCivico": {
+          "type": "string"
+        },
+        "citta": {
+          "type": "string"
+        },
+        "provincia": {
+          "type": "string"
+        },
+        "cap": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["emailCapofamiglia", "uidCapofamiglia", "via", "citta", "cap", "updatedAt"]
+    },
+    "Membro": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Membro",
+      "type": "object",
+      "description": "Represents an individual member within a family.",
+      "properties": {
+        "nome": {
+          "type": "string"
+        },
+        "cognome": {
+          "type": "string"
+        },
+        "dataNascita": {
+          "type": "string",
+          "format": "date"
+        },
+        "codiceFiscale": {
+          "type": "string"
+        },
+        "luogoNascita": {
+          "type": "string"
+        },
+        "telefonoPrincipale": {
+          "type": "string"
+        },
+        "telefonoSecondario": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "archived": {
+          "type": "boolean",
+          "description": "Whether the family member is archived."
+        }
+      },
+      "required": ["nome", "cognome", "dataNascita", "createdAt"]
+    },
+    "Evento": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Evento",
+      "type": "object",
+      "description": "Represents a calendar event.",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "allDay": { "type": "boolean" },
+        "groupIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isProject": { "type": "boolean" },
+        "projectId": { "type": "string" },
+        "raccoltaId": { "type": "string" }
+      },
+      "required": ["title", "startDate", "endDate", "allDay", "groupIds"]
+    },
+    "Spesa": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Spesa",
+      "type": "object",
+      "description": "Represents an expense incurred.",
+      "properties": {
+        "data": { "type": "string", "format": "date-time" },
+        "descrizione": { "type": "string" },
+        "importo": { "type": "number" },
+        "importoPagato": { "type": "number" },
+        "receiptUrl": { "type": "string", "format": "uri" },
+        "raccoltaId": { "type": "string", "description": "Optional ID of the related Raccolta." },
+        "raccoltaNome": { "type": "string", "description": "Optional name of the related Raccolta." },
+        "registeredBy": { "type": "string" },
+        "registeredByName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["data", "descrizione", "importo", "importoPagato", "registeredBy", "registeredByName", "createdAt"]
+    },
+    "TariffaTesseramento": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TariffaTesseramento",
+      "type": "object",
+      "description": "Represents a single membership fee tier.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the tier (e.g., 'adulti')." },
+        "label": { "type": "string", "description": "Display label (e.g., 'Adulti')." },
+        "description": { "type": "string", "description": "Description of the age group." },
+        "quotaIntera": { "type": "number", "description": "Full fee amount." },
+        "quotaScontata": { "type": "number", "description": "Discounted fee amount." },
+        "gratuita": { "type": "number", "description": "Fee for the 4th member onwards from the same family." },
+        "order": { "type": "number", "description": "Sort order for display." }
+      },
+      "required": ["id", "label", "description", "quotaIntera", "quotaScontata", "gratuita", "order"]
+    },
+    "EducatorRole": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EducatorRole",
+      "type": "object",
+      "description": "Defines a specific role for educators with granular permissions.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the educator role (e.g., 'Coordinatore Infanzia')."
+        },
+        "accessiblePages": {
+          "type": "array",
+          "description": "A list of application page paths this role can access.",
+          "items": { "type": "string" }
+        },
+        "assignedEducators": {
+          "type": "array",
+          "description": "A list of user UIDs of educators assigned to this role.",
+          "items": { "type": "string" }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["name"]
+    },
+    "PagePermission": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PagePermission",
+      "type": "object",
+      "description": "Defines the visibility and permission checks for a specific page.",
+      "properties": {
+        "id": { "type": "string" },
+        "path": { "type": "string" },
+        "label": { "type": "string" },
+        "visible": { "type": "boolean" },
+        "requiresEducatorRoleCheck": { "type": "boolean" },
+        "requiresGroupAssignmentCheck": { "type": "boolean" }
+      },
+      "required": ["id", "path", "label", "visible", "requiresEducatorRoleCheck", "requiresGroupAssignmentCheck"]
+    },
+    "Group": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Group",
+      "type": "object",
+      "description": "Represents a group of users, managed by educators.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the group."
+        },
+        "educatorIds": {
+          "type": "array",
+          "description": "A list of user UIDs of educators assigned to this group.",
+          "items": { "type": "string" }
+        },
+         "memberIds": {
+          "type": "array",
+          "description": "A list of UIDs of users or family members in this group.",
+          "items": { "type": "string" }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["name"]
+    },
+    "MemberGroupAssignment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MemberGroupAssignment",
+      "type": "object",
+      "description": "Maps a family member to a specific group.",
+      "properties": {
+        "memberId": {
+          "type": "string"
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "famigliaId": {
+          "type": "string"
+        }
+      },
+      "required": ["memberId", "groupId", "famigliaId"]
+    },
+    "Movimento": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Movimento",
+      "type": "object",
+      "description": "Represents a single financial transaction (income or expense).",
+      "properties": {
+        "data": { "type": "string", "format": "date-time" },
+        "descrizione": { "type": "string" },
+        "mastroId": { "type": "string", "description": "ID of the ledger (e.g., raccoltaId or 'cassa-generale')." },
+        "mastroNome": { "type": "string" },
+        "tipo": { "type": "string", "enum": ["entrata", "uscita"] },
+        "importo": { "type": "number" },
+        "paymentId": { "type": "string", "description": "Link to the original payment ID from a raccolta." },
+        "receiptUrl": { "type": "string", "description": "URL to a receipt for an expense." }
+      },
+      "required": ["data", "descrizione", "mastroId", "mastroNome", "tipo", "importo"]
+    },
+     "MovimentoContante": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MovimentoContante",
+      "type": "object",
+      "description": "Represents a cash payment registered manually.",
+      "properties": {
+        "raccoltaId": { "type": "string" },
+        "memberId": { "type": "string" },
+        "phase": { "type": "string", "enum": ["caparra", "saldo"] },
+        "importo": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "registeredBy": { "type": "string", "description": "UID of the user who registered the payment." }
+      },
+      "required": ["raccoltaId", "memberId", "phase", "importo", "createdAt", "registeredBy"]
+    },
+    "Payment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payment",
+      "type": "object",
+      "description": "Represents a single, unique payment transaction, including bank transfers and cash deposits.",
+      "properties": {
+        "paymentId": {
+          "type": "string"
+        },
+        "receiptUrl": {
+          "type": "string",
+          "description": "URL to the user-uploaded receipt. Empty for cash deposits."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "analysisData": {
+          "type": "object",
+           "description": "Data extracted by AI from the receipt, or manually entered for cash deposits."
+        },
+        "originalAnalysisData": {
+          "type": "object",
+          "description": "A backup of the original analysisData if it has been manually edited."
+        },
+        "userId": {
+          "type": "string"
+        },
+        "isVerified": {
+          "type": "boolean"
+        },
+        "datePrefix": {
+            "type": "string",
+            "description": "A 'ddMMyy' prefix for querying daily transactions."
+        },
+        "isCashDeposit": {
+          "type": "boolean",
+          "description": "Flag to identify if this transaction is a cash deposit."
+        }
+      },
+      "required": ["paymentId", "timestamp", "analysisData", "userId", "isVerified", "datePrefix"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/entities/User"
+          },
+          "description": "Stores user profile data, including roles and the shared family address."
+        }
+      },
+      {
+        "path": "/progetti/{progettoId}",
+        "definition": {
+          "entityName": "Progetto",
+          "schema": {
+            "$ref": "#/entities/Progetto"
+          },
+          "description": "Stores project data, which are enhanced events."
+        }
+      },
+      {
+        "path": "/documenti/{documentoId}",
+        "definition": {
+          "entityName": "Documento",
+          "schema": {
+            "$ref": "#/entities/Documento"
+          },
+          "description": "Stores metadata for documents associated with projects."
+        }
+      },
+      {
+        "path": "/famiglie/{famigliaId}",
+        "definition": {
+          "entityName": "Famiglia",
+          "schema": {
+            "$ref": "#/entities/Famiglia"
+          },
+          "description": "Collection where each document represents a family at a unique address."
+        }
+      },
+      {
+        "path": "/famiglie/{famigliaId}/membri/{membroId}",
+        "definition": {
+            "entityName": "Membro",
+            "schema": { "$ref": "#/entities/Membro" },
+            "description": "Sub-collection for individual family members."
+        }
+      },
+      {
+        "path": "/eventi/{eventoId}",
+        "definition": {
+            "entityName": "Evento",
+            "schema": { "$ref": "#/entities/Evento" },
+            "description": "Stores all calendar events."
+        }
+      },
+      {
+        "path": "/ruoli-educatori/{roleId}",
+        "definition": {
+            "entityName": "EducatorRole",
+            "schema": { "$ref": "#/entities/EducatorRole" },
+            "description": "Stores custom roles for educators with specific page access and user assignments."
+        }
+      },
+      {
+        "path": "/page-settings/{pageId}",
+        "definition": {
+            "entityName": "PagePermission",
+            "schema": { "$ref": "#/entities/PagePermission" },
+            "description": "Stores visibility and role permissions for each application page."
+        }
+      },
+      {
+        "path": "/gruppi/{groupId}",
+        "definition": {
+            "entityName": "Group",
+            "schema": { "$ref": "#/entities/Group" },
+            "description": "Stores groups of users, with assigned educators."
+        }
+      },
+       {
+        "path": "/spese/{spesaId}",
+        "definition": {
+            "entityName": "Spesa",
+            "schema": { "$ref": "#/entities/Spesa" },
+            "description": "Stores all expense transactions."
+        }
+      },
+      {
+        "path": "/tariffe-tesseramento/{tariffaId}",
+        "definition": {
+            "entityName": "TariffaTesseramento",
+            "schema": { "$ref": "#/entities/TariffaTesseramento" },
+            "description": "Stores the editable membership fee structure."
+        }
+      },
+      {
+        "path": "/member-group-assignments/{assignmentId}",
+        "definition": {
+            "entityName": "MemberGroupAssignment",
+            "schema": { "$ref": "#/entities/MemberGroupAssignment" },
+            "description": "Tracks which member is assigned to which group."
+        }
+      },
+       {
+        "path": "/movimenti-contanti/{movimentoId}",
+        "definition": {
+            "entityName": "MovimentoContante",
+            "schema": { "$ref": "#/entities/MovimentoContante" },
+            "description": "Stores all manual cash payment transactions."
+        }
+      },
+      {
+        "path": "/payments/{paymentDocId}",
+        "definition": {
+            "entityName": "Payment",
+            "schema": { "$ref": "#/entities/Payment" },
+            "description": "Stores a record of every unique payment transaction, including bonifici and depositi contanti."
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regola permissiva per permettere all'app di leggere i risultati dall'estensione Gemini
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Permette a qualsiasi utente autenticato di caricare file.
+    // L'app dovrebbe comunque garantire che gli utenti carichino solo nei percorsi corretti (es. /uploads/{userId}/).
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

@@ -1,0 +1,41 @@
+# Dipendenze
+/node_modules
+/.pnp
+.pnp.js
+
+# Build di Next.js
+/.next/
+/out/
+
+# Produzione
+/build
+
+# File di ambiente (sensibili)
+.env*.local
+.env
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Varie
+.DS_Store
+*.pem
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# Log e file temporanei
+build.log
+.modified
+*.zip
+
+# Firebase emulator
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# IDX / Firebase Studio
+.idx/
