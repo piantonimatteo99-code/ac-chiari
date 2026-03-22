@@ -173,7 +173,8 @@ export default function TabCase() {
   const isAdmin = userData?.roles?.includes('admin') || userData?.roles?.includes('educatore');
 
   const caseQuery = useMemoFirebase(() => firestore ? collection(firestore, 'campi-case') : null, [firestore]);
-  const { data: case_list = [] } = useCollection<Casa>(caseQuery);
+  const { data: caseData } = useCollection<Casa>(caseQuery);
+  const case_list = caseData ?? [];
 
   const [openAdd, setOpenAdd] = useState(false);
   const [editingCasa, setEditingCasa] = useState<Casa | null>(null);

@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Calculator, TrendingUp, TrendingDown, Users, Home, Bus, ShoppingCart, AlertTriangle, Info } from 'lucide-react';
 import type { Casa } from './tab-case';
 import type { Pullman } from './tab-pullman';
-import type { Piatto, SlotMenu } from './tab-spesa';
+import type { Piatto } from './tab-spesa';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -33,13 +33,16 @@ export default function TabPreventivo() {
 
   // Dati da Firestore
   const caseQ = useMemoFirebase(() => firestore ? collection(firestore, 'campi-case') : null, [firestore]);
-  const { data: case_list = [] } = useCollection<Casa>(caseQ);
+  const { data: caseData } = useCollection<Casa>(caseQ);
+  const case_list = caseData ?? [];
 
   const pullmanQ = useMemoFirebase(() => firestore ? collection(firestore, 'campi-pullman') : null, [firestore]);
-  const { data: pullman_list = [] } = useCollection<Pullman>(pullmanQ);
+  const { data: pullmanData } = useCollection<Pullman>(pullmanQ);
+  const pullman_list = pullmanData ?? [];
 
   const piattiQ = useMemoFirebase(() => firestore ? collection(firestore, 'campi-piatti') : null, [firestore]);
-  const { data: piatti = [] } = useCollection<Piatto>(piattiQ);
+  const { data: piattiData } = useCollection<Piatto>(piattiQ);
+  const piatti = piattiData ?? [];
 
   // ── Selezione casa ──
   const [casaId, setCasaId] = useState<string>('');

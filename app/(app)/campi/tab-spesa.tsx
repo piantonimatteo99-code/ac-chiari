@@ -186,9 +186,10 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
     let costo = 0;
     const intSet = new Set<string>();
 
+    const PASTO_KEYS = ['colazione', 'merenda_mattina', 'pranzo', 'merenda', 'cena'] as const;
     for (const giorno of menu) {
-      for (const pasto of Object.values(giorno)) {
-        const slot = pasto as SlotMenu;
+      for (const key of PASTO_KEYS) {
+        const slot = giorno[key] as SlotMenu;
         for (const id of [slot.piattoPrincipaleId, slot.contornoId, slot.fruttaId].filter(Boolean)) {
           const piatto = piatti.find(p => p.id === id);
           if (!piatto) continue;
@@ -264,7 +265,8 @@ export default function TabSpesa() {
   const isAdmin = userData?.roles?.includes('admin') || userData?.roles?.includes('educatore');
 
   const piattiQ = useMemoFirebase(() => firestore ? collection(firestore, 'campi-piatti') : null, [firestore]);
-  const { data: piatti = [] } = useCollection<Piatto>(piattiQ);
+  const { data: piattiData } = useCollection<Piatto>(piattiQ);
+  const piatti = piattiData ?? [];
 
   const [openAdd, setOpenAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

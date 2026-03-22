@@ -79,7 +79,8 @@ export default function TabPullman() {
   const isAdmin = userData?.roles?.includes('admin') || userData?.roles?.includes('educatore');
 
   const q = useMemoFirebase(() => firestore ? collection(firestore, 'campi-pullman') : null, [firestore]);
-  const { data: pullman_list = [] } = useCollection<Pullman>(q);
+  const { data: pullmanData } = useCollection<Pullman>(q);
+  const pullman_list = pullmanData ?? [];
 
   const [openAdd, setOpenAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
