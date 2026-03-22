@@ -296,12 +296,35 @@ export default function PagamentiContantiPage() {
 
         try {
             await batch.commit();
+
+            // Invio email al capofamiglia in background solo se si segna come pagato
+            if (shouldPay) {
+                const member = allMembers.find(m => m.id === memberId);
+                const familyHeadId = member?.familyId || memberId;
+                const memberName = member ? `${member.nome} ${member.cognome}` : memberId;
+                const phaseLabel = phase === 'caparra' ? 'Caparra' : 'Saldo';
+
+                fetch('/api/send-payment-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        familyHeadId,
+                        paymentItems: [{
+                            memberName,
+                            raccoltaNome: raccolta.nome,
+                            phase: phaseLabel,
+                            amount: String(importo),
+                        }],
+                        paymentMethod: 'contanti',
+                    }),
+                }).catch(e => console.warn('Errore invio email pagamento:', e));
+            }
         } catch (error) {
             console.error(`Error updating ${phase} payment:`, error);
         } finally {
             setIsProcessing(prev => ({...prev, [processingKey]: false}));
         }
-    }, [firestore, userData]);
+    }, [firestore, userData, allMembers]);
 
     const handleDeliver = async (summary: EducatorCashSummary, cashierId: string) => {
         if(!firestore) return;
@@ -515,7 +538,29 @@ export default function PagamentiContantiPage() {
                                                         querySnapshot.forEach(doc => { batch.delete(doc.ref); });
                                                         batch.update(memberDocRef, { tesseramento: deleteField() });
                                                     }
-                                                    try { await batch.commit(); }
+                                                    try {
+                                                        await batch.commit();
+                                                        // Invio email al capofamiglia in background solo se si segna come pagato
+                                                        if (shouldPay) {
+                                                            const member = allMembers.find(m => m.id === memberId);
+                                                            const familyHeadId = member?.familyId || memberId;
+                                                            const memberName = member ? `${member.nome} ${member.cognome}` : memberId;
+                                                            fetch('/api/send-payment-email', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({
+                                                                    familyHeadId,
+                                                                    paymentItems: [{
+                                                                        memberName,
+                                                                        raccoltaNome: raccolta.nome,
+                                                                        phase: 'Tesseramento',
+                                                                        amount: String(fee),
+                                                                    }],
+                                                                    paymentMethod: 'contanti',
+                                                                }),
+                                                            }).catch(e => console.warn('Errore invio email pagamento:', e));
+                                                        }
+                                                    }
                                                     catch (error) { console.error(`Error updating tesseramento payment:`, error); }
                                                     finally { setIsProcessing(prev => ({ ...prev, [processingKey]: false })); }
                                                 };

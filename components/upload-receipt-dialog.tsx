@@ -638,6 +638,25 @@ const handleConfirm = async () => {
         }
 
         await batch.commit();
+
+        // Invio email al capofamiglia (fire-and-forget – non blocca il flusso)
+        fetch('/api/send-payment-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                familyHeadId: user.uid,
+                paymentItems: paymentItems.map(item => ({
+                    memberName: item.memberName,
+                    raccoltaNome: item.raccoltaNome,
+                    phase: item.phase,
+                    amount: item.amount,
+                })),
+                paymentId: paymentId,
+                receiptUrl: finalReceiptUrl,
+                paymentMethod: 'bonifico',
+            }),
+        }).catch(e => console.warn('Errore invio email pagamento:', e));
+
         clearCachedPaymentId();
         onSuccess();
         onOpenChange(false);
