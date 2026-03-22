@@ -4,23 +4,17 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle2, Clock, ExternalLink, FolderOpen, Loader2, Mail, RefreshCw, Send, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, ExternalLink, FolderOpen, Loader2, Mail, RefreshCw, XCircle } from 'lucide-react';
 import { useUserData } from '@/src/hooks/use-user-data';
-import { useUser } from '@/src/firebase';
 
 function IntegrazioneDriveContent() {
   const searchParams = useSearchParams();
   const driveConnected = searchParams.get('drive_connected') === 'true';
   const driveError = searchParams.get('drive_error');
   const { userData } = useUserData();
-  const { user } = useUser();
   const isAdmin = userData?.roles?.includes('admin');
 
   const [tokenStatus, setTokenStatus] = useState<'checking' | 'ok' | 'expired' | 'unknown'>('checking');
-
-  // Email test state
-  const [emailTestStatus, setEmailTestStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle');
-  const [emailTestMessage, setEmailTestMessage] = useState('');
 
   useEffect(() => {
     fetch('/api/drive/documents?folderId=root')
@@ -39,42 +33,6 @@ function IntegrazioneDriveContent() {
       .catch(() => setTokenStatus('unknown'));
   }, [driveConnected]);
 
-  const handleTestEmail = async () => {
-    if (!user) return;
-    setEmailTestStatus('sending');
-    setEmailTestMessage('');
-    try {
-      const res = await fetch('/api/send-payment-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          familyHeadId: user.uid,
-          paymentMethod: 'bonifico',
-          paymentId: 'TEST0001',
-          receiptUrl: 'https://example.com/ricevuta-test.pdf',
-          paymentItems: [
-            { memberName: 'Mario Rossi', raccoltaNome: 'Campo Estivo 2025', phase: 'Caparra', amount: '50' },
-            { memberName: 'Lucia Rossi', raccoltaNome: 'Campo Estivo 2025', phase: 'Caparra', amount: '50' },
-          ],
-        }),
-      });
-      const data = await res.json();
-      if (data.skipped) {
-        setEmailTestStatus('error');
-        setEmailTestMessage(`Email non inviata: ${data.reason}. Controlla SMTP_USER e SMTP_PASSWORD nel .env.local.`);
-      } else if (data.success) {
-        setEmailTestStatus('ok');
-        setEmailTestMessage(`✅ Email inviata con successo a: ${data.sentTo}`);
-      } else {
-        setEmailTestStatus('error');
-        setEmailTestMessage(`Errore: ${data.error}`);
-      }
-    } catch (e: any) {
-      setEmailTestStatus('error');
-      setEmailTestMessage(`Errore di rete: ${e.message}`);
-    }
-  };
-
   if (!isAdmin) {
     return (
       <Card>
@@ -89,7 +47,6 @@ function IntegrazioneDriveContent() {
     <div className="flex flex-col gap-6">
       <h1 className="text-3xl font-bold">Integrazione Google Drive</h1>
 
-      {/* ─── Card Google Drive ─── */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -170,53 +127,6 @@ function IntegrazioneDriveContent() {
                 <RefreshCw className="mr-2 h-4 w-4" />
                 {driveConnected || tokenStatus === 'ok' ? 'Riconnetti Google Drive' : 'Collega Google Drive'}
               </a>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ─── Card Test Email ─── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-6 w-6 text-primary" />
-            Test Email Notifiche Pagamenti
-          </CardTitle>
-          <CardDescription>
-            Invia una email di prova al tuo account per verificare che la configurazione SMTP funzioni correttamente.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-lg border p-4 bg-muted/30 text-sm text-muted-foreground space-y-1">
-            <p>📤 <strong>Mittente:</strong> azionecattolicachiari@gmail.com</p>
-            <p>📥 <strong>Destinatario:</strong> la tua email ({userData?.email || user?.email || '—'})</p>
-            <p>📋 <strong>Contenuto:</strong> email di prova con dati fittizi (Mario Rossi + Lucia Rossi, Campo Estivo 2025, €50 ciascuno)</p>
-          </div>
-
-          {emailTestStatus === 'ok' && (
-            <div className="flex items-center gap-3 p-4 bg-green-50 text-green-700 border border-green-200 rounded-lg">
-              <CheckCircle2 className="h-5 w-5 shrink-0" />
-              <p className="text-sm font-medium">{emailTestMessage}</p>
-            </div>
-          )}
-          {emailTestStatus === 'error' && (
-            <div className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-lg">
-              <XCircle className="h-5 w-5 shrink-0" />
-              <p className="text-sm font-medium">{emailTestMessage}</p>
-            </div>
-          )}
-
-          <div className="flex justify-end">
-            <Button
-              onClick={handleTestEmail}
-              disabled={emailTestStatus === 'sending'}
-              variant={emailTestStatus === 'ok' ? 'outline' : 'default'}
-            >
-              {emailTestStatus === 'sending' ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Invio in corso...</>
-              ) : (
-                <><Send className="mr-2 h-4 w-4" /> Invia Email di Test</>
-              )}
             </Button>
           </div>
         </CardContent>
