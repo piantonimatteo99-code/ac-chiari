@@ -3,7 +3,9 @@ import nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
 import { initAdminApp } from '@/lib/firebase-admin';
 
-interface PaymentItem {
+// ─── Tipi ────────────────────────────────────────────────────────────────────
+
+export interface PaymentItem {
   memberName: string;
   raccoltaNome: string;
   phase: string;
@@ -11,22 +13,33 @@ interface PaymentItem {
 }
 
 interface EmailPayload {
-  familyHeadId: string; // UID del capofamiglia (usato per recuperare l'email)
+  familyHeadId: string;
   paymentItems: PaymentItem[];
-  paymentId?: string;        // Solo per bancario
-  receiptUrl?: string;       // Solo per bancario
+  paymentId?: string;
+  receiptUrl?: string;
   paymentMethod: 'bonifico' | 'contanti';
-  raccoltaNome?: string;     // Usato per contanti su singola raccolta
 }
 
-/**
- * Recovers the family head email from Firestore.
- * Falls back to Firebase Auth if necessary.
- */
+interface PendingEmail {
+  items: PaymentItem[];
+  timer: NodeJS.Timeout;
+  paymentMethod: 'bonifico' | 'contanti';
+  paymentId?: string;
+  receiptUrl?: string;
+}
+
+// ─── Debounce state (module-level, persiste tra le richieste) ─────────────────
+
+const DEBOUNCE_MS = 30_000; // 30 secondi
+
+/** Una entry per ogni capofamiglia: accumula i pagamenti e resetta il timer */
+const pendingEmails = new Map<string, PendingEmail>();
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 async function getFamilyHeadEmail(uid: string): Promise<{ email: string; displayName: string } | null> {
   const db = admin.firestore();
 
-  // Try users collection first
   const userDoc = await db.collection('users').doc(uid).get();
   if (userDoc.exists) {
     const data = userDoc.data()!;
@@ -35,7 +48,6 @@ async function getFamilyHeadEmail(uid: string): Promise<{ email: string; display
     if (email) return { email, displayName };
   }
 
-  // Fallback to Firebase Auth record
   try {
     const authUser = await admin.auth().getUser(uid);
     if (authUser.email) {
@@ -160,6 +172,48 @@ function buildEmailHtml(
 </html>`;
 }
 
+async function sendEmail(familyHeadId: string, pending: PendingEmail): Promise<void> {
+  const smtpUser = process.env.SMTP_USER!;
+  const smtpPassword = process.env.SMTP_PASSWORD!;
+
+  const familyHead = await getFamilyHeadEmail(familyHeadId);
+  if (!familyHead) {
+    console.warn(`Email del capofamiglia non trovata per uid: ${familyHeadId}`);
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: { user: smtpUser, pass: smtpPassword },
+  });
+
+  const htmlBody = buildEmailHtml(
+    familyHead.displayName,
+    pending.items,
+    pending.paymentMethod,
+    pending.paymentId,
+    pending.receiptUrl
+  );
+
+  const subject =
+    pending.paymentMethod === 'bonifico'
+      ? `✅ Pagamento confermato — ACR-${pending.paymentId}`
+      : `✅ ${pending.items.length > 1 ? `${pending.items.length} pagamenti registrati` : 'Pagamento registrato'}`;
+
+  await transporter.sendMail({
+    from: `"AC Chiari" <${smtpUser}>`,
+    to: familyHead.email,
+    subject,
+    html: htmlBody,
+  });
+
+  console.log(`[email] Inviata a ${familyHead.email} — ${pending.items.length} voci per familyHeadId=${familyHeadId}`);
+}
+
+// ─── Route handler ────────────────────────────────────────────────────────────
+
 export async function POST(request: NextRequest) {
   try {
     initAdminApp();
@@ -171,59 +225,61 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Dati mancanti' }, { status: 400 });
     }
 
-    // Check SMTP config
+    // Se SMTP non configurato, salta silenziosamente
     const smtpUser = process.env.SMTP_USER;
     const smtpPassword = process.env.SMTP_PASSWORD;
-
     if (!smtpUser || !smtpPassword) {
-      console.warn('SMTP non configurato — email non inviata. Imposta SMTP_USER e SMTP_PASSWORD nel .env.local');
+      console.warn('SMTP non configurato — email non inviata.');
       return NextResponse.json({ success: true, skipped: true, reason: 'SMTP non configurato' });
     }
 
-    // Get family head info
-    const familyHead = await getFamilyHeadEmail(familyHeadId);
-    if (!familyHead) {
-      console.warn(`Email del capofamiglia non trovata per uid: ${familyHeadId}`);
-      return NextResponse.json({ success: true, skipped: true, reason: 'Email capofamiglia non trovata' });
+    // ── Debounce: accorpa pagamenti della stessa famiglia entro 30 secondi ──
+    const existing = pendingEmails.get(familyHeadId);
+
+    if (existing) {
+      // Cancella il timer precedente e aggiungi i nuovi pagamenti
+      clearTimeout(existing.timer);
+      existing.items.push(...paymentItems);
+      // Aggiorna receipt/paymentId se arriva un bonifico
+      if (paymentMethod === 'bonifico') {
+        existing.paymentMethod = 'bonifico';
+        if (paymentId) existing.paymentId = paymentId;
+        if (receiptUrl) existing.receiptUrl = receiptUrl;
+      }
+      console.log(`[email] Pagamento aggiunto alla coda di ${familyHeadId} (${existing.items.length} voci totali) — timer azzerato`);
+    } else {
+      // Prima voce per questa famiglia: crea la entry
+      const entry: PendingEmail = {
+        items: [...paymentItems],
+        paymentMethod,
+        paymentId,
+        receiptUrl,
+        timer: null as any,
+      };
+      pendingEmails.set(familyHeadId, entry);
+      console.log(`[email] Nuova coda per ${familyHeadId} — attesa ${DEBOUNCE_MS / 1000}s prima dell'invio`);
     }
 
-    // Create SMTP transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: smtpUser,
-        pass: smtpPassword,
-      },
+    // (Re)imposta il timer a 30 secondi
+    const pending = pendingEmails.get(familyHeadId)!;
+    pending.timer = setTimeout(async () => {
+      pendingEmails.delete(familyHeadId);
+      try {
+        await sendEmail(familyHeadId, pending);
+      } catch (err: any) {
+        console.error(`[email] Errore invio per ${familyHeadId}:`, err.message);
+      }
+    }, DEBOUNCE_MS);
+
+    return NextResponse.json({
+      success: true,
+      queued: true,
+      queueSize: pendingEmails.get(familyHeadId)?.items.length ?? paymentItems.length,
+      willSendIn: `${DEBOUNCE_MS / 1000}s`,
     });
-
-    const htmlBody = buildEmailHtml(
-      familyHead.displayName,
-      paymentItems,
-      paymentMethod,
-      paymentId,
-      receiptUrl
-    );
-
-    const subject =
-      paymentMethod === 'bonifico'
-        ? `✅ Pagamento confermato — ACR-${paymentId}`
-        : `✅ Pagamento in contanti registrato`;
-
-    await transporter.sendMail({
-      from: `"AC Chiari" <${smtpUser}>`,
-      to: familyHead.email,
-      subject,
-      html: htmlBody,
-    });
-
-    console.log(`Email inviata a ${familyHead.email} per familyHeadId=${familyHeadId}`);
-    return NextResponse.json({ success: true, sentTo: familyHead.email });
 
   } catch (err: any) {
-    console.error('Errore invio email pagamento:', err);
-    // Non bloccare l'utente per un errore email — restituiamo 200 con warning
+    console.error('Errore API send-payment-email:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 200 });
   }
 }
