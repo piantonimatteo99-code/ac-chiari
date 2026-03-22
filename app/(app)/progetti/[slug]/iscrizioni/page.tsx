@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useFirestore, useUser, useMemoFirebase, useCollection, useDoc } from '@/src/firebase';
-import { collection, query, where, doc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { useMemo, useCallback, useState } from 'react';
 import { useUserData } from '@/src/hooks/use-user-data';
 import type { Progetto } from '../../page';
@@ -47,18 +47,20 @@ export default function ProgettoIscrizioniPage() {
     const handleLinkRaccoltaToProgetto = useCallback(async (raccoltaId: string) => {
         if (!firestore || !progetto) return;
         try {
-            const { doc: firestoreDoc, updateDoc, writeBatch: wb } = await import('firebase/firestore');
-            const batch = writeBatch(firestore);
-            const progettoDocRef = firestoreDoc(firestore, 'progetti', progetto.id);
-            batch.update(progettoDocRef, { raccoltaId });
-            const eventQuery = query(collection(firestore, 'eventi'), where('projectId', '==', progetto.id));
+            const progettoDocRef = doc(firestore, 'progetti', progetto.id);
+            await updateDoc(progettoDocRef, { raccoltaId });
+
+            // Also update the linked event if it exists
+            const eventQuery = query(
+                collection(firestore, 'eventi'),
+                where('projectId', '==', progetto.id)
+            );
             const eventSnapshot = await getDocs(eventQuery);
             if (!eventSnapshot.empty) {
-                batch.update(eventSnapshot.docs[0].ref, { raccoltaId });
+                await updateDoc(eventSnapshot.docs[0].ref, { raccoltaId });
             }
-            await batch.commit();
         } catch (error) {
-            console.error("Error linking fundraiser:", error);
+            console.error('Error linking fundraiser:', error);
         }
     }, [firestore, progetto]);
 
@@ -82,7 +84,7 @@ export default function ProgettoIscrizioniPage() {
                 <div>
                     <p className="text-sm text-muted-foreground">
                         <Link href={`/progetti/${slug}`} className="hover:underline">{progetto.name}</Link>
-                        {' '}&rsaquo; Iscrizioni
+                        {' '}› Iscrizioni
                     </p>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
                         <Users className="h-6 w-6 text-primary" />
@@ -95,7 +97,11 @@ export default function ProgettoIscrizioniPage() {
                 isOpen={isRaccoltaDialogOpen}
                 onOpenChange={setIsRaccoltaDialogOpen}
                 raccoltaToEdit={raccoltaData}
-                initialData={!raccoltaData && progetto ? { nome: `Raccolta per: ${progetto.name}`, gruppiId: progetto.groupIds } : undefined}
+                initialData={
+                    !raccoltaData && progetto
+                        ? { nome: `Raccolta per: ${progetto.name}`, gruppiId: progetto.groupIds }
+                        : undefined
+                }
                 onSaveSuccess={handleLinkRaccoltaToProgetto}
             />
 
