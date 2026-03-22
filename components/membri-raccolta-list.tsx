@@ -9,7 +9,7 @@ import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem } from './ui/dropdown-menu';
-import { Settings, Filter, CheckCircle2, XCircle, Hourglass, FileText } from 'lucide-react';
+import { Settings, Filter, CheckCircle2, XCircle, Hourglass, FileText, AlertTriangle } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import Link from 'next/link';
 
@@ -39,6 +39,7 @@ type ColumnVisibility = {
     saldo: boolean;
     pagato: boolean;
     totale: boolean;
+    allergie: boolean;
 };
 
 type PaymentStatus = 'tutti' | 'pagato' | 'da_pagare';
@@ -64,6 +65,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
     saldo: faseSaldo.attiva,
     pagato: true,
     totale: true,
+    allergie: true,
   });
   
   const uniqueGroups = useMemo(() => {
@@ -189,6 +191,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
     saldo: "Saldo",
     pagato: "Pagato",
     totale: "Totale",
+    allergie: "Allergie",
    };
 
   const dynamicColumns = ['conferma', 'caparra', 'saldo'];
@@ -245,6 +248,13 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
 
         return <Badge variant="outline">Da pagare</Badge>;
     };
+
+  const membersWithAllergie = useMemo(() => {
+    return filteredMembers.filter(member => 
+        member.allergie && member.allergie.trim() !== '' &&
+        (confermatiIds?.includes(member.id) ?? false)
+    );
+  }, [filteredMembers, confermatiIds]);
 
   return (
     <div className='space-y-4'>
@@ -324,6 +334,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
               {columnVisibility.saldo && faseSaldo.attiva && <TableHead className="text-center">Saldo</TableHead>}
               {columnVisibility.pagato && <TableHead className="text-right">Pagato</TableHead>}
               {columnVisibility.totale && <TableHead className="text-right">Totale</TableHead>}
+              {columnVisibility.allergie && <TableHead>Allergie / Intolleranze</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -354,6 +365,17 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         )}
                         {columnVisibility.pagato && <TableCell className="text-right tabular-nums">€ {paidAmount.toFixed(2)}</TableCell>}
                         {columnVisibility.totale && <TableCell className="text-right tabular-nums">€ {totalAmount.toFixed(2)}</TableCell>}
+                        {columnVisibility.allergie && (
+                            <TableCell>
+                                {member.allergie ? (
+                                    <span className="text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-0.5">
+                                        {member.allergie}
+                                    </span>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground/50">—</span>
+                                )}
+                            </TableCell>
+                        )}
                     </TableRow>
                  )
               })
@@ -373,6 +395,49 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
             </TableRow>
           </TableFooter>
         </Table>
+      )}
+
+      {/* Sezione riepilogo allergie */}
+      {membersWithAllergie.length > 0 && (
+        <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-600" />
+            <h3 className="font-semibold text-orange-800 text-sm">
+              Allergie / Intolleranze — Iscritti a questo progetto
+            </h3>
+          </div>
+          <p className="text-xs text-orange-700">
+            Di seguito i partecipanti iscritti che hanno dichiarato allergie o intolleranze alimentari.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-orange-200">
+                  <th className="text-left py-2 pr-4 font-semibold text-orange-800">Nome e Cognome</th>
+                  <th className="text-left py-2 pr-4 font-semibold text-orange-800">Classe / Gruppo</th>
+                  <th className="text-left py-2 font-semibold text-orange-800">Allergia / Intolleranza</th>
+                </tr>
+              </thead>
+              <tbody>
+                {membersWithAllergie.map(member => (
+                  <tr key={member.id} className="border-b border-orange-100 last:border-0">
+                    <td className="py-2 pr-4 font-medium text-orange-900">
+                      {member.nome} {member.cognome}
+                    </td>
+                    <td className="py-2 pr-4 text-orange-700">
+                      {member.groupName || '—'}
+                    </td>
+                    <td className="py-2">
+                      <span className="inline-block text-xs font-semibold text-orange-800 bg-orange-100 border border-orange-300 rounded-full px-3 py-1">
+                        ⚠️ {member.allergie}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

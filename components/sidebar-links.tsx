@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Landmark, Building, Shield, GraduationCap, UserCog, FileCog, Group as GroupIcon, ShieldCheck, PenSquare, FlaskConical, CircleHelp, Coins, Calendar } from 'lucide-react';
+import { Home, Users, Landmark, Building, Shield, GraduationCap, UserCog, FileCog, Group as GroupIcon, ShieldCheck, PenSquare, FlaskConical, CircleHelp, Coins, Calendar, Warehouse, Share2 } from 'lucide-react';
 import { cn, slugify } from '@/lib/utils';
 import { useUserData } from '@/src/hooks/use-user-data';
 import {
@@ -19,7 +19,10 @@ import type { EducatorRole } from '@/app/(app)/admin/area-educatori/ruoli-educat
 import { useCallback, useMemo, memo } from 'react';
 import type { Progetto } from '@/app/(app)/progetti/page';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
+import { differenceInDays, parseISO } from 'date-fns';
 
+
+const GIORNI_ALLERTA_MAGAZZINO = 7;
 
 const navConfig = [
   { id: 'dashboard', href: '/dashboard', label: 'Dashboard', icon: Home, subItems: [] },
@@ -27,6 +30,7 @@ const navConfig = [
   { id: 'iscrizioni', href: '/iscrizioni', label: 'Iscrizioni', icon: PenSquare, subItems: [] },
   { id: 'nucleo-familiare', href: '/nucleo-familiare', label: 'Nucleo Familiare', icon: Building, subItems: [] },
   { id: 'calendario', href: '/calendario', label: 'Calendario', icon: Calendar, subItems: [] },
+  { id: 'magazzino', href: '/magazzino', label: 'Magazzino', icon: Warehouse, subItems: [] },
   { 
     id: 'contabilita',
     label: 'Contabilità',
@@ -53,6 +57,7 @@ const navConfig = [
     ]
   },
   { id: 'miei-gruppi', label: 'I Miei Gruppi', icon: Users, subItems: [] },
+  { id: 'social-media', href: '/social-media', label: 'Social Media', icon: Share2, subItems: [] },
 ];
 
 const adminGroups = [
@@ -86,8 +91,17 @@ const adminGroups = [
       { href: '/admin/configurazione/gestione-pagine', label: 'Gestione Pagine' },
     ],
   },
+  {
+    title: 'Segnalazioni',
+    icon: CircleHelp,
+    links: [
+      { href: '/admin/segnalazioni', label: 'Gestione Feedback / Problemi' },
+    ],
+  },
 ];
 
+
+interface ProdottoAlimentoMin { id: string; dataScadenza: string; }
 
 export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?: boolean, onLinkClick?: () => void }) => {
   const pathname = usePathname();
@@ -125,6 +139,22 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
       return collection(firestore, 'famiglie', user.uid, 'membri');
   }, [firestore, user, userData]);
   const { data: membri, isLoading: isLoadingMembri } = useCollection<Membro>(membriQuery);
+
+  // Magazzino: prodotti alimenti in scadenza
+  const alimentiQuery = useMemoFirebase(() =>
+    firestore ? collection(firestore, 'magazzino-alimenti') : null,
+    [firestore]);
+  const { data: alimentiScadenza } = useCollection<ProdottoAlimentoMin>(alimentiQuery);
+  const prodottiInScadenzaCount = useMemo(() => {
+    if (!alimentiScadenza) return 0;
+    return alimentiScadenza.filter(p => {
+      if (!p.dataScadenza) return false;
+      try {
+        const g = differenceInDays(parseISO(p.dataScadenza), new Date());
+        return g >= 0 && g <= GIORNI_ALLERTA_MAGAZZINO;
+      } catch { return false; }
+    }).length;
+  }, [alimentiScadenza]);
   
   const userAndFamilyMembers = useMemo((): (typeof userData | Membro)[] => {
       if (!userData && !membri) return [];
@@ -137,14 +167,17 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   const projectsToRender = useMemo(() => {
     if (!allProjects || !userData) return [];
     
+    // Always exclude archived projects from the sidebar
+    const activeProjects = allProjects.filter(p => p.status !== 'archiviato');
+    
     if (isAdmin) {
-        return allProjects;
+        return activeProjects;
     }
 
     if (userData.roles?.includes('educatore')) {
         if (!myGroups) return [];
         const educatorGroupIds = new Set(myGroups.map(g => g.id));
-        return allProjects.filter(progetto => 
+        return activeProjects.filter(progetto => 
             progetto.groupIds.some(groupId => educatorGroupIds.has(groupId))
         );
     }
@@ -153,7 +186,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
         if (userAndFamilyMembers.length === 0) return [];
         const familyGroupIds = new Set(userAndFamilyMembers.map(m => (m as any).groupId).filter(Boolean));
         if (familyGroupIds.size === 0) return [];
-        return allProjects.filter(progetto => 
+        return activeProjects.filter(progetto => 
             progetto.groupIds.some(groupId => familyGroupIds.has(groupId))
         );
     }
@@ -212,6 +245,8 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   const renderLink = (item: { href: string; icon?: React.ElementType; label: string }, isSubItem = false) => {
     const isActive = pathname === item.href;
     const Icon = item.icon;
+    const isMagazzino = item.href === '/magazzino';
+    const showBadge = isMagazzino && prodottiInScadenzaCount > 0;
     return (
       <Link
         href={item.href}
@@ -224,7 +259,12 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
         )}
       >
         {Icon && <Icon className="h-5 w-5" />}
-        {item.label}
+        <span className="flex-1">{item.label}</span>
+        {showBadge && (
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+            {prodottiInScadenzaCount}
+          </span>
+        )}
       </Link>
     );
   };
@@ -334,6 +374,9 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
                 </Link>
               );
             })}
+            <Link href="/progetti/storico" onClick={onLinkClick} className={cn("flex w-full text-left items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary border-t border-border mt-1 pt-2", pathname === '/progetti/storico' ? "text-primary" : "text-muted-foreground")}>
+              Storico
+            </Link>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
@@ -361,6 +404,11 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
         }
         if (item.id === 'miei-gruppi') {
           return <div key={item.id}>{renderMieiGruppi()}</div>;
+        }
+        if (item.id === 'social-media') {
+          // Only show to educatori and admin
+          if (!userData?.roles?.includes('educatore') && !userData?.roles?.includes('admin')) return null;
+          return <div key={item.id}>{renderLink(item as { href: string; icon: React.ElementType; label: string })}</div>;
         }
         if (item.subItems.length > 0) {
             return <div key={item.id}>{renderAccordion(item)}</div>;

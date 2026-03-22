@@ -37,6 +37,7 @@ export interface Membro {
   luogoNascita: string;
   telefonoPrincipale: string;
   telefonoSecondario: string;
+  allergie?: string;
   createdAt?: any;
   groupId?: string;
   groupName?: string;

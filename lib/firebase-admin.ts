@@ -11,7 +11,12 @@ export function initAdminApp() {
     
     if (serviceAccount) {
       // Production: use service account JSON from env variable
+      // On Windows, env variables often double-escape newlines (\\n → \n literal).
+      // We must convert them back to actual newline characters for PEM parsing.
       const parsed = JSON.parse(serviceAccount);
+      if (parsed.private_key) {
+        parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+      }
       admin.initializeApp({
         credential: admin.credential.cert(parsed),
         projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,

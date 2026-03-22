@@ -4,7 +4,8 @@ import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/src/fir
 import { collection, query, orderBy, where } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, Archive } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useUserData, type UserData } from '@/src/hooks/use-user-data';
@@ -24,6 +25,8 @@ export interface Progetto {
     groupIds: string[];
     raccoltaId?: string;
     driveFolderId?: string;
+    responsabiliIds?: string[];
+    status?: 'attivo' | 'archiviato';
     createdAt: any;
 }
 
@@ -101,6 +104,11 @@ export default function ProgettiPage() {
 
     }, [allProgetti, userData, myGroups, userAndFamilyMembers]);
 
+    // Filter out archived projects
+    const activeProgetti = useMemo(() => {
+        return progetti.filter(p => p.status !== 'archiviato');
+    }, [progetti]);
+
     const isLoading = isUserLoading || isLoadingAllProgetti || isLoadingMyGroups || isLoadingMembri;
 
     return (
@@ -119,7 +127,7 @@ export default function ProgettiPage() {
                 </Card>
             )}
 
-            {!isLoading && (!progetti || progetti.length === 0) && (
+            {!isLoading && (!activeProgetti || activeProgetti.length === 0) && (
                 <Card>
                     <CardHeader>
                         <CardTitle>Elenco Progetti</CardTitle>
@@ -135,9 +143,9 @@ export default function ProgettiPage() {
                 </Card>
             )}
 
-            {!isLoading && progetti && progetti.length > 0 && (
+            {!isLoading && activeProgetti && activeProgetti.length > 0 && (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {progetti.map(progetto => (
+                    {activeProgetti.map(progetto => (
                         <Link href={`/progetti/${progetto.slug}`} key={progetto.id}>
                             <Card className="hover:border-primary transition-colors h-full flex flex-col justify-between">
                                 <CardHeader>
@@ -157,6 +165,19 @@ export default function ProgettiPage() {
                     ))}
                 </div>
             )}
+            
+            <div className="flex items-center justify-between pt-4 border-t mt-2">
+                <div>
+                    <p className="text-sm font-medium text-muted-foreground">Progetti archiviati</p>
+                    <p className="text-xs text-muted-foreground/70">Consulta i progetti conclusi e lo storico delle attività</p>
+                </div>
+                <Button variant="outline" asChild>
+                    <Link href="/progetti/storico">
+                        <Archive className="mr-2 h-4 w-4" />
+                        Storico Progetti
+                    </Link>
+                </Button>
+            </div>
         </>
     );
 }

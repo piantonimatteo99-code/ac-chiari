@@ -17,6 +17,7 @@ import SidebarLinks from './sidebar-links';
 import { useState } from 'react';
 import Link from 'next/link';
 import { AcChiariLogo } from './ac-logo';
+import { FeedbackDialog } from './feedback-dialog';
 
 export default function Header() {
   const auth = useAuth();
@@ -62,6 +63,9 @@ export default function Header() {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Pulsante Segnalazioni / Feedback */}
+      <FeedbackDialog />
 
       {/* Menu utente */}
       <DropdownMenu>

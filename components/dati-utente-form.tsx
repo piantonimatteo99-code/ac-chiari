@@ -67,6 +67,7 @@ export default function DatiUtenteForm() {
             formattedValue = capitalizeWords(value);
             break;
         default:
+            // Prima lettera maiuscola per gli altri campi (es. numeroCivico, cap)
             break;
     }
     setFormData(prev => ({ ...prev, [id]: formattedValue }));

@@ -145,6 +145,22 @@ export function AddSpesaDialog({ isOpen, onOpenChange }: AddSpesaDialogProps) {
         const storageRef = ref(storage, `spese_receipts/${user.uid}/${Date.now()}_${file.name}`);
         await uploadBytes(storageRef, file);
         receiptUrl = await getDownloadURL(storageRef);
+        
+        // Upload to Google Drive (Pagamenti folder)
+        try {
+            const formDataDrive = new FormData();
+            formDataDrive.append('file', file);
+            // Construct a meaningful name for the expense receipt
+            const driveFileName = `Spesa_${descrizione.replace(/[^a-zA-Z0-9-]/g, '_').substring(0, 30)}_${Date.now()}`;
+            formDataDrive.append('name', driveFileName);
+            
+            await fetch('/api/drive/upload-pagamento', {
+                method: 'POST',
+                body: formDataDrive
+            });
+        } catch (driveErr) {
+            console.error("Errore salvataggio ricevuta della spesa in Drive:", driveErr);
+        }
       }
       
       const selectedRaccoltaData = raccolte?.find(r => r.id === selectedRaccolta);

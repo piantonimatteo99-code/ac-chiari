@@ -29,6 +29,8 @@ export interface Evento {
     id: string;
     title: string;
     description?: string;
+    notes?: string;
+    completed?: boolean;
     startDate: any;
     endDate: any;
     allDay: boolean;
@@ -49,6 +51,8 @@ export interface Progetto {
     groupIds: string[];
     createdAt: any;
     driveFolderId?: string;
+    responsabiliIds?: string[];
+    status?: 'attivo' | 'archiviato';
 }
 
 
@@ -71,6 +75,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
     const [startTime, setStartTime] = useState('09:00');
     const [endTime, setEndTime] = useState('10:00');
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+    const [notes, setNotes] = useState('');
+    const [completed, setCompleted] = useState(false);
     
     // Project state
     const [isProject, setIsProject] = useState(false);
@@ -100,6 +106,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
         setError(null);
         setIsSaving(false);
         setIsProject(false);
+        setNotes('');
+        setCompleted(false);
     }, []);
 
     useEffect(() => {
@@ -118,6 +126,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
                 }
                 setSelectedGroups(eventToEdit.groupIds);
                 setIsProject(eventToEdit.isProject || false);
+                setNotes(eventToEdit.notes || '');
+                setCompleted(eventToEdit.completed || false);
 
              } else {
                 resetForm();
@@ -176,6 +186,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
                 const eventData = {
                     title,
                     description,
+                    notes,
+                    completed,
                     startDate: finalStartDate,
                     endDate: finalEndDate,
                     allDay,
@@ -230,6 +242,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
                         groupIds: selectedGroups,
                         isProject: true,
                         projectId: progettoId,
+                        notes: '',
+                        completed: false,
                     };
                     batch.set(eventoDocRef, eventoData);
 
@@ -252,6 +266,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
                         endDate: finalEndDate,
                         allDay,
                         groupIds: selectedGroups,
+                        notes,
+                        completed,
                     };
                     await addDoc(collection(firestore, 'eventi'), { ...eventData, createdAt: serverTimestamp() });
                 }
@@ -314,6 +330,14 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
                         <div className="grid gap-2">
                             <Label htmlFor="description">Descrizione</Label>
                             <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="notes">Note / Esito</Label>
+                            <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Note sull'andamento o esito dell'impegno..." />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="completed" checked={completed} onCheckedChange={(checked) => setCompleted(!!checked)} />
+                            <Label htmlFor="completed">Completato</Label>
                         </div>
                          <div className="grid gap-3">
                             <Label>Gruppi di destinazione</Label>

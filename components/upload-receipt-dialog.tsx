@@ -545,6 +545,27 @@ const handleConfirm = async () => {
     try {
         const fileRef = ref(storage, storagePath);
         const receiptUrl = await getDownloadURL(fileRef);
+        
+        // Caricamento in Google Drive (Pagamenti)
+        if (file) {
+            try {
+                const formDataDrive = new FormData();
+                formDataDrive.append('file', file);
+                
+                const memberNames = paymentItems.map(item => item.memberName).join('_');
+                const driveFileName = `Ricevuta_${paymentId}_${memberNames}`;
+                formDataDrive.append('name', driveFileName);
+                
+                // Fire-and-forget or await? Let's await but not block the whole thing if it fails
+                await fetch('/api/drive/upload-pagamento', {
+                    method: 'POST',
+                    body: formDataDrive
+                });
+            } catch (driveErr) {
+                console.error("Errore salvataggio in Drive:", driveErr);
+            }
+        }
+
         const batch = writeBatch(firestore);
 
         const hasBeenEdited = Object.values(editedFields).some(Boolean);

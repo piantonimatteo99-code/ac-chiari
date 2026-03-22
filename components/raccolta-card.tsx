@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -245,6 +245,8 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
         }
     };
     
+    const [isArchiving, setIsArchiving] = useState(false);
+
     const handleToggleArchive = async (archive?: boolean) => {
         if (!firestore) return;
 
@@ -264,11 +266,31 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
         }
 
         const raccoltaDocRef = doc(firestore, 'raccolte', raccolta.id);
+        
         try {
-            await updateDoc(raccoltaDocRef, { archived: newArchivedStatus });
+            if (newArchivedStatus === true) {
+                setIsArchiving(true);
+                // Call API to Zip and Delete files
+                const res = await fetch('/api/contabilita/raccolte/archivia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ raccoltaId: raccolta.id })
+                });
+                
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.error || 'Errore durante l\'archiviazione e generazione ZIP');
+                }
+                
+                alert('Raccolta archiviata e documenti salvati su Drive con successo!');
+            } else {
+                 await updateDoc(raccoltaDocRef, { archived: false });
+            }
         } catch (error) {
              console.error("Errore during l'aggiornamento dell'archivio:", error);
              alert(`Si è verificato un errore: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`);
+        } finally {
+            setIsArchiving(false);
         }
     };
 

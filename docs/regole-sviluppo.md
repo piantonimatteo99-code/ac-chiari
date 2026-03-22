@@ -201,3 +201,34 @@ git add .
 git commit -m "descrizione"
 git push
 ```
+
+---
+
+## 📝 Regole per i Form di Input
+
+### Capitalizzazione Automatica
+Tutti i campi di testo nei form dell'app devono applicare la capitalizzazione automatica, **ad eccezione del Codice Fiscale** (che va sempre in maiuscolo completo):
+
+| Campo | Regola |
+|---|---|
+| `nome`, `cognome` | `capitalizeWords` — ogni parola con prima lettera maiuscola |
+| `luogoNascita`, `citta`, `via` | `capitalizeWords` — ogni parola con prima lettera maiuscola |
+| `allergie` | Prima lettera maiuscola (`charAt(0).toUpperCase()`) |
+| `codiceFiscale`, `provincia` | `.toUpperCase()` — tutto maiuscolo |
+| Campi numerici (CAP, N. civico, telefono) | Nessuna trasformazione |
+
+La funzione `capitalizeWords` è definita localmente in ogni componente che ne ha bisogno:
+```tsx
+const capitalizeWords = (str: string) => {
+  if (!str) return '';
+  return str.replace(/\b\w/g, char => char.toUpperCase());
+};
+```
+
+### Campo Allergie / Intolleranze
+- Il campo `allergie` è parte del tipo `Membro` (in `app/(app)/nucleo-familiare/page.tsx`)
+- È **opzionale** e viene compilato nel dialog `AddFamiliareDialog` (`components/add-familiare-dialog.tsx`)
+- Le allergie degli iscritti sono **visibili nella sezione Iscrizioni di ogni progetto** tramite il componente `MembriRaccoltaList`:
+  - Colonna "Allergie / Intolleranze" nella tabella principale (nascondibile via menu Colonne)
+  - Riquadro riepilogativo arancione in fondo alla lista, visibile solo se almeno un iscritto ha dichiarato allergie
+  - Il riquadro mostra: Nome e Cognome, Classe/Gruppo, Allergia dichiarata

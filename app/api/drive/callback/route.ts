@@ -4,7 +4,13 @@ import { initAdminApp } from '@/lib/firebase-admin';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
-const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/drive/callback';
+
+function getRedirectUri(request: NextRequest): string {
+  if (process.env.GOOGLE_REDIRECT_URI) return process.env.GOOGLE_REDIRECT_URI;
+  const proto = request.headers.get('x-forwarded-proto') ?? 'http';
+  const host = request.headers.get('host') ?? 'localhost:3000';
+  return `${proto}://${host}/api/drive/callback`;
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -28,7 +34,7 @@ export async function GET(request: NextRequest) {
         code,
         client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: getRedirectUri(request),
         grant_type: 'authorization_code',
       }),
     });
