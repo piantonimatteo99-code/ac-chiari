@@ -11,11 +11,15 @@ function capitalizeFirst(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-const TEXT_TYPES = ['text', 'search', 'url', 'email', undefined, ''];
+// Types that should NOT be auto-capitalized (email, password, url, search behave differently)
+const NO_CAPITALIZE_TYPES = ['email', 'password', 'url'];
+// Auto-capitalize only applies to plain text inputs
+const shouldCapitalize = (type: string | undefined) =>
+  !type || (!NO_CAPITALIZE_TYPES.includes(type));
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, onChange, ...props }, ref) => {
-    const isText = TEXT_TYPES.includes(type as string);
+    const isText = shouldCapitalize(type as string);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (isText && e.target.value) {
@@ -44,7 +48,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <input
         type={type}
-        autoCapitalize={isText ? "sentences" : undefined}
+        autoCapitalize={isText ? 'sentences' : 'none'}
         className={cn(
           "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
           className

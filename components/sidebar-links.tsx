@@ -88,6 +88,7 @@ const adminGroups = [
     title: 'Configurazione',
     icon: FileCog,
     links: [
+      { href: '/admin/configurazione', label: 'Integrazione Drive' },
       { href: '/admin/configurazione/gestione-pagine', label: 'Gestione Pagine' },
     ],
   },
