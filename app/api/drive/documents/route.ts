@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const accessToken = await getDriveAccessToken();
 
     const query = encodeURIComponent(
-      `'${folderId}' in parents and trashed=false`
+      `'${folderId}' in parents and trashed=false and not mimeType contains 'image/'`
     );
     const fields = 'files(id,name,mimeType,webViewLink,modifiedTime,iconLink)';
 
