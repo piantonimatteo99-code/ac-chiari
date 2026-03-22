@@ -81,24 +81,18 @@ function DayWithEvents({
     }, [date, isOutside, props.events]);
 
     const handleCellClick = (e: React.MouseEvent) => {
-        // Only trigger if clicking directly on the cell background (not on an event)
-        if (e.target === e.currentTarget && !isOutside && canAddEvents) {
+        // Trigger on any click within the cell that isn't on an event button
+        if (!isOutside && canAddEvents) {
             onEmptyClick(date);
         }
     };
 
     return (
         <div
-          className={cn("w-full h-full flex flex-col relative p-0 group", isOutside && "opacity-30")}
+          className={cn("w-full h-full flex flex-col relative p-0", isOutside && "opacity-30", canAddEvents && !isOutside && "group cursor-pointer")}
           onClick={handleCellClick}
         >
-            <div
-              className={cn(
-                "self-end font-normal p-1 text-sm",
-                canAddEvents && !isOutside && "cursor-pointer"
-              )}
-              onClick={() => { if (!isOutside && canAddEvents) onEmptyClick(date); }}
-            >
+            <div className="self-end font-normal p-1 text-sm">
               {date.getDate()}
             </div>
             <div className="flex-1 flex flex-col overflow-hidden gap-1 pt-1">

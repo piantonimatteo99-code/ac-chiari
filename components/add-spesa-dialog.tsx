@@ -13,11 +13,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFirestore, useUser, useStorage, useCollection, useMemoFirebase } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, X, File as FileIcon, Loader2, CircleX } from 'lucide-react';
 import Image from 'next/image';
 import { DatePicker } from '@/components/ui/date-picker';
+import { format } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { Separator } from './ui/separator';
@@ -154,10 +155,24 @@ export function AddSpesaDialog({ isOpen, onOpenChange }: AddSpesaDialogProps) {
             const driveFileName = `Spesa_${descrizione.replace(/[^a-zA-Z0-9-]/g, '_').substring(0, 30)}_${Date.now()}`;
             formDataDrive.append('name', driveFileName);
             
-            await fetch('/api/drive/upload-pagamento', {
+            const selectedRaccoltaData = raccolte?.find(r => r.id === selectedRaccolta);
+            if (selectedRaccoltaData) {
+                const dateStr = format(new Date(), 'dd-MM-yyyy');
+                formDataDrive.append('folderName', `${selectedRaccoltaData.nome} - ${dateStr}`);
+            }
+
+            const driveRes = await fetch('/api/drive/upload-pagamento', {
                 method: 'POST',
                 body: formDataDrive
             });
+            const driveData = await driveRes.json();
+            
+            if (driveData.file?.webViewLink) {
+                receiptUrl = driveData.file.webViewLink;
+
+                // Delete the temporary file from Firebase Storage to save space since it's now on Drive
+                deleteObject(storageRef).catch(e => console.error("Error deleting temp storage file:", e));
+            }
         } catch (driveErr) {
             console.error("Errore salvataggio ricevuta della spesa in Drive:", driveErr);
         }

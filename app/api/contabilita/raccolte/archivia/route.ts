@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
       for (const memberId of Object.keys(phaseData)) {
         const payment = phaseData[memberId];
-        if (payment && payment.receiptUrl) {
+        if (payment && payment.receiptUrl && payment.receiptUrl.includes('firebasestorage.googleapis.com')) {
           try {
             // Fetch the file from the download URL
             const res = await fetch(payment.receiptUrl);
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       const speseSnapshot = await db.collection('spese').where('raccoltaId', '==', raccoltaId).get();
       for (const spesaDoc of speseSnapshot.docs) {
           const spesa = spesaDoc.data();
-          if (spesa.receiptUrl) {
+          if (spesa.receiptUrl && spesa.receiptUrl.includes('firebasestorage.googleapis.com')) {
                try {
                    const res = await fetch(spesa.receiptUrl);
                    if (res.ok) {

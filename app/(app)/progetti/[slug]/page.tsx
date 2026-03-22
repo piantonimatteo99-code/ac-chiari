@@ -23,7 +23,12 @@ import PhotoManager from '@/components/photo-manager';
 import MessagePlanner from '@/components/message-planner';
 import SocialPlanner from '@/components/social-planner';
 import { Textarea } from '@/components/ui/textarea';
-import { Archive, ArchiveRestore, CalendarDays, ExternalLink, PlusCircle } from 'lucide-react';
+import {
+    Archive, ArchiveRestore, CalendarDays, ExternalLink, PlusCircle,
+    LayoutList, FolderOpen, Users, DollarSign, CheckCircle2, Circle,
+    ClipboardList, ShoppingCart, FileText, Image, MessageSquare, Share2,
+    ChevronRight
+} from 'lucide-react';
 import Link from 'next/link';
 import { AddEventDialog, type Evento } from '@/components/add-event-dialog';
 import { format } from 'date-fns';
@@ -37,7 +42,8 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { CheckCircle2, Circle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 const formatEventDate = (date: any) => {
     if (!date) return '-';
@@ -50,6 +56,77 @@ const formatEventDate = (date: any) => {
     if (isNaN(jsDate.getTime())) return '';
     return format(jsDate, 'PPP HH:mm', { locale: it });
 };
+
+// ─── Compact view section wrapper ───────────────────────────────────────────
+function CompactSection({
+    id,
+    icon: Icon,
+    title,
+    description,
+    action,
+    children,
+}: {
+    id: string;
+    icon: React.ElementType;
+    title: string;
+    description?: string;
+    action?: React.ReactNode;
+    children: React.ReactNode;
+}) {
+    return (
+        <section id={id} className="scroll-mt-6">
+            <Card className="overflow-hidden">
+                <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3 border-b bg-muted/30">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                            <Icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-base">{title}</CardTitle>
+                            {description && <CardDescription className="text-xs mt-0.5">{description}</CardDescription>}
+                        </div>
+                    </div>
+                    {action && <div className="shrink-0">{action}</div>}
+                </CardHeader>
+                <CardContent className="pt-4">
+                    {children}
+                </CardContent>
+            </Card>
+        </section>
+    );
+}
+
+// ─── View mode toggle ────────────────────────────────────────────────────────
+type ViewMode = 'compatta' | 'cartelle';
+
+function ViewModeToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
+    return (
+        <div className="flex items-center gap-1 rounded-lg border bg-muted p-1">
+            <button
+                onClick={() => onChange('compatta')}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                    mode === 'compatta'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+                <LayoutList className="h-3.5 w-3.5" />
+                Compatta
+            </button>
+            <button
+                onClick={() => onChange('cartelle')}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                    mode === 'cartelle'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+                <FolderOpen className="h-3.5 w-3.5" />
+                Cartelle
+            </button>
+        </div>
+    );
+}
 
 export default function ProgettoDettaglioPage() {
     const params = useParams();
@@ -70,6 +147,9 @@ export default function ProgettoDettaglioPage() {
 
     // Photos available for social planner
     const [availablePhotos, setAvailablePhotos] = useState<any[]>([]);
+
+    // View mode: compatta or cartelle
+    const [viewMode, setViewMode] = useState<ViewMode>('compatta');
 
     // Fetch the project by slug
     const progettoQuery = useMemoFirebase(() => {
@@ -260,10 +340,8 @@ export default function ProgettoDettaglioPage() {
             }
 
             await batch.commit();
-            // Add toast notification for success
         } catch (error) {
             console.error("Error saving groups:", error);
-            // Add toast notification for error
         } finally {
             setIsSavingGroups(false);
         }
@@ -313,9 +391,296 @@ export default function ProgettoDettaglioPage() {
         return <div>Progetto non trovato o non hai i permessi per visualizzarlo.</div>;
     }
 
-    // Render page
+    // ─── Shared sub-components ───────────────────────────────────────────────────
+
+    const GeneraleContent = ({ compact = false }: { compact?: boolean }) => (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <div className="space-y-2 flex-1">
+                    <Label className="text-sm font-semibold">Descrizione</Label>
+                    {isEditingGenerale ? (
+                        <Textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="Inserisci una descrizione per il progetto..."
+                            rows={4}
+                        />
+                    ) : (
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            {progetto.description || "Nessuna descrizione per questo progetto."}
+                        </p>
+                    )}
+                </div>
+                {canEdit && !isEditingGenerale && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-4 shrink-0"
+                        onClick={() => setIsEditingGenerale(true)}
+                    >
+                        Modifica Dettagli
+                    </Button>
+                )}
+            </div>
+
+            {isEditingGenerale && (
+                <div className="space-y-3">
+                    <div>
+                        <Label className="text-sm font-semibold">Responsabili</Label>
+                        <div className="grid gap-2 mt-2 p-4 border rounded-md bg-muted/30">
+                            {isLoadingEduUsers ? <p className="text-sm text-muted-foreground">Caricamento utenti...</p> : (
+                                eduUsers && eduUsers.length > 0 ? eduUsers.map(u => (
+                                    <div key={u.id} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`resp-${u.id}`}
+                                            checked={selectedResponsabili.includes(u.id)}
+                                            onCheckedChange={(checked) => handleResponsabileToggle(u.id, !!checked)}
+                                        />
+                                        <Label htmlFor={`resp-${u.id}`} className="text-sm font-medium leading-none">
+                                            {u.displayName || u.email}
+                                        </Label>
+                                    </div>
+                                )) : <p className="text-sm text-muted-foreground">Nessun utente eleggibile trovato.</p>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                        <Button variant="outline" size="sm" onClick={() => setIsEditingGenerale(false)}>Annulla</Button>
+                        <Button size="sm" onClick={handleSaveGenerale} disabled={isSavingGenerale}>
+                            {isSavingGenerale && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Salva Modifiche
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {!isEditingGenerale && (
+                <div>
+                    <Label className="text-sm font-semibold">Responsabili</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                        {progetto.responsabiliIds && progetto.responsabiliIds.length > 0 ? (
+                            eduUsers?.filter(u => progetto.responsabiliIds?.includes(u.id)).map(u => (
+                                <span key={u.id} className="px-2 py-1 bg-primary/10 text-primary rounded-md text-sm font-medium">
+                                    {u.displayName || u.email}
+                                </span>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground">Nessun responsabile assegnato.</p>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Iscrizioni summary (only in compact mode) */}
+            {compact && (
+                <>
+                    <Separator />
+                    <div>
+                        <Label className="text-sm font-semibold flex items-center gap-2 mb-3">
+                            <Users className="h-4 w-4 text-primary" />
+                            Riepilogo Iscrizioni
+                        </Label>
+                        {isLoadingRaccolta ? (
+                            <p className="text-sm text-muted-foreground">Caricamento...</p>
+                        ) : raccoltaData ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <div className="rounded-lg border bg-card p-3 text-center">
+                                    <p className="text-2xl font-bold text-primary">
+                                        {raccoltaData.confermatiIds?.length ?? 0}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">Iscritti confermati</p>
+                                </div>
+                                {raccoltaData.faseCaparra?.attiva && (
+                                    <div className="rounded-lg border bg-card p-3 text-center">
+                                        <p className="text-2xl font-bold text-amber-600">
+                                            {raccoltaData.caparraPaidIds?.length ?? 0}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">Caparra pagata</p>
+                                    </div>
+                                )}
+                                {raccoltaData.faseSaldo?.attiva && (
+                                    <div className="rounded-lg border bg-card p-3 text-center">
+                                        <p className="text-2xl font-bold text-green-600">
+                                            {raccoltaData.saldoPaidIds?.length ?? 0}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">Saldo pagato</p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : canEdit ? (
+                            <div className="flex items-center gap-3 p-3 border border-dashed rounded-lg">
+                                <p className="text-sm text-muted-foreground flex-1">Nessuna raccolta fondi collegata.</p>
+                                <Button size="sm" variant="outline" onClick={() => setIsRaccoltaDialogOpen(true)}>
+                                    <PlusCircle className="mr-2 h-3.5 w-3.5" />
+                                    Crea Raccolta
+                                </Button>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">Nessuna raccolta fondi collegata.</p>
+                        )}
+                        {raccoltaData && (
+                            <div className="mt-3 flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                                <div className="flex items-center gap-2 text-sm font-medium">
+                                    <DollarSign className="h-4 w-4 text-green-600" />
+                                    Totale incassato stimato
+                                </div>
+                                <Link
+                                    href={`/progetti/${slug}/iscrizioni`}
+                                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                                >
+                                    Gestisci iscrizioni
+                                    <ChevronRight className="h-3 w-3" />
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
+
+            {/* Storico progetti simili */}
+            {suggestedProjects && suggestedProjects.length > 0 && (
+                <>
+                    <Separator />
+                    <div>
+                        <Label className="text-sm font-semibold">Storico: Progetti Simili Archiviati</Label>
+                        <p className="text-xs text-muted-foreground mb-3">Progetti passati con parole chiave simili.</p>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {suggestedProjects.map(p => (
+                                <Link href={`/progetti/${p.slug}`} key={p.id} className="block group">
+                                    <div className="p-4 rounded-lg border bg-card text-card-foreground shadow-sm group-hover:border-primary transition-all h-full">
+                                        <h3 className="font-semibold text-sm line-clamp-1">{p.name}</h3>
+                                        {p.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{p.description}</p>}
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+
+    const GruppiContent = () => (
+        <div className="space-y-4">
+            <ScrollArea className="h-64 rounded-md border p-4">
+                {isLoadingAllGroups ? <p>Caricamento gruppi...</p> : (
+                    <div className="space-y-2">
+                        {allGroups && allGroups.length > 0 ? allGroups.map(group => (
+                            <div key={group.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                    id={`group-${group.id}`}
+                                    checked={selectedGruppi.includes(group.id)}
+                                    onCheckedChange={(checked) => handleGroupToggle(group.id, !!checked)}
+                                    disabled={!canEdit}
+                                />
+                                <Label htmlFor={`group-${group.id}`} className="text-sm font-medium leading-none">
+                                    {group.name}
+                                </Label>
+                            </div>
+                        )) : <p className="text-sm text-muted-foreground">Nessun gruppo trovato.</p>}
+                    </div>
+                )}
+            </ScrollArea>
+            {canEdit && (
+                <div className='flex justify-end'>
+                    <Button onClick={handleSaveGroups} disabled={isSavingGroups} size="sm">
+                        {isSavingGroups && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salva Modifiche Gruppi
+                    </Button>
+                </div>
+            )}
+        </div>
+    );
+
+    const PianoContent = () => (
+        <div>
+            {isLoadingEvents ? (
+                <p className="text-center text-muted-foreground p-8">Caricamento impegni...</p>
+            ) : projectEvents && projectEvents.length > 0 ? (
+                <div className="space-y-4">
+                    <div className="rounded-md border overflow-hidden">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/50">
+                                    <TableHead className="w-[50px]"></TableHead>
+                                    <TableHead className="min-w-[150px]">Impegno</TableHead>
+                                    <TableHead>Scadenza / Data</TableHead>
+                                    <TableHead>Note</TableHead>
+                                    <TableHead className="text-right">Azioni</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {projectEvents.map((evento) => (
+                                    <TableRow key={evento.id} className={evento.completed ? "bg-muted/30" : ""}>
+                                        <TableCell>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                disabled={!canEdit}
+                                                onClick={() => handleToggleEventCompleted(evento)}
+                                                className={evento.completed ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-muted-foreground"}
+                                            >
+                                                {evento.completed ? (
+                                                    <CheckCircle2 className="h-5 w-5" />
+                                                ) : (
+                                                    <Circle className="h-5 w-5" />
+                                                )}
+                                            </Button>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className={`font-medium ${evento.completed ? "line-through text-muted-foreground" : ""}`}>
+                                                {evento.title}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col text-xs text-muted-foreground">
+                                                <span>Inizio: {formatEventDate(evento.startDate)}</span>
+                                                <span>Fine: {formatEventDate(evento.endDate)}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="max-w-[300px]">
+                                            <div className="flex flex-col gap-1">
+                                                {evento.description && <p className="text-xs italic text-muted-foreground line-clamp-1">{evento.description}</p>}
+                                                {evento.notes ? (
+                                                    <p className="text-sm">{evento.notes}</p>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground/50 italic">Nessun commento</span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {canEdit && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => { setEditingEvent(evento); setIsEventDialogOpen(true); }}
+                                                >
+                                                    Modifica
+                                                </Button>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <p className="text-xs text-center text-muted-foreground mt-4 pt-4 border-t">
+                        Gli impegni aggiunti qui sono sincronizzati col Calendario generale.
+                    </p>
+                </div>
+            ) : (
+                <div className="text-center text-muted-foreground p-8 border border-dashed rounded-lg">
+                    <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+                    <p>Nessun impegno in programma per questo progetto.</p>
+                </div>
+            )}
+        </div>
+    );
+
+    // ─── RENDER ────────────────────────────────────────────────────────────────
     return (
         <div className="flex flex-col gap-6">
+            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <h1 className="text-3xl font-bold">{progetto.name}</h1>
@@ -323,22 +688,25 @@ export default function ProgettoDettaglioPage() {
                         <span className="bg-muted text-muted-foreground px-2 py-1 rounded-md text-sm font-medium">Archiviato</span>
                     )}
                 </div>
-                {canEdit && (
-                    <Button 
-                        variant={progetto.status === 'archiviato' ? 'outline' : 'secondary'} 
-                        className={progetto.status !== 'archiviato' ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border border-orange-200' : ''}
-                        onClick={handleToggleArchive}
-                    >
-                        {progetto.status === 'archiviato' ? (
-                            <><ArchiveRestore className="w-4 h-4 mr-2" /> Ripristina Progetto</>
-                        ) : (
-                            <><Archive className="w-4 h-4 mr-2" /> Archivia Progetto</>
-                        )}
-                    </Button>
-                )}
+                <div className="flex items-center gap-3 flex-wrap">
+                    <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+                    {canEdit && (
+                        <Button
+                            variant={progetto.status === 'archiviato' ? 'outline' : 'secondary'}
+                            className={progetto.status !== 'archiviato' ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border border-orange-200' : ''}
+                            onClick={handleToggleArchive}
+                        >
+                            {progetto.status === 'archiviato' ? (
+                                <><ArchiveRestore className="w-4 h-4 mr-2" /> Ripristina Progetto</>
+                            ) : (
+                                <><Archive className="w-4 h-4 mr-2" /> Archivia Progetto</>
+                            )}
+                        </Button>
+                    )}
+                </div>
             </div>
-            
-            <NuovaRaccoltaDialog 
+
+            <NuovaRaccoltaDialog
                 isOpen={isRaccoltaDialogOpen}
                 onOpenChange={setIsRaccoltaDialogOpen}
                 raccoltaToEdit={raccoltaData}
@@ -346,11 +714,10 @@ export default function ProgettoDettaglioPage() {
                 onSaveSuccess={handleLinkRaccoltaToProgetto}
             />
 
-            <AddEventDialog 
+            <AddEventDialog
                 isOpen={isEventDialogOpen}
                 onOpenChange={setIsEventDialogOpen}
                 eventToEdit={editingEvent}
-                // Pre-fill per nuovi eventi
                 {...(progetto && !editingEvent ? {
                   defaultProjectData: {
                     isProject: true,
@@ -360,336 +727,485 @@ export default function ProgettoDettaglioPage() {
                 } : {})}
             />
 
-            <Tabs defaultValue="generale" className="w-full">
-                <TabsList className="mb-4 flex-wrap h-auto justify-start">
-                    <TabsTrigger value="generale">Generale</TabsTrigger>
-                    <TabsTrigger value="iscrizioni" disabled={!canEdit}>Iscrizioni</TabsTrigger>
-                    <TabsTrigger value="gruppi" disabled={!canEdit}>Gruppi</TabsTrigger>
-                    <TabsTrigger value="piano">Piano Impegni</TabsTrigger>
-                    <TabsTrigger value="acquisti">Acquisti</TabsTrigger>
-                    <TabsTrigger value="documenti">Documenti</TabsTrigger>
-                    <TabsTrigger value="foto">Foto</TabsTrigger>
-                    <TabsTrigger value="messaggi" disabled={!canEdit}>Messaggi</TabsTrigger>
-                    <TabsTrigger value="social">Social</TabsTrigger>
-                </TabsList>
+            {/* ══════════════════════════════════════════════════════════════════
+                VISUALIZZAZIONE COMPATTA
+            ══════════════════════════════════════════════════════════════════ */}
+            {viewMode === 'compatta' && (
+                <div className="space-y-6">
+                    {/* Quick nav */}
+                    <div className="flex gap-2 flex-wrap text-sm">
+                        {[
+                            { href: '#generale', label: 'Generale' },
+                            { href: '#gruppi', label: 'Gruppi' },
+                            { href: '#piano', label: 'Piano Impegni' },
+                            { href: '#acquisti', label: 'Acquisti' },
+                            { href: '#documenti', label: 'Documenti' },
+                            { href: '#foto', label: 'Foto' },
+                            { href: '#messaggi', label: 'Messaggi' },
+                            { href: '#social', label: 'Social' },
+                        ].map(item => (
+                            <a
+                                key={item.href}
+                                href={item.href}
+                                className="px-3 py-1 rounded-full border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-xs font-medium"
+                            >
+                                {item.label}
+                            </a>
+                        ))}
+                        {canEdit && (
+                            <Link
+                                href={`/progetti/${slug}/iscrizioni`}
+                                className="px-3 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors text-xs font-medium flex items-center gap-1"
+                            >
+                                <ExternalLink className="h-3 w-3" />
+                                Iscrizioni (pagina separata)
+                            </Link>
+                        )}
+                    </div>
 
-                <TabsContent value="generale" className="space-y-4">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle>Dettagli Progetto</CardTitle>
-                                <CardDescription>Informazioni generali e responsabili</CardDescription>
-                            </div>
-                            {canEdit && (
-                                <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => isEditingGenerale ? handleSaveGenerale() : setIsEditingGenerale(true)}
-                                    disabled={isSavingGenerale}
-                                >
-                                    {isSavingGenerale && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    {isEditingGenerale ? 'Salva Modifiche' : 'Modifica Dettagli'}
-                                </Button>
-                            )}
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="space-y-2">
-                                <Label className="text-base font-semibold">Descrizione</Label>
-                                {isEditingGenerale ? (
-                                    <Textarea 
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
-                                        placeholder="Inserisci una descrizione per il progetto..."
-                                        rows={4}
-                                    />
-                                ) : (
-                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                        {progetto.description || "Nessuna descrizione per questo progetto."}
-                                    </p>
+                    {/* Generale + riepilogo iscrizioni */}
+                    <CompactSection
+                        id="generale"
+                        icon={ClipboardList}
+                        title="Generale"
+                        description="Informazioni generali, responsabili e riepilogo iscrizioni"
+                    >
+                        <GeneraleContent compact />
+                    </CompactSection>
+
+                    {/* Gruppi */}
+                    {canEdit && (
+                        <CompactSection
+                            id="gruppi"
+                            icon={Users}
+                            title="Gruppi Coinvolti"
+                            description="Seleziona i gruppi che parteciperanno a questo progetto"
+                        >
+                            <GruppiContent />
+                        </CompactSection>
+                    )}
+
+                    {/* Piano Impegni */}
+                    <CompactSection
+                        id="piano"
+                        icon={CalendarDays}
+                        title="Piano Impegni"
+                        description="Scadenze, date e appuntamenti per la realizzazione del progetto"
+                        action={canEdit ? (
+                            <Button size="sm" onClick={() => { setEditingEvent(null); setIsEventDialogOpen(true); }}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Nuovo Impegno
+                            </Button>
+                        ) : undefined}
+                    >
+                        <PianoContent />
+                    </CompactSection>
+
+                    {/* Acquisti */}
+                    <CompactSection
+                        id="acquisti"
+                        icon={ShoppingCart}
+                        title="Acquisti"
+                        description="Gestione delle spese e degli acquisti del progetto"
+                    >
+                        <AcquistiList projectId={progetto.id} canEdit={canEdit} />
+                    </CompactSection>
+
+                    {/* Documenti */}
+                    <CompactSection
+                        id="documenti"
+                        icon={FileText}
+                        title="Documenti"
+                        description="File e documenti allegati al progetto"
+                    >
+                        <DocumentManager
+                            projectId={progetto.id}
+                            projectName={progetto.name}
+                            driveFolderId={progetto.driveFolderId}
+                            canEdit={canEdit}
+                            onFolderCreated={async (folderId) => {
+                                if (firestore && progetto) {
+                                    await updateDoc(doc(firestore, 'progetti', progetto.id), { driveFolderId: folderId });
+                                }
+                            }}
+                        />
+                    </CompactSection>
+
+                    {/* Foto */}
+                    <CompactSection
+                        id="foto"
+                        icon={Image}
+                        title="Foto"
+                        description="Galleria fotografica del progetto"
+                    >
+                        <PhotoManager
+                            projectId={progetto.id}
+                            projectName={progetto.name}
+                            groupIds={progetto.groupIds || []}
+                            driveFolderId={progetto.driveFolderId}
+                            canEdit={canEdit}
+                            onFolderCreated={async (folderId) => {
+                                if (firestore && progetto) {
+                                    await updateDoc(doc(firestore, 'progetti', progetto.id), { driveFolderId: folderId });
+                                }
+                            }}
+                            onPhotosChange={setAvailablePhotos}
+                        />
+                    </CompactSection>
+
+                    {/* Messaggi */}
+                    {canEdit && (
+                        <CompactSection
+                            id="messaggi"
+                            icon={MessageSquare}
+                            title="Messaggi"
+                            description="Pianificatore messaggi e comunicazioni"
+                        >
+                            <MessagePlanner
+                                projectId={progetto.id}
+                                projectName={progetto.name}
+                                projectDescription={progetto.description}
+                                projectStartDate={progetto.startDate?.toDate ? progetto.startDate.toDate().toLocaleDateString('it-IT') : undefined}
+                                projectEndDate={progetto.endDate?.toDate ? progetto.endDate.toDate().toLocaleDateString('it-IT') : undefined}
+                                canEdit={canEdit}
+                            />
+                        </CompactSection>
+                    )}
+
+                    {/* Social */}
+                    <CompactSection
+                        id="social"
+                        icon={Share2}
+                        title="Social Media"
+                        description="Pianificazione contenuti social per il progetto"
+                    >
+                        <SocialPlanner
+                            projectId={progetto.id}
+                            projectName={progetto.name}
+                            projectDescription={progetto.description}
+                            projectStartDate={progetto.startDate?.toDate ? progetto.startDate.toDate().toLocaleDateString('it-IT') : undefined}
+                            projectEndDate={progetto.endDate?.toDate ? progetto.endDate.toDate().toLocaleDateString('it-IT') : undefined}
+                            groupIds={progetto.groupIds || []}
+                            canEdit={canEdit}
+                            availablePhotos={availablePhotos}
+                        />
+                    </CompactSection>
+                </div>
+            )}
+
+            {/* ══════════════════════════════════════════════════════════════════
+                VISUALIZZAZIONE A CARTELLE
+            ══════════════════════════════════════════════════════════════════ */}
+            {viewMode === 'cartelle' && (
+                <Tabs defaultValue="generale" className="w-full">
+                    <TabsList className="mb-4 flex-wrap h-auto justify-start">
+                        <TabsTrigger value="generale">Generale</TabsTrigger>
+                        <TabsTrigger value="iscrizioni" disabled={!canEdit}>Iscrizioni</TabsTrigger>
+                        <TabsTrigger value="gruppi" disabled={!canEdit}>Gruppi</TabsTrigger>
+                        <TabsTrigger value="piano">Piano Impegni</TabsTrigger>
+                        <TabsTrigger value="acquisti">Acquisti</TabsTrigger>
+                        <TabsTrigger value="documenti">Documenti</TabsTrigger>
+                        <TabsTrigger value="foto">Foto</TabsTrigger>
+                        <TabsTrigger value="messaggi" disabled={!canEdit}>Messaggi</TabsTrigger>
+                        <TabsTrigger value="social">Social</TabsTrigger>
+                    </TabsList>
+
+                    {/* Generale — include iscrizioni summary + tutto */}
+                    <TabsContent value="generale" className="space-y-4">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle>Dettagli Progetto</CardTitle>
+                                    <CardDescription>Informazioni generali e responsabili</CardDescription>
+                                </div>
+                                {canEdit && !isEditingGenerale && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setIsEditingGenerale(true)}
+                                    >
+                                        Modifica Dettagli
+                                    </Button>
                                 )}
-                            </div>
+                                {canEdit && isEditingGenerale && (
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => setIsEditingGenerale(false)}>Annulla</Button>
+                                        <Button size="sm" onClick={handleSaveGenerale} disabled={isSavingGenerale}>
+                                            {isSavingGenerale && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            Salva
+                                        </Button>
+                                    </div>
+                                )}
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="space-y-2">
+                                    <Label className="text-base font-semibold">Descrizione</Label>
+                                    {isEditingGenerale ? (
+                                        <Textarea
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                            placeholder="Inserisci una descrizione per il progetto..."
+                                            rows={4}
+                                        />
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                            {progetto.description || "Nessuna descrizione per questo progetto."}
+                                        </p>
+                                    )}
+                                </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-base font-semibold">Responsabili (Educatori / Admin)</Label>
-                                {isEditingGenerale ? (
-                                    <div className="grid gap-2 mt-2 p-4 border rounded-md bg-muted/30">
-                                        {isLoadingEduUsers ? <p className="text-sm text-muted-foreground">Caricamento utenti...</p> : (
-                                            eduUsers && eduUsers.length > 0 ? eduUsers.map(u => (
-                                                <div key={u.id} className="flex items-center space-x-2">
-                                                    <Checkbox
-                                                        id={`resp-${u.id}`}
-                                                        checked={selectedResponsabili.includes(u.id)}
-                                                        onCheckedChange={(checked) => handleResponsabileToggle(u.id, !!checked)}
-                                                    />
-                                                    <Label htmlFor={`resp-${u.id}`} className="text-sm font-medium leading-none">
+                                <div className="space-y-2">
+                                    <Label className="text-base font-semibold">Responsabili (Educatori / Admin)</Label>
+                                    {isEditingGenerale ? (
+                                        <div className="grid gap-2 mt-2 p-4 border rounded-md bg-muted/30">
+                                            {isLoadingEduUsers ? <p className="text-sm text-muted-foreground">Caricamento utenti...</p> : (
+                                                eduUsers && eduUsers.length > 0 ? eduUsers.map(u => (
+                                                    <div key={u.id} className="flex items-center space-x-2">
+                                                        <Checkbox
+                                                            id={`resp2-${u.id}`}
+                                                            checked={selectedResponsabili.includes(u.id)}
+                                                            onCheckedChange={(checked) => handleResponsabileToggle(u.id, !!checked)}
+                                                        />
+                                                        <Label htmlFor={`resp2-${u.id}`} className="text-sm font-medium leading-none">
+                                                            {u.displayName || u.email}
+                                                        </Label>
+                                                    </div>
+                                                )) : <p className="text-sm text-muted-foreground">Nessun utente eleggibile trovato.</p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            {progetto.responsabiliIds && progetto.responsabiliIds.length > 0 ? (
+                                                eduUsers?.filter(u => progetto.responsabiliIds?.includes(u.id)).map(u => (
+                                                    <span key={u.id} className="px-2 py-1 bg-primary/10 text-primary rounded-md text-sm font-medium">
                                                         {u.displayName || u.email}
-                                                    </Label>
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground">Nessun responsabile assegnato.</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Riepilogo iscrizioni nel Generale (visualizzazione cartelle) */}
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Users className="h-5 w-5 text-primary" />
+                                        Riepilogo Iscrizioni
+                                    </CardTitle>
+                                    <CardDescription>Dati riassuntivi della raccolta fondi collegata</CardDescription>
+                                </div>
+                                {canEdit && (
+                                    <Link href={`/progetti/${slug}/iscrizioni`}>
+                                        <Button variant="outline" size="sm" className="gap-2">
+                                            <ExternalLink className="h-4 w-4" />
+                                            Gestisci Iscrizioni
+                                        </Button>
+                                    </Link>
+                                )}
+                            </CardHeader>
+                            <CardContent>
+                                {isLoadingRaccolta ? (
+                                    <p className="text-sm text-muted-foreground">Caricamento...</p>
+                                ) : raccoltaData ? (
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                            <div className="rounded-lg border bg-card p-4 text-center">
+                                                <p className="text-3xl font-bold text-primary">
+                                                    {raccoltaData.confermatiIds?.length ?? 0}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">Iscritti confermati</p>
+                                            </div>
+                                            {raccoltaData.faseCaparra?.attiva && (
+                                                <div className="rounded-lg border bg-card p-4 text-center">
+                                                    <p className="text-3xl font-bold text-amber-600">
+                                                        {raccoltaData.caparraPaidIds?.length ?? 0}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-1">Caparra pagata</p>
                                                 </div>
-                                            )) : <p className="text-sm text-muted-foreground">Nessun utente eleggibile trovato.</p>
-                                        )}
+                                            )}
+                                            {raccoltaData.faseSaldo?.attiva && (
+                                                <div className="rounded-lg border bg-card p-4 text-center">
+                                                    <p className="text-3xl font-bold text-green-600">
+                                                        {raccoltaData.saldoPaidIds?.length ?? 0}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-1">Saldo pagato</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border">
+                                            <div>
+                                                <p className="text-sm font-medium">Nome raccolta</p>
+                                                <p className="text-base font-semibold">{raccoltaData.nome}</p>
+                                            </div>
+                                            <Badge variant={raccoltaData.archived ? 'secondary' : 'default'}>
+                                                {raccoltaData.archived ? 'Archiviata' : 'Attiva'}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                ) : canEdit ? (
+                                    <div className="flex items-center justify-between p-4 border border-dashed rounded-lg">
+                                        <p className="text-sm text-muted-foreground">Nessuna raccolta fondi collegata a questo progetto.</p>
+                                        <Button size="sm" onClick={() => setIsRaccoltaDialogOpen(true)}>
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Crea Raccolta
+                                        </Button>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                        {progetto.responsabiliIds && progetto.responsabiliIds.length > 0 ? (
-                                            eduUsers?.filter(u => progetto.responsabiliIds?.includes(u.id)).map(u => (
-                                                <span key={u.id} className="px-2 py-1 bg-primary/10 text-primary rounded-md text-sm font-medium">
-                                                    {u.displayName || u.email}
-                                                </span>
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground">Nessun responsabile assegnato.</p>
-                                        )}
-                                    </div>
+                                    <p className="text-sm text-muted-foreground">Nessuna raccolta fondi collegata.</p>
                                 )}
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {suggestedProjects && suggestedProjects.length > 0 && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-lg">Storico: Progetti Simili Archiviati</CardTitle>
-                                <CardDescription>Progetti passati che presentano parole chiave simili nel titolo o descrizione.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                    {suggestedProjects.map(p => (
-                                        <Link href={`/progetti/${p.slug}`} key={p.id} className="block group">
-                                            <div className="p-4 rounded-lg border bg-card text-card-foreground shadow-sm group-hover:border-primary transition-all h-full">
-                                                <h3 className="font-semibold text-sm line-clamp-1">{p.name}</h3>
-                                                {p.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{p.description}</p>}
-                                            </div>
-                                        </Link>
-                                    ))}
-                                </div>
                             </CardContent>
                         </Card>
-                    )}
-                </TabsContent>
-                
-                <TabsContent value="iscrizioni" className="mt-4">
-                     {isLoadingRaccolta ? (
-                        <p>Caricamento...</p>
-                    ) : raccoltaData ? (
-                        <Accordion type="single" collapsible className="w-full">
-                           <RaccoltaCard raccolta={raccoltaData} onEdit={() => setIsRaccoltaDialogOpen(true)} />
-                        </Accordion>
-                    ) : (
+
+                        {suggestedProjects && suggestedProjects.length > 0 && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Storico: Progetti Simili Archiviati</CardTitle>
+                                    <CardDescription>Progetti passati che presentano parole chiave simili nel titolo o descrizione.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                        {suggestedProjects.map(p => (
+                                            <Link href={`/progetti/${p.slug}`} key={p.id} className="block group">
+                                                <div className="p-4 rounded-lg border bg-card text-card-foreground shadow-sm group-hover:border-primary transition-all h-full">
+                                                    <h3 className="font-semibold text-sm line-clamp-1">{p.name}</h3>
+                                                    {p.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{p.description}</p>}
+                                                </div>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="iscrizioni" className="mt-4">
+                        {isLoadingRaccolta ? (
+                            <p>Caricamento...</p>
+                        ) : raccoltaData ? (
+                            <Accordion type="single" collapsible className="w-full">
+                               <RaccoltaCard raccolta={raccoltaData} onEdit={() => setIsRaccoltaDialogOpen(true)} />
+                            </Accordion>
+                        ) : (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Gestione Iscrizioni e Raccolta Fondi</CardTitle>
+                                    <CardDescription>
+                                        Collega o gestisci una raccolta fondi per le iscrizioni a questo progetto.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Button onClick={() => setIsRaccoltaDialogOpen(true)} disabled={!canEdit}>
+                                        Crea Raccolta Fondi
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </TabsContent>
+
+                    <TabsContent value="gruppi" className="mt-4">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Gestione Iscrizioni e Raccolta Fondi</CardTitle>
+                                <CardTitle>Gruppi Coinvolti</CardTitle>
                                 <CardDescription>
-                                    Collega o gestisci una raccolta fondi per le iscrizioni a questo progetto.
+                                    Seleziona i gruppi che parteciperanno a questo progetto.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <Button onClick={() => setIsRaccoltaDialogOpen(true)} disabled={!canEdit}>
-                                    Crea Raccolta Fondi
-                                </Button>
+                            <CardContent className="space-y-4">
+                                <GruppiContent />
                             </CardContent>
                         </Card>
-                    )}
-                </TabsContent>
+                    </TabsContent>
 
-                <TabsContent value="gruppi" className="mt-4">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Gruppi Coinvolti</CardTitle>
-                            <CardDescription>
-                                Seleziona i gruppi che parteciperanno a questo progetto.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                             <ScrollArea className="h-64 rounded-md border p-4">
-                                {isLoadingAllGroups ? <p>Caricamento gruppi...</p> : (
-                                    <div className="space-y-2">
-                                        {allGroups && allGroups.length > 0 ? allGroups.map(group => (
-                                            <div key={group.id} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={`group-${group.id}`}
-                                                    checked={selectedGruppi.includes(group.id)}
-                                                    onCheckedChange={(checked) => handleGroupToggle(group.id, !!checked)}
-                                                />
-                                                <Label htmlFor={`group-${group.id}`} className="text-sm font-medium leading-none">
-                                                    {group.name}
-                                                </Label>
-                                            </div>
-                                        )) : <p className="text-sm text-muted-foreground">Nessun gruppo trovato.</p>}
-                                    </div>
+                    <TabsContent value="piano" className="mt-4">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <CalendarDays className="h-5 w-5 text-primary" />
+                                        Piano Impegni
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Scadenze, date e appuntamenti per la realizzazione del progetto.
+                                    </CardDescription>
+                                </div>
+                                {canEdit && (
+                                    <Button size="sm" onClick={() => { setEditingEvent(null); setIsEventDialogOpen(true); }}>
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Nuovo Impegno
+                                    </Button>
                                 )}
-                            </ScrollArea>
-                            <div className='flex justify-end'>
-                                <Button onClick={handleSaveGroups} disabled={isSavingGroups}>
-                                    {isSavingGroups && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Salva Modifiche Gruppi
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                            </CardHeader>
+                            <CardContent>
+                                <PianoContent />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
-                <TabsContent value="piano" className="mt-4">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle className="flex items-center gap-2">
-                                    <CalendarDays className="h-5 w-5 text-primary" />
-                                    Piano Impegni
-                                </CardTitle>
-                                <CardDescription>
-                                    Scadenze, date e appuntamenti per la realizzazione del progetto.
-                                </CardDescription>
-                            </div>
-                            {canEdit && (
-                                <Button size="sm" onClick={() => { setEditingEvent(null); setIsEventDialogOpen(true); }}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Nuovo Impegno
-                                </Button>
-                            )}
-                        </CardHeader>
-                         <CardContent>
-                             {isLoadingEvents ? (
-                                <p className="text-center text-muted-foreground p-8">Caricamento impegni...</p>
-                            ) : projectEvents && projectEvents.length > 0 ? (
-                                <div className="space-y-4">
-                                    <div className="rounded-md border overflow-hidden">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow className="bg-muted/50">
-                                                    <TableHead className="w-[50px]"></TableHead>
-                                                    <TableHead className="min-w-[150px]">Impegno</TableHead>
-                                                    <TableHead>Scadenza / Data</TableHead>
-                                                    <TableHead>Note</TableHead>
-                                                    <TableHead className="text-right">Azioni</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {projectEvents.map((evento) => (
-                                                    <TableRow key={evento.id} className={evento.completed ? "bg-muted/30" : ""}>
-                                                        <TableCell>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                disabled={!canEdit}
-                                                                onClick={() => handleToggleEventCompleted(evento)}
-                                                                className={evento.completed ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-muted-foreground"}
-                                                            >
-                                                                {evento.completed ? (
-                                                                    <CheckCircle2 className="h-5 w-5" />
-                                                                ) : (
-                                                                    <Circle className="h-5 w-5" />
-                                                                )}
-                                                            </Button>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <span className={`font-medium ${evento.completed ? "line-through text-muted-foreground" : ""}`}>
-                                                                {evento.title}
-                                                            </span>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex flex-col text-xs text-muted-foreground">
-                                                                <span>Inizio: {formatEventDate(evento.startDate)}</span>
-                                                                <span>Fine: {formatEventDate(evento.endDate)}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="max-w-[300px]">
-                                                            <div className="flex flex-col gap-1">
-                                                                {evento.description && <p className="text-xs italic text-muted-foreground line-clamp-1">{evento.description}</p>}
-                                                                {evento.notes ? (
-                                                                    <p className="text-sm">{evento.notes}</p>
-                                                                ) : (
-                                                                    <span className="text-xs text-muted-foreground/50 italic">Nessun commento</span>
-                                                                )}
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            {canEdit && (
-                                                                <Button 
-                                                                    variant="ghost" 
-                                                                    size="sm" 
-                                                                    onClick={() => { setEditingEvent(evento); setIsEventDialogOpen(true); }}
-                                                                >
-                                                                    Modifica
-                                                                </Button>
-                                                            )}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                    <p className="text-xs text-center text-muted-foreground mt-4 pt-4 border-t">
-                                        Gli impegni aggiunti qui sono sincronizzati col Calendario generale.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="text-center text-muted-foreground p-8 border border-dashed rounded-lg">
-                                    <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-                                    <p>Nessun impegno in programma per questo progetto.</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                    <TabsContent value="acquisti" className="mt-4">
+                        <AcquistiList projectId={progetto.id} canEdit={canEdit} />
+                    </TabsContent>
 
-                <TabsContent value="acquisti" className="mt-4">
-                    <AcquistiList projectId={progetto.id} canEdit={canEdit} />
-                </TabsContent>
+                    <TabsContent value="documenti" className="mt-4">
+                        <DocumentManager
+                            projectId={progetto.id}
+                            projectName={progetto.name}
+                            driveFolderId={progetto.driveFolderId}
+                            canEdit={canEdit}
+                            onFolderCreated={async (folderId) => {
+                                if (firestore && progetto) {
+                                    await updateDoc(doc(firestore, 'progetti', progetto.id), { driveFolderId: folderId });
+                                }
+                            }}
+                        />
+                    </TabsContent>
 
-                <TabsContent value="documenti" className="mt-4">
-                    <DocumentManager
-                        projectId={progetto.id}
-                        projectName={progetto.name}
-                        driveFolderId={progetto.driveFolderId}
-                        canEdit={canEdit}
-                        onFolderCreated={async (folderId) => {
-                            if (firestore && progetto) {
-                                await updateDoc(doc(firestore, 'progetti', progetto.id), { driveFolderId: folderId });
-                            }
-                        }}
-                    />
-                </TabsContent>
+                    <TabsContent value="foto" className="mt-4">
+                        <PhotoManager
+                            projectId={progetto.id}
+                            projectName={progetto.name}
+                            groupIds={progetto.groupIds || []}
+                            driveFolderId={progetto.driveFolderId}
+                            canEdit={canEdit}
+                            onFolderCreated={async (folderId) => {
+                                if (firestore && progetto) {
+                                    await updateDoc(doc(firestore, 'progetti', progetto.id), { driveFolderId: folderId });
+                                }
+                            }}
+                            onPhotosChange={setAvailablePhotos}
+                        />
+                    </TabsContent>
 
-                <TabsContent value="foto" className="mt-4">
-                    <PhotoManager
-                        projectId={progetto.id}
-                        projectName={progetto.name}
-                        groupIds={progetto.groupIds || []}
-                        driveFolderId={progetto.driveFolderId}
-                        canEdit={canEdit}
-                        onFolderCreated={async (folderId) => {
-                            if (firestore && progetto) {
-                                await updateDoc(doc(firestore, 'progetti', progetto.id), { driveFolderId: folderId });
-                            }
-                        }}
-                        onPhotosChange={setAvailablePhotos}
-                    />
-                </TabsContent>
+                    <TabsContent value="messaggi" className="mt-4">
+                        <MessagePlanner
+                            projectId={progetto.id}
+                            projectName={progetto.name}
+                            projectDescription={progetto.description}
+                            projectStartDate={progetto.startDate?.toDate ? progetto.startDate.toDate().toLocaleDateString('it-IT') : undefined}
+                            projectEndDate={progetto.endDate?.toDate ? progetto.endDate.toDate().toLocaleDateString('it-IT') : undefined}
+                            canEdit={canEdit}
+                        />
+                    </TabsContent>
 
-                <TabsContent value="messaggi" className="mt-4">
-                    <MessagePlanner
-                        projectId={progetto.id}
-                        projectName={progetto.name}
-                        projectDescription={progetto.description}
-                        projectStartDate={progetto.startDate?.toDate ? progetto.startDate.toDate().toLocaleDateString('it-IT') : undefined}
-                        projectEndDate={progetto.endDate?.toDate ? progetto.endDate.toDate().toLocaleDateString('it-IT') : undefined}
-                        canEdit={canEdit}
-                    />
-                </TabsContent>
-
-                <TabsContent value="social" className="mt-4">
-                    <SocialPlanner
-                        projectId={progetto.id}
-                        projectName={progetto.name}
-                        projectDescription={progetto.description}
-                        projectStartDate={progetto.startDate?.toDate ? progetto.startDate.toDate().toLocaleDateString('it-IT') : undefined}
-                        projectEndDate={progetto.endDate?.toDate ? progetto.endDate.toDate().toLocaleDateString('it-IT') : undefined}
-                        groupIds={progetto.groupIds || []}
-                        canEdit={canEdit}
-                        availablePhotos={availablePhotos}
-                    />
-                </TabsContent>
-            </Tabs>
+                    <TabsContent value="social" className="mt-4">
+                        <SocialPlanner
+                            projectId={progetto.id}
+                            projectName={progetto.name}
+                            projectDescription={progetto.description}
+                            projectStartDate={progetto.startDate?.toDate ? progetto.startDate.toDate().toLocaleDateString('it-IT') : undefined}
+                            projectEndDate={progetto.endDate?.toDate ? progetto.endDate.toDate().toLocaleDateString('it-IT') : undefined}
+                            groupIds={progetto.groupIds || []}
+                            canEdit={canEdit}
+                            availablePhotos={availablePhotos}
+                        />
+                    </TabsContent>
+                </Tabs>
+            )}
         </div>
     );
 }

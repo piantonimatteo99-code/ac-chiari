@@ -351,15 +351,16 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                             <Label htmlFor="notes">Note / Esito</Label>
                             <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Note sull'andamento o esito dell'impegno..." />
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox id="completed" checked={completed} onCheckedChange={(checked) => setCompleted(!!checked)} />
-                            <Label htmlFor="completed">Completato</Label>
-                        </div>
+                        {isEditing && (
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="completed" checked={completed} onCheckedChange={(checked) => setCompleted(!!checked)} />
+                                <Label htmlFor="completed">Completato</Label>
+                            </div>
+                        )}
                          <div className="grid gap-3">
                             <Label>Gruppi di destinazione</Label>
-                            <ScrollArea className="h-24 rounded-md border p-2">
-                                {isLoadingGroups ? <p>Caricamento...</p> : (
-                                <div className="space-y-2">
+                            <ScrollArea className="h-24 rounded-md border">
+                                <div className="px-3 py-2 space-y-2">
                                     {groups && groups.length > 0 ? groups.map(group => (
                                         <div key={group.id} className="flex items-center space-x-2">
                                             <Checkbox
@@ -373,7 +374,6 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                                         </div>
                                     )) : <p className="text-sm text-muted-foreground">Nessun gruppo trovato.</p>}
                                 </div>
-                                )}
                             </ScrollArea>
                         </div>
                         <div className="grid grid-cols-1 gap-4 items-start">
