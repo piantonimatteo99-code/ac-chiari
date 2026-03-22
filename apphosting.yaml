@@ -5,3 +5,14 @@ runConfig:
   memoryMiB: 512
   concurrency: 80
   maxInstances: 2
+
+env:
+  - variable: SMTP_USER
+    value: azionecattolicachiari@gmail.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: SMTP_PASSWORD
+    secret: smtp-password
+    availability:
+      - RUNTIME
