@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Camera, Share2, CheckCircle2, XCircle } from "lucide-react";
 import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/src/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
@@ -164,8 +164,19 @@ export default function NucleoFamiliarePage() {
               <TableRow className="hover:bg-transparent">
                 <TableHead>Nome</TableHead>
                 <TableHead>Data di Nascita</TableHead>
-                <TableHead>Indirizzo Condiviso</TableHead>
-                <TableHead>Stato</TableHead>
+                <TableHead className="hidden md:table-cell">Indirizzo</TableHead>
+                <TableHead className="text-center" title="Consenso foto">
+                  <span className="flex items-center justify-center gap-1">
+                    <Camera className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Foto</span>
+                  </span>
+                </TableHead>
+                <TableHead className="text-center" title="Consenso social media">
+                  <span className="flex items-center justify-center gap-1">
+                    <Share2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Social</span>
+                  </span>
+                </TableHead>
                 <TableHead>
                   <span className="sr-only">Azioni</span>
                 </TableHead>
@@ -181,14 +192,39 @@ export default function NucleoFamiliarePage() {
               )}
               {!isLoading && membri && membri.length > 0 ? (
                 membri.map((membro) => (
-                  <TableRow key={membro.id} className="hover:bg-muted/50">
+                  <TableRow
+                    key={membro.id}
+                    className="hover:bg-muted/50 cursor-pointer"
+                    onClick={() => handleEdit(membro)}
+                  >
                     <TableCell className="font-medium">{membro.nome} {membro.cognome}</TableCell>
-                    <TableCell>{formatDate(membro.dataNascita)}</TableCell>
-                    <TableCell>{familyAddress}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-green-600 border-green-600">Attivo</Badge>
+                    <TableCell className="text-muted-foreground">{formatDate(membro.dataNascita)}</TableCell>
+                    <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{familyAddress}</TableCell>
+                    {/* Consenso Foto */}
+                    <TableCell className="text-center">
+                      {membro.consensoFoto ? (
+                        <span title="Consenso foto concesso">
+                          <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
+                        </span>
+                      ) : (
+                        <span title="Consenso foto non concesso">
+                          <XCircle className="h-4 w-4 text-muted-foreground/40 mx-auto" />
+                        </span>
+                      )}
                     </TableCell>
-                    <TableCell>
+                    {/* Consenso Social */}
+                    <TableCell className="text-center">
+                      {membro.consensoSocial ? (
+                        <span title="Consenso social concesso">
+                          <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
+                        </span>
+                      ) : (
+                        <span title="Consenso social non concesso">
+                          <XCircle className="h-4 w-4 text-muted-foreground/40 mx-auto" />
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell onClick={e => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -207,7 +243,7 @@ export default function NucleoFamiliarePage() {
               ) : (
                 !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center">
+                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                       Nessun membro trovato. Aggiungine uno per creare la tua famiglia.
                     </TableCell>
                   </TableRow>
@@ -215,7 +251,7 @@ export default function NucleoFamiliarePage() {
               )}
                {error && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-destructive">
+                  <TableCell colSpan={6} className="text-center text-destructive">
                     Si è verificato un errore nel caricamento dei dati. 
                     Potrebbe essere un problema di permessi o l'indirizzo non è stato ancora salvato.
                   </TableCell>
@@ -225,6 +261,13 @@ export default function NucleoFamiliarePage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Info nota per capofamiglia */}
+      {!isLoading && membri && membri.length > 0 && (
+        <p className="text-xs text-muted-foreground text-center">
+          Clicca su un membro per modificare in qualsiasi momento anagrafica, allergie e consensi fotografici.
+        </p>
+      )}
     </div>
   );
 }
