@@ -42,6 +42,8 @@ export interface Membro {
   groupId?: string;
   groupName?: string;
   tesseramento?: number;
+  consensoFoto?: boolean;   // Autorizzazione pubblicazione foto
+  consensoSocial?: boolean; // Autorizzazione divulgazione su social media
 }
 
 export default function NucleoFamiliarePage() {

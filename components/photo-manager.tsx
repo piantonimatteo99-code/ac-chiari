@@ -23,6 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ConsensoAlert } from '@/components/consenso-alert';
+
 
 interface DrivePhoto {
   id: string;
@@ -37,6 +39,7 @@ interface DrivePhoto {
 interface PhotoManagerProps {
   projectId: string;
   projectName: string;
+  groupIds?: string[];       // For consent checking
   driveFolderId?: string;
   canEdit: boolean;
   onFolderCreated?: (folderId: string) => void;
@@ -46,6 +49,7 @@ interface PhotoManagerProps {
 export default function PhotoManager({
   projectId,
   projectName,
+  groupIds,
   driveFolderId,
   canEdit,
   onFolderCreated,
@@ -231,6 +235,13 @@ export default function PhotoManager({
           </div>
         </CardHeader>
         <CardContent>
+          {/* Avviso consensi foto */}
+          {groupIds && groupIds.length > 0 && (
+            <div className="mb-4">
+              <ConsensoAlert groupIds={groupIds} type="foto" />
+            </div>
+          )}
+
           {error && (
             <div className="flex items-center gap-2 text-sm text-destructive mb-4">
               <AlertCircle className="h-4 w-4 shrink-0" />

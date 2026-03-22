@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useFirestore } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, setDoc } from 'firebase/firestore';
 import type { Membro as MembroBase } from '@/app/(app)/nucleo-familiare/page';
@@ -38,6 +39,8 @@ const initialMembroState: Membro = {
   telefonoPrincipale: '',
   telefonoSecondario: '',
   allergie: '',
+  consensoFoto: false,
+  consensoSocial: false,
 };
 
 const initialAnagraficaState = {
@@ -75,6 +78,8 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
           telefonoPrincipale: membroToEdit.telefonoPrincipale || '',
           telefonoSecondario: membroToEdit.telefonoSecondario || '',
           allergie: membroToEdit.allergie || '',
+          consensoFoto: membroToEdit.consensoFoto ?? false,
+          consensoSocial: membroToEdit.consensoSocial ?? false,
         });
       } else {
         setMembroData(initialMembroState);
@@ -268,6 +273,49 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
                 <p className="text-xs text-muted-foreground">Opzionale — visibile agli educatori nel dettaglio dei progetti.</p>
             </div>
 
+            {/* Consensi privacy */}
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-medium">📋 Consensi e Autorizzazioni</p>
+              <p className="text-xs text-muted-foreground">Seleziona le autorizzazioni concesse dalla famiglia per questo membro.</p>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 rounded-lg border p-3">
+                  <Checkbox
+                    id="consensoFoto"
+                    checked={membroData.consensoFoto ?? false}
+                    onCheckedChange={(checked) =>
+                      setMembroData(prev => ({ ...prev, consensoFoto: checked === true }))
+                    }
+                  />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="consensoFoto" className="text-sm font-medium cursor-pointer">
+                      Autorizzazione al scatto e uso delle fotografie
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      La famiglia autorizza la raccolta e conservazione di foto che ritraggono il minore durante le attività ACR.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-lg border p-3">
+                  <Checkbox
+                    id="consensoSocial"
+                    checked={membroData.consensoSocial ?? false}
+                    onCheckedChange={(checked) =>
+                      setMembroData(prev => ({ ...prev, consensoSocial: checked === true }))
+                    }
+                  />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="consensoSocial" className="text-sm font-medium cursor-pointer">
+                      Autorizzazione alla pubblicazione sui social dell'associazione
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      La famiglia autorizza la pubblicazione di foto/video del minore nelle pagine social ufficiali di AC Chiari.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Telefoni */}
             <div className="grid grid-cols-2 gap-4 border-t pt-4">
                 <div className="grid gap-2">
                 <Label htmlFor="telefonoPrincipale">Tel. Principale</Label>

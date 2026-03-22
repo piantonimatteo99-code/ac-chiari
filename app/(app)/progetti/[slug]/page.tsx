@@ -654,6 +654,7 @@ export default function ProgettoDettaglioPage() {
                     <PhotoManager
                         projectId={progetto.id}
                         projectName={progetto.name}
+                        groupIds={progetto.groupIds || []}
                         driveFolderId={progetto.driveFolderId}
                         canEdit={canEdit}
                         onFolderCreated={async (folderId) => {
@@ -680,6 +681,10 @@ export default function ProgettoDettaglioPage() {
                     <SocialPlanner
                         projectId={progetto.id}
                         projectName={progetto.name}
+                        projectDescription={progetto.description}
+                        projectStartDate={progetto.startDate?.toDate ? progetto.startDate.toDate().toLocaleDateString('it-IT') : undefined}
+                        projectEndDate={progetto.endDate?.toDate ? progetto.endDate.toDate().toLocaleDateString('it-IT') : undefined}
+                        groupIds={progetto.groupIds || []}
                         canEdit={canEdit}
                         availablePhotos={availablePhotos}
                     />

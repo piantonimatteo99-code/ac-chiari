@@ -301,18 +301,19 @@ export default function SocialMediaPage() {
   }, [firestore, user, userData, isAdmin, isEducatore]);
   const { data: myGroups } = useCollection<Group>(myGroupsQuery);
 
-  // Active projects
+  // Active projects — get all, filter client-side to avoid missing composite index
   const progettiQuery = useMemoFirebase(() => firestore
-    ? query(collection(firestore, 'progetti'), where('status', '!=', 'archiviato'), orderBy('status'), orderBy('createdAt', 'desc'))
+    ? query(collection(firestore, 'progetti'), orderBy('createdAt', 'desc'))
     : null, [firestore]);
   const { data: allProgetti, isLoading: isLoadingProgetti } = useCollection<Progetto>(progettiQuery);
 
   const progetti = useMemo(() => {
-    if (!allProgetti || !userData) return [];
-    if (isAdmin) return allProgetti;
+    const active = (allProgetti ?? []).filter(p => p.status !== 'archiviato');
+    if (!userData) return [];
+    if (isAdmin) return active;
     if (isEducatore && myGroups) {
       const gids = new Set(myGroups.map(g => g.id));
-      return allProgetti.filter(p => p.groupIds?.some(gid => gids.has(gid)));
+      return active.filter(p => p.groupIds?.some(gid => gids.has(gid)));
     }
     return [];
   }, [allProgetti, userData, isAdmin, isEducatore, myGroups]);

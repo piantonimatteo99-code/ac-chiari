@@ -37,6 +37,8 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useUserData } from '@/src/hooks/use-user-data';
+import { ConsensoAlert } from '@/components/consenso-alert';
+
 
 interface DrivePhoto {
   id: string;
@@ -61,6 +63,10 @@ interface SocialPost {
 interface SocialPlannerProps {
   projectId: string;
   projectName: string;
+  projectDescription?: string;
+  projectStartDate?: string;
+  projectEndDate?: string;
+  groupIds?: string[];         // For consent checking
   canEdit: boolean;
   availablePhotos?: DrivePhoto[];
 }
@@ -164,7 +170,7 @@ function InstagramPostCard({
   );
 }
 
-export default function SocialPlanner({ projectId, projectName, canEdit, availablePhotos = [] }: SocialPlannerProps) {
+export default function SocialPlanner({ projectId, projectName, projectDescription, projectStartDate, projectEndDate, groupIds, canEdit, availablePhotos = [] }: SocialPlannerProps) {
   const firestore = useFirestore();
   const { user } = useUser();
 
@@ -239,15 +245,26 @@ export default function SocialPlanner({ projectId, projectName, canEdit, availab
   };
 
   const handleGetAiSuggestions = async () => {
-    if (!aiContext.trim()) return;
     setIsLoadingAI(true);
     setAiError(null);
     setAiSuggestions([]);
     try {
+      // Collect last 5 published posts as learning examples
+      const publishedPosts = (posts ?? [])
+        .filter(p => p.status === 'pubblicato')
+        .slice(-5)
+        .map(p => p.caption);
+
       const res = await fetch('/api/ai/instagram-suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectName, context: aiContext }),
+        body: JSON.stringify({
+          projectName,
+          projectDescription,
+          projectDate: [projectStartDate, projectEndDate].filter(Boolean).join(' → '),
+          context: aiContext,
+          previousPosts: publishedPosts,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore AI');
@@ -286,6 +303,13 @@ export default function SocialPlanner({ projectId, projectName, canEdit, availab
             )}
           </CardHeader>
           <CardContent>
+            {/* Avviso consensi social */}
+            {groupIds && groupIds.length > 0 && (
+              <div className="mb-4">
+                <ConsensoAlert groupIds={groupIds} type="social" />
+              </div>
+            )}
+
             {isLoading && (
               <div className="flex items-center justify-center py-10">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
