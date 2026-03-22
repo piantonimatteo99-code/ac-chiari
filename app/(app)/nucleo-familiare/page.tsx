@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MoreHorizontal, PlusCircle, Camera, Share2, CheckCircle2, XCircle } from "lucide-react";
+import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/src/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
@@ -41,8 +42,10 @@ export interface Membro {
   groupId?: string;
   groupName?: string;
   tesseramento?: number;
-  consensoFoto?: boolean;   // Autorizzazione pubblicazione foto
-  consensoSocial?: boolean; // Autorizzazione divulgazione su social media
+  consenso?: boolean;     // Consenso unificato: foto + social (default: true)
+  // Campi legacy (backward compat)
+  consensoFoto?: boolean;
+  consensoSocial?: boolean;
 }
 
 export default function NucleoFamiliarePage() {
@@ -164,18 +167,6 @@ export default function NucleoFamiliarePage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Data di Nascita</TableHead>
                 <TableHead className="hidden md:table-cell">Indirizzo</TableHead>
-                <TableHead className="text-center" title="Consenso foto">
-                  <span className="flex items-center justify-center gap-1">
-                    <Camera className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Foto</span>
-                  </span>
-                </TableHead>
-                <TableHead className="text-center" title="Consenso social media">
-                  <span className="flex items-center justify-center gap-1">
-                    <Share2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Social</span>
-                  </span>
-                </TableHead>
                 <TableHead>
                   <span className="sr-only">Azioni</span>
                 </TableHead>
@@ -199,30 +190,6 @@ export default function NucleoFamiliarePage() {
                     <TableCell className="font-medium">{membro.nome} {membro.cognome}</TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(membro.dataNascita)}</TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{familyAddress}</TableCell>
-                    {/* Consenso Foto */}
-                    <TableCell className="text-center">
-                      {membro.consensoFoto ? (
-                        <span title="Consenso foto concesso">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
-                        </span>
-                      ) : (
-                        <span title="Consenso foto non concesso">
-                          <XCircle className="h-4 w-4 text-muted-foreground/40 mx-auto" />
-                        </span>
-                      )}
-                    </TableCell>
-                    {/* Consenso Social */}
-                    <TableCell className="text-center">
-                      {membro.consensoSocial ? (
-                        <span title="Consenso social concesso">
-                          <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
-                        </span>
-                      ) : (
-                        <span title="Consenso social non concesso">
-                          <XCircle className="h-4 w-4 text-muted-foreground/40 mx-auto" />
-                        </span>
-                      )}
-                    </TableCell>
                     <TableCell onClick={e => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -242,7 +209,7 @@ export default function NucleoFamiliarePage() {
               ) : (
                 !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
                       Nessun membro trovato. Aggiungine uno per creare la tua famiglia.
                     </TableCell>
                   </TableRow>
@@ -250,7 +217,7 @@ export default function NucleoFamiliarePage() {
               )}
                {error && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-destructive">
+                  <TableCell colSpan={4} className="text-center text-destructive">
                     Si è verificato un errore nel caricamento dei dati. 
                     Potrebbe essere un problema di permessi o l'indirizzo non è stato ancora salvato.
                   </TableCell>

@@ -9,7 +9,6 @@ import type { UserData } from '@/src/hooks/use-user-data';
 import type { Membro } from '../../nucleo-familiare/page';
 import type { Group } from '../../admin/gestione-gruppi/tutti-i-gruppi/page';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, XCircle, Camera, Share2 } from 'lucide-react';
 
 interface Famiglia {
     id: string;
@@ -29,8 +28,6 @@ interface MembroViewModel {
     dataNascita?: string;
     groupName?: string;
     tesseramento?: number;
-    consensoFoto?: boolean;
-    consensoSocial?: boolean;
 }
 
 interface FamigliaViewModel {
@@ -147,8 +144,6 @@ export default function FamigliePage() {
                 dataNascita: m.dataNascita,
                 groupName: memberToGroupMap.get(m.id) || m.groupName,
                 tesseramento: m.tesseramento,
-                consensoFoto: m.consensoFoto,
-                consensoSocial: m.consensoSocial,
             })) || [];
 
             membri.push(...altriMembri);
@@ -214,18 +209,6 @@ export default function FamigliePage() {
                                                         <TableHead>Data di Nascita</TableHead>
                                                         <TableHead>Gruppo</TableHead>
                                                         <TableHead>Tesserato</TableHead>
-                                                        <TableHead className="text-center" title="Consenso foto">
-                                                          <span className="flex items-center justify-center gap-1">
-                                                            <Camera className="h-3 w-3" />
-                                                            <span className="hidden lg:inline">Foto</span>
-                                                          </span>
-                                                        </TableHead>
-                                                        <TableHead className="text-center" title="Consenso social">
-                                                          <span className="flex items-center justify-center gap-1">
-                                                            <Share2 className="h-3 w-3" />
-                                                            <span className="hidden lg:inline">Social</span>
-                                                          </span>
-                                                        </TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
@@ -242,28 +225,6 @@ export default function FamigliePage() {
                                                                 ) : (
                                                                     <Badge variant="destructive">Non Tesserato</Badge>
                                                                 )}
-                                                            </TableCell>
-                                                            <TableCell className="text-center">
-                                                              {membro.consensoFoto ? (
-                                                                <span title="Consenso foto concesso">
-                                                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600 mx-auto" />
-                                                                </span>
-                                                              ) : (
-                                                                <span title="Consenso foto non concesso">
-                                                                  <XCircle className="h-3.5 w-3.5 text-muted-foreground/40 mx-auto" />
-                                                                </span>
-                                                              )}
-                                                            </TableCell>
-                                                            <TableCell className="text-center">
-                                                              {membro.consensoSocial ? (
-                                                                <span title="Consenso social concesso">
-                                                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-600 mx-auto" />
-                                                                </span>
-                                                              ) : (
-                                                                <span title="Consenso social non concesso">
-                                                                  <XCircle className="h-3.5 w-3.5 text-muted-foreground/40 mx-auto" />
-                                                                </span>
-                                                              )}
                                                             </TableCell>
                                                         </TableRow>
                                                       );

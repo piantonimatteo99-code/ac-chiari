@@ -39,8 +39,7 @@ const initialMembroState: Membro = {
   telefonoPrincipale: '',
   telefonoSecondario: '',
   allergie: '',
-  consensoFoto: false,
-  consensoSocial: false,
+  consenso: true,  // Consenso foto + social, spuntato di default
 };
 
 const initialAnagraficaState = {
@@ -78,8 +77,8 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
           telefonoPrincipale: membroToEdit.telefonoPrincipale || '',
           telefonoSecondario: membroToEdit.telefonoSecondario || '',
           allergie: membroToEdit.allergie || '',
-          consensoFoto: membroToEdit.consensoFoto ?? false,
-          consensoSocial: membroToEdit.consensoSocial ?? false,
+          // Backward compat: if old record had consensoFoto or new consenso field
+          consenso: membroToEdit.consenso ?? (membroToEdit.consensoFoto !== false && membroToEdit.consensoSocial !== false),
         });
       } else {
         setMembroData(initialMembroState);
@@ -273,44 +272,25 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
                 <p className="text-xs text-muted-foreground">Opzionale — visibile agli educatori nel dettaglio dei progetti.</p>
             </div>
 
-            {/* Consensi privacy */}
-            <div className="space-y-3 border-t pt-4">
-              <p className="text-sm font-medium">📋 Consensi e Autorizzazioni</p>
-              <p className="text-xs text-muted-foreground">Seleziona le autorizzazioni concesse dalla famiglia per questo membro.</p>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <Checkbox
-                    id="consensoFoto"
-                    checked={membroData.consensoFoto ?? false}
-                    onCheckedChange={(checked) =>
-                      setMembroData(prev => ({ ...prev, consensoFoto: checked === true }))
-                    }
-                  />
-                  <div className="space-y-0.5">
-                    <Label htmlFor="consensoFoto" className="text-sm font-medium cursor-pointer">
-                      Autorizzazione al scatto e uso delle fotografie
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      La famiglia autorizza la raccolta e conservazione di foto che ritraggono il minore durante le attività ACR.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <Checkbox
-                    id="consensoSocial"
-                    checked={membroData.consensoSocial ?? false}
-                    onCheckedChange={(checked) =>
-                      setMembroData(prev => ({ ...prev, consensoSocial: checked === true }))
-                    }
-                  />
-                  <div className="space-y-0.5">
-                    <Label htmlFor="consensoSocial" className="text-sm font-medium cursor-pointer">
-                      Autorizzazione alla pubblicazione sui social dell'associazione
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      La famiglia autorizza la pubblicazione di foto/video del minore nelle pagine social ufficiali di AC Chiari.
-                    </p>
-                  </div>
+            {/* Consenso privacy unificato */}
+            <div className="border-t pt-4">
+              <div className="flex items-start gap-3 rounded-lg border p-3 bg-muted/30">
+                <Checkbox
+                  id="consenso"
+                  checked={membroData.consenso ?? true}
+                  onCheckedChange={(checked) =>
+                    setMembroData(prev => ({ ...prev, consenso: checked === true }))
+                  }
+                />
+                <div className="space-y-0.5">
+                  <Label htmlFor="consenso" className="text-sm font-medium cursor-pointer">
+                    Autorizzazione a foto e pubblicazione sui social
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    La famiglia autorizza lo scatto di fotografie durante le attività ACR e la loro pubblicazione
+                    nelle pagine social ufficiali di Azione Cattolica Chiari.
+                    Deseleziona per revocare il consenso.
+                  </p>
                 </div>
               </div>
             </div>
