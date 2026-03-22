@@ -152,14 +152,14 @@ export default function CalendarioPage() {
   }
   
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col pb-4 h-[calc(100vh-6rem)] gap-4">
       <AddEventDialog 
         isOpen={isDialogOpen}
         onOpenChange={handleDialogChange}
         eventToEdit={editingEvent}
       />
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
         <h1 className="text-2xl font-bold">Calendario</h1>
         <div className="flex flex-wrap items-center gap-2">
           {canAddEvents && (
@@ -206,28 +206,31 @@ export default function CalendarioPage() {
       </div>
       
       {view === 'month' && (
-        <Card>
-            <CardContent className="p-0">
+        <Card className="flex-1 flex flex-col min-h-0 overflow-auto lg:overflow-hidden">
+            <CardContent className="p-0 flex-1 flex flex-col min-h-0">
             <Calendar
                 mode="single"
                 month={currentMonth}
                 onMonthChange={setCurrentMonth}
                 locale={it}
-                className="p-0"
+                showOutsideDays={true}
+                fixedWeeks={true}
+                className="p-0 flex-1 flex flex-col w-full h-full"
                 classNames={{
-                    month: 'w-full space-y-0',
-                    table: 'w-full border-collapse',
+                    months: 'flex-1 w-full flex flex-col',
+                    month: 'w-full space-y-0 flex-1 flex flex-col',
+                    table: 'w-full h-full border-collapse flex flex-col flex-1 [&_tbody]:flex-1 [&_tbody]:flex [&_tbody]:flex-col',
                     head_row: 'flex w-full border-b',
                     head_cell: 'flex-1 text-muted-foreground font-normal text-sm p-2 text-center',
-                    row: 'flex w-full border-b',
-                    cell: 'flex-1 h-32 border-r last:border-r-0 relative p-0',
-                    day: 'w-full h-full p-0',
+                    row: 'flex w-full border-b flex-1',
+                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[6rem] lg:min-h-0',
+                    day: 'w-full h-full p-0 flex flex-col',
                     day_selected: 'bg-accent/50 text-foreground',
                     day_today: 'bg-accent text-accent-foreground',
                     day_outside: '', // Handled by custom Day component
                     day_hidden: 'invisible',
                     caption_label: "text-lg font-medium",
-                    caption: "p-4 flex justify-center relative items-center",
+                    caption: "p-4 flex justify-center relative items-center shrink-0",
                 }}
                 components={{
                     Day: (props) => <DayWithEvents {...props} events={filteredEvents || []} onEventClick={handleEditEvent} />

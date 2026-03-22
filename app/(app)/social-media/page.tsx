@@ -9,6 +9,8 @@ import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/pag
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConsensoAlert } from '@/components/consenso-alert';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import SocialPlanner from '@/components/social-planner';
 import {
   AlertCircle,
   Camera,
@@ -103,7 +105,9 @@ function ProjectSocialCard({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const firestore = useFirestore();
 
   const projectGroups = useMemo(
     () => (project.groupIds ?? []).map(id => groups.find(g => g.id === id)?.name).filter(Boolean),
@@ -158,6 +162,26 @@ function ProjectSocialCard({
     } finally {
       setIsUploading(false); setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!firestore) return;
+    setIsCreatingFolder(true);
+    setUploadError(null);
+    try {
+      const res = await fetch('/api/drive/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id, projectName: project.name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore creazione cartella');
+      await updateDoc(doc(firestore, 'progetti', project.id), { driveFolderId: data.folderId });
+    } catch (err: any) {
+      setUploadError(err.message);
+    } finally {
+      setIsCreatingFolder(false);
     }
   };
 
@@ -321,13 +345,20 @@ function ProjectSocialCard({
             </div>
           ) : (
             <div className="rounded-xl border-2 border-dashed p-4 text-center text-muted-foreground space-y-1">
-              <Camera className="h-6 w-6 mx-auto opacity-30" />
+              <Camera className="h-6 w-6 mx-auto opacity-30 mb-2" />
               <p className="text-xs font-medium">Cartella Drive non collegata</p>
-              <Link href={`/progetti/${project.slug}?tab=foto`}>
-                <Button size="sm" variant="outline" className="mt-2 text-xs h-7">
-                  Collega cartella Drive
-                </Button>
-              </Link>
+              <p className="text-[10px] pb-2">Non puoi caricare nulla senza prima aver generato la cartella Drive del progetto.</p>
+              {uploadError && <p className="text-xs text-destructive pb-2">{uploadError}</p>}
+              <Button 
+                onClick={handleCreateFolder} 
+                disabled={isCreatingFolder}
+                size="sm" 
+                variant="outline" 
+                className="text-xs h-7"
+              >
+                {isCreatingFolder ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
+                Genera cartella Drive
+              </Button>
             </div>
           )}
 
@@ -337,20 +368,33 @@ function ProjectSocialCard({
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Post pianificati
               </p>
-              <Link
-                href={`/progetti/${project.slug}?tab=social`}
-                className="flex items-center gap-1 text-xs text-primary hover:underline"
-              >
-                <Plus className="h-3 w-3" /> Nuovo post
-              </Link>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button className="flex items-center gap-1 text-xs text-primary hover:underline">
+                    <Plus className="h-3 w-3" /> Nuovo post
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-5xl w-[90vw] p-0 border-0 bg-transparent shadow-none [&>button]:hidden">
+                  <div className="max-h-[85vh] overflow-y-auto rounded-xl">
+                    <SocialPlanner 
+                      projectId={project.id} 
+                      projectName={project.name} 
+                      projectDescription={project.description}
+                      projectStartDate={project.startDate}
+                      projectEndDate={project.endDate}
+                      groupIds={project.groupIds}
+                      canEdit={true}
+                      availablePhotos={photos} 
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
 
             {upcomingPosts.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">
-                Nessun post pianificato.{' '}
-                <Link href={`/progetti/${project.slug}?tab=social`} className="underline text-primary">
-                  Creane uno
-                </Link>
+                Nessun post pianificato. 
+                 Clicca "+ Nuovo post" per crearne uno ora.
               </p>
             ) : (
               <div className="space-y-1.5">
@@ -506,7 +550,7 @@ export default function SocialMediaPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-6xl w-full mx-auto">
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

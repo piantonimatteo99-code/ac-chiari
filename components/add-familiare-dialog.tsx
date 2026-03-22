@@ -261,7 +261,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
             
             <div className="grid gap-2 border-t pt-4">
                 <Label htmlFor="allergie" className="flex items-center gap-1">
-                  🌿 Allergie / Intolleranze
+                  Allergie / Intolleranze
                 </Label>
                 <Input
                   id="allergie"
@@ -269,7 +269,6 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
                   value={membroData.allergie || ''}
                   onChange={handleChange}
                 />
-                <p className="text-xs text-muted-foreground">Opzionale — visibile agli educatori nel dettaglio dei progetti.</p>
             </div>
 
             {/* Consenso privacy unificato */}
