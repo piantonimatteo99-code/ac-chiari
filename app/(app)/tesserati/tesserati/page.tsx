@@ -9,7 +9,7 @@ import type { Membro } from '../../nucleo-familiare/page';
 import type { Group } from '../../admin/gestione-gruppi/tutti-i-gruppi/page';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuRadioGroup, DropdownMenuRadioItem } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Archive, UserX, Move, Filter } from 'lucide-react';
+import { MoreHorizontal, Archive, UserX, Move, Filter, Camera, Share2, CheckCircle2, XCircle } from 'lucide-react';
 import { UserData, useUserData } from '@/src/hooks/use-user-data';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -327,6 +327,18 @@ export default function TesseratiSubPage() {
               <TableHead>Data di Nascita</TableHead>
               <TableHead>Gruppo</TableHead>
               <TableHead>Tesserato</TableHead>
+              <TableHead className="text-center" title="Consenso foto">
+                <span className="flex items-center justify-center gap-1">
+                  <Camera className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Foto</span>
+                </span>
+              </TableHead>
+              <TableHead className="text-center" title="Consenso social">
+                <span className="flex items-center justify-center gap-1">
+                  <Share2 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Social</span>
+                </span>
+              </TableHead>
               <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
           </TableHeader>
@@ -350,6 +362,30 @@ export default function TesseratiSubPage() {
                         <Badge variant="default" className="bg-green-600 hover:bg-green-700">Tesserato</Badge>
                     ) : (
                         <Badge variant="destructive">Non Tesserato</Badge>
+                    )}
+                  </TableCell>
+                  {/* Consenso Foto */}
+                  <TableCell className="text-center">
+                    {(member as any).consensoFoto ? (
+                      <span title="Consenso foto">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
+                      </span>
+                    ) : (
+                      <span title="Nessun consenso foto">
+                        <XCircle className="h-4 w-4 text-muted-foreground/30 mx-auto" />
+                      </span>
+                    )}
+                  </TableCell>
+                  {/* Consenso Social */}
+                  <TableCell className="text-center">
+                    {(member as any).consensoSocial ? (
+                      <span title="Consenso social">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
+                      </span>
+                    ) : (
+                      <span title="Nessun consenso social">
+                        <XCircle className="h-4 w-4 text-muted-foreground/30 mx-auto" />
+                      </span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -401,7 +437,7 @@ export default function TesseratiSubPage() {
             ) : (
               !isLoading && (
                 <TableRow>
-                   <TableCell colSpan={6} className="h-24 text-center">
+                   <TableCell colSpan={8} className="h-24 text-center">
                     {debouncedSearchTerm || selectedGroup !== 'tutti' || tesseratoStatus !== 'tutti'
                         ? "Nessun membro corrisponde ai filtri selezionati."
                         : "Nessun membro tesserato trovato."
