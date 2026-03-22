@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       updatedAt: new Date(),
     }, { merge: true });
 
-    return NextResponse.redirect(new URL('/admin/configurazione?drive_connected=true', request.url));
+    return NextResponse.redirect(new URL('/admin/configurazione/integrazione-drive?drive_connected=true', request.url));
   } catch (err: any) {
     console.error('Drive OAuth callback error:', err);
     return NextResponse.redirect(new URL(`/admin/configurazione?drive_error=${encodeURIComponent(err.message)}`, request.url));

@@ -1,36 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const SYSTEM_PROMPT = `Sei un social media manager per un'associazione cattolica di Azione Cattolica Ragazzi (ACR) in Italia.
+const SYSTEM_PROMPT = `Sei il social media manager dell'Azione Cattolica Ragazzi (ACR) di Chiari, Italia.
 Scrivi caption per post Instagram che raccontino le attività dei ragazzi delle medie (11-14 anni).
-Lo stile deve essere:
-- Entusiasta, positivo e coinvolgente
-- Usa emoji rilevanti in modo naturale 📸🌟🙏🏻❤️✨🎉💫👫🌈
-- Italiano vivace e moderno
-- Max 5-6 righe + hashtag
-- Racconta una storia o emozione, non solo descrivere
-- Includi sempre alcuni hashtag ACR: #ACR #AzioneeCattolica #ACChiari e hashtag tematici
 
-Esempi di tono:
-"Una serata indimenticabile tra amici, pizza e tante risate! 🍕🥰 I ragazzi delle medie ACR sanno come stare insieme e creare momenti speciali. Grazie a tutti per la vostra partecipazione e il vostro entusiasmo✨\n#ACR #AzioneeCattolica #ACChiari #Comunità #Ragazzi"`;
+REGOLE FONDAMENTALI:
+- Usa SOLO emoji ampiamente supportate da Instagram: 📸 🌟 🙏 ❤️ ✨ 🎉 💫 👫 🌈 💪 🎊 🙌 👋 😊 🌸
+- Mai usare emoji rare o recenti che potrebbero non essere supportate
+- Tono entusiasta, positivo, coinvolgente
+- Italiano vivace e moderno
+- Max 6-7 righe di testo + hashtag
+- Racconta una storia o un'emozione, non solo descrivere
+- Includi sempre hashtag ACR: #ACR #AzioneCattolica #ACChiari e hashtag tematici
+- NON aggiungere grassetto o corsivo — solo testo puro`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { projectName, context } = await request.json();
+    const { projectName, projectDescription, projectDate, projectLocation, context, previousPosts } = await request.json();
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || apiKey.startsWith('inserisci')) {
       return NextResponse.json({ error: 'Chiave API Gemini non configurata. Vai su aistudio.google.com/app/apikey per generarne una.' }, { status: 500 });
     }
 
+    // Build context section
+    const projectInfo = [
+      projectName && `Nome progetto: "${projectName}"`,
+      projectDescription && `Descrizione: "${projectDescription}"`,
+      projectDate && `Data/periodo: ${projectDate}`,
+      projectLocation && `Luogo: ${projectLocation}`,
+    ].filter(Boolean).join('\n');
+
+    // Build examples from past posts (learning)
+    const pastExamples = previousPosts && previousPosts.length > 0
+      ? `\n\nPOST PUBBLICATI IN PRECEDENZA da questo progetto (impara il tono e lo stile):\n${previousPosts.map((p: string, i: number) => `--- Post ${i + 1} ---\n${p}`).join('\n')}`
+      : '';
+
     const prompt = `${SYSTEM_PROMPT}
 
-Progetto: "${projectName || 'Attività ACR'}"
-Descrizione del momento/evento da raccontare: "${context || 'momento speciale con il gruppo'}"
+DETTAGLI DEL PROGETTO:
+${projectInfo || 'Progetto ACR Chiari'}
 
-Genera 3 caption Instagram diverse (dalla più breve alla più narrativa/emotiva), sempre con emoji e hashtag appropriati.
-Separale con "---". Non aggiungere titoli o numerazione.`;
+MOMENTO/EVENTO DA RACCONTARE: "${context || 'momento speciale con il gruppo'}"
+${pastExamples}
 
-    // Use v1 stable API (compatible with Firebase auto-generated Gemini keys)
+Genera 3 caption Instagram diverse (dalla più breve/immediata alla più narrativa/emotiva).
+Separale SOLO con "---" su una riga separata. Non aggiungere titoli o numerazione.`;
+
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
@@ -38,7 +53,7 @@ Separale con "---". Non aggiungere titoli o numerazione.`;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.85, maxOutputTokens: 1024 },
+          generationConfig: { temperature: 0.8, maxOutputTokens: 1200 },
         }),
       }
     );
@@ -51,7 +66,7 @@ Separale con "---". Non aggiungere titoli o numerazione.`;
 
     const data = await res.json();
     const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    const suggestions = text.split('---').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+    const suggestions = text.split(/\n---\n|^---\n/m).map((s: string) => s.trim()).filter((s: string) => s.length > 10);
 
     return NextResponse.json({ suggestions });
 
@@ -59,7 +74,7 @@ Separale con "---". Non aggiungere titoli o numerazione.`;
     console.error('Error generating Instagram suggestions:', err);
     let message = err.message || 'Errore sconosciuto';
     if (message.includes('blocked') || message.includes('CONSUMER_INVALID') || message.includes('API_KEY_INVALID')) {
-      message = 'Chiave API Gemini non valida o non abilitata. Vai su aistudio.google.com/app/apikey → genera una chiave → aggiungila come GEMINI_API_KEY nel file .env.local, poi riavvia il server.';
+      message = 'Chiave API Gemini non valida o non abilitata. Vai su aistudio.google.com/app/apikey.';
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }

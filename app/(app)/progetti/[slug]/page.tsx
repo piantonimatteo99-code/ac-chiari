@@ -669,6 +669,9 @@ export default function ProgettoDettaglioPage() {
                     <MessagePlanner
                         projectId={progetto.id}
                         projectName={progetto.name}
+                        projectDescription={progetto.description}
+                        projectStartDate={progetto.startDate?.toDate ? progetto.startDate.toDate().toLocaleDateString('it-IT') : undefined}
+                        projectEndDate={progetto.endDate?.toDate ? progetto.endDate.toDate().toLocaleDateString('it-IT') : undefined}
                         canEdit={canEdit}
                     />
                 </TabsContent>

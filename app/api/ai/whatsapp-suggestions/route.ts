@@ -1,38 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const SYSTEM_PROMPT = `Sei un assistente per un'associazione cattolica di Azione Cattolica Ragazzi (ACR) in Italia.
-Scrivi messaggi WhatsApp per il gruppo genitori di ragazzi delle medie.
-Lo stile deve essere:
-- Caldo, amichevole e informale ma rispettoso
-- Includi emoji/faccine come 🥰😊🙏🏻✨🎉📍⏰
-- Italiano corretto ma colloquiale
-- Breve e diretto (max 4-5 righe)
-- Inizia con saluto (Buongiorno/Buonasera)
-- Termina con un invito o ringraziamento
+const SYSTEM_PROMPT = `Sei un assistente esperto per l'Azione Cattolica Ragazzi (ACR) di Chiari, Italia.
+Scrivi messaggi WhatsApp per informare i genitori dei ragazzi delle medie (11-14 anni) delle attività del gruppo.
 
-Esempi di stile:
-"Buonasera! Venerdì sera ci sarà incontro come da calendario. Abbiamo pensato di proporre ai ragazzi una serata pizza tra noi medie ACR dalle 19:30 alle 22:30.🥰 Vi chiediamo un contributo di 5€ per la cena che ritireremo la sera stessa."
-
-"Buongiorno a tutti! Come anticipato nelle scorse settimane, questo venerdì parteciperemo come gruppo ACR alla via Crucis organizzata da noi🥰 Il ritrovo è a Samber alle 20:30. Vi aspettiamo numerosi🙏🏻"`;
+REGOLE FONDAMENTALI:
+- Usa SOLO emoji ampiamente supportate da WhatsApp: 😊 🙏 ❤️ 🎉 📅 ⏰ 👥 🍕 ✨ 🌟 👋 📢 🏃 🌈 💪 ✅ 👍 🙌
+- Mai usare emoji rare o recenti che potrebbero non essere supportate
+- Tono caldo, amichevole, informale ma rispettoso
+- Italiano corretto e colloquiale
+- Breve e diretto (max 5-6 righe di testo)
+- Inizia sempre con "Buongiorno" o "Buonasera"
+- Termina con un invito all'azione o ringraziamento
+- NON usare markdown, grassetto, corsivo o altri formattazioni — solo testo puro con emoji`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { projectName, context } = await request.json();
+    const { projectName, projectDescription, projectDate, projectLocation, context, previousMessages } = await request.json();
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || apiKey.startsWith('inserisci')) {
       return NextResponse.json({ error: 'Chiave API Gemini non configurata. Vai su aistudio.google.com/app/apikey per generarne una.' }, { status: 500 });
     }
 
+    // Build context section
+    const projectInfo = [
+      projectName && `Nome progetto: "${projectName}"`,
+      projectDescription && `Descrizione: "${projectDescription}"`,
+      projectDate && `Data/periodo: ${projectDate}`,
+      projectLocation && `Luogo: ${projectLocation}`,
+    ].filter(Boolean).join('\n');
+
+    // Build examples from past messages (learning)
+    const pastExamples = previousMessages && previousMessages.length > 0
+      ? `\n\nMESSAGGI INVIATI IN PRECEDENZA da questo progetto (impara il tono e lo stile):\n${previousMessages.map((m: string, i: number) => `--- Esempio ${i + 1} ---\n${m}`).join('\n')}`
+      : '';
+
     const prompt = `${SYSTEM_PROMPT}
 
-Progetto: "${projectName || 'Incontro ACR'}"
-Tema/contenuto da comunicare: "${context || 'prossimo incontro del gruppo'}"
+DETTAGLI DEL PROGETTO:
+${projectInfo || 'Progetto ACR Chiari'}
 
-Genera 3 bozze di messaggio WhatsApp diverse (dalla più formale alla più creativa), sempre con emoji appropriate. 
-Separale con "---". Non aggiungere titoli o numerazione.`;
+TEMA DA COMUNICARE: "${context || 'prossimo incontro del gruppo'}"
+${pastExamples}
 
-    // Use v1 stable API (compatible with Firebase auto-generated Gemini keys)
+Genera 3 bozze di messaggio WhatsApp diverse (dalla più breve alla più dettagliata).
+Usale come riferimento stilistico se hai esempi passati.
+Separale SOLO con "---" su una riga separata. Non aggiungere titoli o numerazione.`;
+
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
@@ -40,7 +54,7 @@ Separale con "---". Non aggiungere titoli o numerazione.`;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.85, maxOutputTokens: 1024 },
+          generationConfig: { temperature: 0.75, maxOutputTokens: 1200 },
         }),
       }
     );
@@ -53,7 +67,7 @@ Separale con "---". Non aggiungere titoli o numerazione.`;
 
     const data = await res.json();
     const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    const suggestions = text.split('---').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+    const suggestions = text.split(/\n---\n|^---\n/m).map((s: string) => s.trim()).filter((s: string) => s.length > 10);
 
     return NextResponse.json({ suggestions });
 
@@ -61,7 +75,7 @@ Separale con "---". Non aggiungere titoli o numerazione.`;
     console.error('Error generating WhatsApp suggestions:', err);
     let message = err.message || 'Errore sconosciuto';
     if (message.includes('blocked') || message.includes('CONSUMER_INVALID') || message.includes('API_KEY_INVALID')) {
-      message = 'Chiave API Gemini non valida o non abilitata. Vai su aistudio.google.com/app/apikey → genera una chiave → aggiungila come GEMINI_API_KEY nel file .env.local, poi riavvia il server.';
+      message = 'Chiave API Gemini non valida o non abilitata. Vai su aistudio.google.com/app/apikey.';
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }

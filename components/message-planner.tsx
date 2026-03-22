@@ -21,6 +21,7 @@ import {
   AlertCircle,
   CheckCheck,
   Clock,
+  Copy,
   ExternalLink,
   Loader2,
   MessageCircle,
@@ -48,6 +49,9 @@ interface Messaggio {
 interface MessagePlannerProps {
   projectId: string;
   projectName: string;
+  projectDescription?: string;
+  projectStartDate?: string;
+  projectEndDate?: string;
   canEdit: boolean;
 }
 
@@ -79,7 +83,7 @@ function formatBubbleDate(date: any) {
   return format(d, 'EEEE d MMMM', { locale: it });
 }
 
-export default function MessagePlanner({ projectId, projectName, canEdit }: MessagePlannerProps) {
+export default function MessagePlanner({ projectId, projectName, projectDescription, projectStartDate, projectEndDate, canEdit }: MessagePlannerProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { userData } = useUserData();
@@ -149,15 +153,26 @@ export default function MessagePlanner({ projectId, projectName, canEdit }: Mess
   };
 
   const handleGetAiSuggestions = async () => {
-    if (!aiContext.trim()) return;
     setIsLoadingAI(true);
     setAiError(null);
     setAiSuggestions([]);
     try {
+      // Collect last 5 sent messages as learning examples
+      const sentMessages = (messaggi ?? [])
+        .filter(m => m.status === 'inviato')
+        .slice(-5)
+        .map(m => m.text);
+
       const res = await fetch('/api/ai/whatsapp-suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectName, context: aiContext }),
+        body: JSON.stringify({
+          projectName,
+          projectDescription,
+          projectDate: [projectStartDate, projectEndDate].filter(Boolean).join(' → '),
+          context: aiContext,
+          previousMessages: sentMessages,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore AI');
@@ -264,6 +279,17 @@ export default function MessagePlanner({ projectId, projectName, canEdit }: Mess
                                   <Send className="h-3 w-3" />
                                   Apri in WhatsApp
                                 </a>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(msg.text);
+                                    handleStatusChange(msg.id, 'inviato');
+                                  }}
+                                  className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 hover:underline"
+                                  title="Copia testo negli appunti"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                  Copia testo
+                                </button>
                                 <button
                                   onClick={() => handleStatusChange(msg.id, 'scartato')}
                                   className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
