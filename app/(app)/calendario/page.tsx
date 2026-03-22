@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, PlusCircle } from 'lucide-react';
+import { ChevronDown, PlusCircle, CalendarDays, Loader2, Unlink, RefreshCw, ExternalLink } from 'lucide-react';
 import { it } from 'date-fns/locale';
 import { useCollection, useFirestore, useMemoFirebase } from '@/src/firebase';
 import { collection } from 'firebase/firestore';
@@ -23,18 +23,47 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AnnualCalendarView } from '@/components/annual-calendar-view';
 import { WeeklyCalendarView } from '@/components/weekly-calendar-view';
+import { useGoogleCalendar } from '@/src/hooks/use-google-calendar';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+// Extended event type that can include Google Calendar events
+type CalendarEvent = (Evento & { isGoogleCalendar?: false }) | {
+  id: string;
+  title: string;
+  description?: string;
+  startDate: Date;
+  endDate: Date;
+  allDay: boolean;
+  groupIds: string[];
+  isGoogleCalendar: true;
+  htmlLink?: string;
+};
 
 // This is a custom Day component that will render events inside the calendar cell
-function DayWithEvents({ date, displayMonth, onEventClick, ...props }: { date: Date, displayMonth: Date, events: Evento[], onEventClick: (event: Evento) => void }) {
+function DayWithEvents({
+  date,
+  displayMonth,
+  onEventClick,
+  onEmptyClick,
+  canAddEvents,
+  ...props
+}: {
+  date: Date;
+  displayMonth: Date;
+  events: CalendarEvent[];
+  onEventClick: (event: CalendarEvent) => void;
+  onEmptyClick: (date: Date) => void;
+  canAddEvents: boolean;
+}) {
     const isOutside = date.getMonth() !== displayMonth.getMonth();
     
-    // Sort events to have a consistent order and filter for the current day
     const dayEvents = useMemo(() => {
         if (isOutside) return [];
         return props.events
             .filter(event => {
-                const startDate = event.startDate?.toDate ? event.startDate.toDate() : new Date(event.startDate);
-                const endDate = event.endDate?.toDate ? event.endDate.toDate() : new Date(event.endDate);
+                const startDate = event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any);
+                const endDate = event.endDate instanceof Date ? event.endDate : (event.endDate as any)?.toDate ? (event.endDate as any).toDate() : new Date(event.endDate as any);
                 
                 const dayInterval = { start: startOfDay(date), end: endOfDay(date) };
                 const eventInterval = { start: startDate, end: endDate };
@@ -42,24 +71,40 @@ function DayWithEvents({ date, displayMonth, onEventClick, ...props }: { date: D
                 return areIntervalsOverlapping(dayInterval, eventInterval);
             })
             .sort((a, b) => {
-                const startA = a.startDate?.toDate ? a.startDate.toDate() : new Date(a.startDate);
-                const startB = b.startDate?.toDate ? b.startDate.toDate() : new Date(b.startDate);
-                if (startA.getTime() !== startB.getTime()) {
-                    return startA.getTime() - startB.getTime();
-                }
-                const endA = a.endDate?.toDate ? a.endDate.toDate() : new Date(a.endDate);
-                const endB = b.endDate?.toDate ? b.endDate.toDate() : new Date(b.endDate);
-                return endB.getTime() - endA.getTime(); // Longer events first
+                const startA = a.startDate instanceof Date ? a.startDate : (a.startDate as any)?.toDate ? (a.startDate as any).toDate() : new Date(a.startDate as any);
+                const startB = b.startDate instanceof Date ? b.startDate : (b.startDate as any)?.toDate ? (b.startDate as any).toDate() : new Date(b.startDate as any);
+                if (startA.getTime() !== startB.getTime()) return startA.getTime() - startB.getTime();
+                const endA = a.endDate instanceof Date ? a.endDate : (a.endDate as any)?.toDate ? (a.endDate as any).toDate() : new Date(a.endDate as any);
+                const endB = b.endDate instanceof Date ? b.endDate : (b.endDate as any)?.toDate ? (b.endDate as any).toDate() : new Date(b.endDate as any);
+                return endB.getTime() - endA.getTime();
             });
     }, [date, isOutside, props.events]);
 
+    const handleCellClick = (e: React.MouseEvent) => {
+        // Only trigger if clicking directly on the cell background (not on an event)
+        if (e.target === e.currentTarget && !isOutside && canAddEvents) {
+            onEmptyClick(date);
+        }
+    };
+
     return (
-        <div className={cn("w-full h-full flex flex-col relative p-0", isOutside && "opacity-30")}>
-            <div className="self-end font-normal p-1">{date.getDate()}</div>
+        <div
+          className={cn("w-full h-full flex flex-col relative p-0 group", isOutside && "opacity-30")}
+          onClick={handleCellClick}
+        >
+            <div
+              className={cn(
+                "self-end font-normal p-1 text-sm",
+                canAddEvents && !isOutside && "cursor-pointer"
+              )}
+              onClick={() => { if (!isOutside && canAddEvents) onEmptyClick(date); }}
+            >
+              {date.getDate()}
+            </div>
             <div className="flex-1 flex flex-col overflow-hidden gap-1 pt-1">
                 {dayEvents.map((event) => {
-                    const startDate = event.startDate?.toDate ? event.startDate.toDate() : new Date(event.startDate);
-                    const endDate = event.endDate?.toDate ? event.endDate.toDate() : new Date(event.endDate);
+                    const startDate = event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any);
+                    const endDate = event.endDate instanceof Date ? event.endDate : (event.endDate as any)?.toDate ? (event.endDate as any).toDate() : new Date(event.endDate as any);
 
                     const isStart = isSameDay(date, startDate);
                     const isEnd = isSameDay(date, endDate);
@@ -76,14 +121,18 @@ function DayWithEvents({ date, displayMonth, onEventClick, ...props }: { date: D
                     }
                     
                     const showTitle = isStart || date.getDay() === 1;
+                    const isGcal = event.isGoogleCalendar;
 
                     return (
                         <button
                             key={event.id}
-                            onClick={() => onEventClick(event)}
+                            onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
                             className={cn(
-                                'bg-primary text-primary-foreground text-xs font-normal block text-left px-2 py-0.5 w-full cursor-pointer',
-                                'relative w-[calc(100%+1px)]', // Overlap the right border of the cell
+                                'text-xs font-normal block text-left px-2 py-0.5 w-full cursor-pointer',
+                                'relative w-[calc(100%+1px)]',
+                                isGcal
+                                  ? 'bg-emerald-500 text-white'
+                                  : 'bg-primary text-primary-foreground',
                                 roundingClass
                             )}
                         >
@@ -96,6 +145,12 @@ function DayWithEvents({ date, displayMonth, onEventClick, ...props }: { date: D
                     );
                 })}
             </div>
+            {/* Plus hint on hover for empty cells */}
+            {canAddEvents && !isOutside && dayEvents.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <PlusCircle className="h-5 w-5 text-muted-foreground/40" />
+              </div>
+            )}
         </div>
     );
 }
@@ -107,10 +162,12 @@ export default function CalendarioPage() {
   const [selectedGroup, setSelectedGroup] = useState<string>('tutti');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Evento | null>(null);
+  const [initialDate, setInitialDate] = useState<Date | null>(null);
   const [view, setView] = useState<CalendarView>('month');
 
   const firestore = useFirestore();
   const { userData } = useUserData();
+  const googleCalendar = useGoogleCalendar();
 
   const canAddEvents = useMemo(() => {
     return userData?.roles?.includes('admin') || userData?.roles?.includes('educatore');
@@ -134,29 +191,57 @@ export default function CalendarioPage() {
     return events.filter(event => event.groupIds.includes(selectedGroup));
   }, [events, selectedGroup]);
 
-  const handleEditEvent = (event: Evento) => {
-    setEditingEvent(event);
+  // Merge app events with personal Google Calendar events
+  const allEvents = useMemo<CalendarEvent[]>(() => {
+    const appEvents: CalendarEvent[] = filteredEvents.map(e => ({ ...e, isGoogleCalendar: false as const }));
+    if (!googleCalendar.isConnected) return appEvents;
+    // Show Google Calendar events only when viewing "all groups" or no group filter
+    const gcalEvents = selectedGroup === 'tutti' ? googleCalendar.events : [];
+    return [...appEvents, ...gcalEvents];
+  }, [filteredEvents, googleCalendar.isConnected, googleCalendar.events, selectedGroup]);
+
+  const handleEditEvent = (event: CalendarEvent) => {
+    if (event.isGoogleCalendar) {
+      // For Google Calendar events, open a link to the event
+      if ((event as any).htmlLink) {
+        window.open((event as any).htmlLink, '_blank');
+      }
+      return;
+    }
+    setEditingEvent(event as Evento);
+    setInitialDate(null);
     setIsDialogOpen(true);
   };
   
   const handleAddNew = () => {
     setEditingEvent(null);
+    setInitialDate(null);
     setIsDialogOpen(true);
-  }
+  };
+
+  const handleCellClick = useCallback((date: Date) => {
+    if (!canAddEvents) return;
+    setEditingEvent(null);
+    setInitialDate(date);
+    setIsDialogOpen(true);
+  }, [canAddEvents]);
   
   const handleDialogChange = (isOpen: boolean) => {
     if (!isOpen) {
         setEditingEvent(null);
+        setInitialDate(null);
     }
     setIsDialogOpen(isOpen);
-  }
-  
+  };
+
   return (
+    <TooltipProvider>
     <div className="flex flex-col pb-4 h-[calc(100vh-6rem)] gap-4">
       <AddEventDialog 
         isOpen={isDialogOpen}
         onOpenChange={handleDialogChange}
         eventToEdit={editingEvent}
+        initialDate={initialDate}
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
@@ -167,6 +252,67 @@ export default function CalendarioPage() {
               <PlusCircle className="mr-2 h-4 w-4" />
               Aggiungi Impegno
             </Button>
+          )}
+
+          {/* Google Calendar Sync Button */}
+          {googleCalendar.isConnected === null ? (
+            <Button variant="outline" disabled size="sm">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Caricamento...
+            </Button>
+          ) : googleCalendar.isConnected ? (
+            <div className="flex items-center gap-1">
+              <Badge variant="outline" className="border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950 gap-1.5 py-1 px-2">
+                <CalendarDays className="h-3.5 w-3.5" />
+                <span className="text-xs">Google Calendar</span>
+              </Badge>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => googleCalendar.loadEvents()}
+                    disabled={googleCalendar.isLoadingEvents}
+                  >
+                    <RefreshCw className={cn("h-3.5 w-3.5", googleCalendar.isLoadingEvents && "animate-spin")} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Aggiorna eventi Google Calendar</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => googleCalendar.disconnect()}
+                  >
+                    <Unlink className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Disconnetti Google Calendar</TooltipContent>
+              </Tooltip>
+            </div>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => googleCalendar.connect()}
+                  className="gap-2 border-dashed"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  Connetti Google Calendar
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Sincronizza il tuo calendario Google personale. Gli eventi personali saranno visibili solo a te.</TooltipContent>
+            </Tooltip>
+          )}
+
+          {googleCalendar.error && (
+            <span className="text-xs text-destructive">{googleCalendar.error}</span>
           )}
 
           <DropdownMenu>
@@ -233,7 +379,15 @@ export default function CalendarioPage() {
                     caption: "p-4 flex justify-center relative items-center shrink-0",
                 }}
                 components={{
-                    Day: (props) => <DayWithEvents {...props} events={filteredEvents || []} onEventClick={handleEditEvent} />
+                    Day: (props) => (
+                      <DayWithEvents
+                        {...props}
+                        events={allEvents}
+                        onEventClick={handleEditEvent}
+                        onEmptyClick={handleCellClick}
+                        canAddEvents={canAddEvents}
+                      />
+                    )
                 }}
             />
             </CardContent>
@@ -247,6 +401,21 @@ export default function CalendarioPage() {
       {view === 'week' && (
         <WeeklyCalendarView events={filteredEvents || []} onEventClick={handleEditEvent} />
       )}
+
+      {/* Legend */}
+      {googleCalendar.isConnected && (
+        <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm bg-primary" />
+            Impegni AC Chiari
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />
+            Il tuo Google Calendar (solo tu)
+          </div>
+        </div>
+      )}
     </div>
+    </TooltipProvider>
   );
 }

@@ -544,8 +544,8 @@ const handleConfirm = async () => {
 
     try {
         const fileRef = ref(storage, storagePath);
-        const receiptUrl = await getDownloadURL(fileRef);
-        
+        let finalReceiptUrl = await getDownloadURL(fileRef);
+
         // Caricamento in Google Drive (Pagamenti)
         if (file) {
             try {
@@ -555,12 +555,23 @@ const handleConfirm = async () => {
                 const memberNames = paymentItems.map(item => item.memberName).join('_');
                 const driveFileName = `Ricevuta_${paymentId}_${memberNames}`;
                 formDataDrive.append('name', driveFileName);
+
+                const projectNames = Array.from(new Set(paymentItems.map(item => item.raccoltaNome))).join('_');
+                const todayFormatted = format(new Date(), 'dd-MM-yyyy');
+                formDataDrive.append('folderName', `${projectNames} - ${todayFormatted}`);
                 
-                // Fire-and-forget or await? Let's await but not block the whole thing if it fails
-                await fetch('/api/drive/upload-pagamento', {
+                const driveRes = await fetch('/api/drive/upload-pagamento', {
                     method: 'POST',
                     body: formDataDrive
                 });
+                const driveData = await driveRes.json();
+                
+                if (driveData.file?.webViewLink) {
+                    finalReceiptUrl = driveData.file.webViewLink;
+
+                    // Delete the temporary file from Firebase Storage to save space since it's now on Drive
+                    deleteObject(fileRef).catch(e => console.error("Error deleting temp storage file:", e));
+                }
             } catch (driveErr) {
                 console.error("Errore salvataggio in Drive:", driveErr);
             }
@@ -572,7 +583,7 @@ const handleConfirm = async () => {
 
         const paymentInfo: any = {
             status: 'committed',
-            receiptUrl: receiptUrl,
+            receiptUrl: finalReceiptUrl,
             timestamp: serverTimestamp(),
             analysisData: formData,
             userId: user.uid,

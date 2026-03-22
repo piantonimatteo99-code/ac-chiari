@@ -24,6 +24,7 @@ import { format } from 'date-fns';
 import { Separator } from './ui/separator';
 import { slugify } from '@/lib/utils';
 import { ConfirmationDialog } from './confirmation-dialog';
+import { useGoogleCalendar } from '@/src/hooks/use-google-calendar';
 
 export interface Evento {
     id: string;
@@ -60,9 +61,10 @@ interface AddEventDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   eventToEdit?: Evento | null;
+  initialDate?: Date | null;
 }
 
-export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDialogProps) {
+export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate }: AddEventDialogProps) {
     const firestore = useFirestore();
     const isEditing = !!eventToEdit;
 
@@ -84,6 +86,9 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     
+    const { isConnected, pushEvent } = useGoogleCalendar();
+    const [pushToGcal, setPushToGcal] = useState(false);
+    
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
 
@@ -93,8 +98,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
     }, [firestore]);
     const { data: groups, isLoading: isLoadingGroups } = useCollection<Group>(groupsQuery);
     
-    const resetForm = useCallback(() => {
-        const now = new Date();
+    const resetForm = useCallback((defaultDate?: Date | null) => {
+        const now = defaultDate ?? new Date();
         setTitle('');
         setDescription('');
         setStartDate(now);
@@ -108,7 +113,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
         setIsProject(false);
         setNotes('');
         setCompleted(false);
-    }, []);
+        setPushToGcal(!!isConnected);
+    }, [isConnected]);
 
     useEffect(() => {
         if (isOpen) {
@@ -130,10 +136,10 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
                 setCompleted(eventToEdit.completed || false);
 
              } else {
-                resetForm();
+                resetForm(initialDate);
             }
         }
-    }, [isOpen, eventToEdit, isEditing, resetForm]);
+    }, [isOpen, eventToEdit, isEditing, resetForm, initialDate]);
 
     useEffect(() => {
         if (startDate && endDate && startDate > endDate) {
@@ -271,6 +277,16 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
                     };
                     await addDoc(collection(firestore, 'eventi'), { ...eventData, createdAt: serverTimestamp() });
                 }
+
+                if (pushToGcal) {
+                    await pushEvent({
+                        title,
+                        description: description || notes,
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        allDay
+                    });
+                }
             }
 
             onOpenChange(false);
@@ -380,6 +396,13 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit }: AddEventDi
                             <Switch id="all-day" checked={allDay} onCheckedChange={setAllDay} />
                             <Label htmlFor="all-day">Tutto il giorno</Label>
                         </div>
+                        
+                        {!isEditing && isConnected && (
+                            <div className="flex items-center space-x-2 mt-2">
+                                <Checkbox id="push-gcal" checked={pushToGcal} onCheckedChange={(c) => setPushToGcal(!!c)} />
+                                <Label htmlFor="push-gcal" className="font-normal">Aggiungi anche al mio <b>Google Calendar</b> (privato)</Label>
+                            </div>
+                        )}
 
                         <Separator />
                         

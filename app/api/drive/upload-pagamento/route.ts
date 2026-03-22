@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const name = formData.get('name') as string | null;
+    const folderName = formData.get('folderName') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'file richiesto' }, { status: 400 });
@@ -67,10 +68,16 @@ export async function POST(request: NextRequest) {
     // 2. Get or create "Pagamenti" folder inside root
     const pagamentiFolderId = await getOrCreateFolder(accessToken, PAGAMENTI_FOLDER_NAME, rootFolderId);
 
-    // 3. Upload file to "Pagamenti" folder
+    // 3. Get or create project specific folder if provided
+    let targetFolderId = pagamentiFolderId;
+    if (folderName) {
+      targetFolderId = await getOrCreateFolder(accessToken, folderName, pagamentiFolderId);
+    }
+
+    // 4. Upload file to target folder
     const metadata = {
       name: fileName,
-      parents: [pagamentiFolderId],
+      parents: [targetFolderId],
     };
 
     const boundary = '-------314159265358979323846';
@@ -113,6 +120,20 @@ export async function POST(request: NextRequest) {
     }
 
     const uploadedFile = await uploadRes.json();
+
+    // Make the file accessible to anyone with the link so it can be viewed in the app
+    await fetch(`${DRIVE_API}/files/${uploadedFile.id}/permissions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        role: 'reader',
+        type: 'anyone',
+      }),
+    });
+
     return NextResponse.json({ file: uploadedFile });
 
   } catch (err: any) {
