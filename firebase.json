@@ -12,5 +12,16 @@
       ],
       "runtime": "nodejs20"
     }
+  ],
+  "apphosting": [
+    {
+      "backendId": "studio",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "*.local",
+        "firebase-debug.*.log"
+      ]
+    }
   ]
 }
