@@ -25,6 +25,7 @@ interface EmailPayload {
 async function getFamilyHeadEmail(uid: string): Promise<{ email: string; displayName: string } | null> {
   const db = admin.firestore();
 
+  // ── Step 1: lookup diretto in users/{uid} ────────────────────────────────
   const userDoc = await db.collection('users').doc(uid).get();
   if (userDoc.exists) {
     const data = userDoc.data()!;
@@ -37,16 +38,53 @@ async function getFamilyHeadEmail(uid: string): Promise<{ email: string; display
     if (email) return { email, displayName };
   }
 
-  // Fallback to Firebase Auth record
+  // ── Step 2: uid potrebbe essere l'ID del documento "famiglie", non l'UID utente.
+  // Le famiglie create da admin possono avere doc-id != uidCapofamiglia.
+  // Leggiamo famiglie/{uid}.uidCapofamiglia e riproviamo. ────────────────────
+  try {
+    const famigliaDoc = await db.collection('famiglie').doc(uid).get();
+    if (famigliaDoc.exists) {
+      const famigliaData = famigliaDoc.data()!;
+      const uidCapofamiglia = famigliaData.uidCapofamiglia as string | undefined;
+      if (uidCapofamiglia && uidCapofamiglia !== uid) {
+        // Ora cerchiamo il vero capofamiglia
+        const capDoc = await db.collection('users').doc(uidCapofamiglia).get();
+        if (capDoc.exists) {
+          const data = capDoc.data()!;
+          const email = data.email as string | undefined;
+          const displayName = (
+            data.displayName ||
+            `${data.nome || ''} ${data.cognome || ''}`.trim() ||
+            'Genitore'
+          ) as string;
+          if (email) return { email, displayName };
+        }
+        // Fallback Auth per uidCapofamiglia
+        try {
+          const authUser = await admin.auth().getUser(uidCapofamiglia);
+          if (authUser.email) {
+            return { email: authUser.email, displayName: authUser.displayName || 'Genitore' };
+          }
+        } catch {
+          console.warn(`[email] Auth lookup fallito per uidCapofamiglia: ${uidCapofamiglia}`);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn(`[email] Lookup famiglie fallito per uid: ${uid}`, e);
+  }
+
+  // ── Step 3: ultimo tentativo — Firebase Auth diretto ─────────────────────
   try {
     const authUser = await admin.auth().getUser(uid);
     if (authUser.email) {
       return { email: authUser.email, displayName: authUser.displayName || 'Genitore' };
     }
   } catch {
-    console.warn(`[email] Auth user not found for uid: ${uid}`);
+    console.warn(`[email] Auth user non trovato per uid: ${uid}`);
   }
 
+  console.error(`[email] ❌ Impossibile trovare email per uid: ${uid}`);
   return null;
 }
 
