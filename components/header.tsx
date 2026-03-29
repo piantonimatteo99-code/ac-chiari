@@ -47,16 +47,16 @@ export default function Header() {
             <span className="sr-only">Apri menu</span>
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-72 bg-sidebar-bg border-sidebar-border">
+        <SheetContent side="left" className="p-0 w-72 bg-sidebar-bg border-sidebar-border flex flex-col h-full">
           {/* Header del drawer mobile */}
-          <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
+          <div className="flex-shrink-0 flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
             <AcChiariLogo size={36} />
             <Link href="/dashboard" onClick={closeSheet}>
               <p className="text-sm font-bold text-sidebar-fg">AC Chiari</p>
               <p className="text-xs text-sidebar-muted">Azione Cattolica</p>
             </Link>
           </div>
-          <nav className="sidebar-scroll px-3 py-4 flex-1 overflow-y-auto">
+          <nav className="sidebar-scroll px-3 py-4 flex-1 min-h-0 overflow-y-auto">
             <SidebarLinks isMobile={true} onLinkClick={closeSheet} />
           </nav>
         </SheetContent>

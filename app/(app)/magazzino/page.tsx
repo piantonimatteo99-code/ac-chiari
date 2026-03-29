@@ -441,8 +441,13 @@ function TabAlimenti() {
                           {badgeScadenza(giorni)}
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        R{p.posizione?.ripiano} C{p.posizione?.colonna}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <MiniShelf posizione={p.posizione} />
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            R{p.posizione?.ripiano} C{p.posizione?.colonna}
+                          </span>
+                        </div>
                       </TableCell>
                       {isEducatore && (
                         <TableCell>
