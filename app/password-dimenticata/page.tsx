@@ -82,11 +82,7 @@ export default function PasswordDimenticataPage() {
             <h1 className="text-3xl font-bold text-sidebar-fg tracking-tight">Azione Cattolica</h1>
             <p className="text-lg font-medium text-sidebar-muted mt-1">Chiari</p>
           </div>
-          <div className="max-w-xs">
-            <p className="text-sidebar-muted text-sm leading-relaxed">
-              Gestionale interno dell&apos;associazione. Accedi per gestire iscrizioni, contabilità, gruppi e molto altro.
-            </p>
-          </div>
+
         </div>
       </div>
 
