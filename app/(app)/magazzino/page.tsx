@@ -517,32 +517,34 @@ function TabAlimenti() {
                             </div>
                           </AccordionTrigger>
                           <AccordionContent className="px-4 pb-4 pt-2">
-                            <div className="grid grid-cols-[1fr_auto_auto] items-start gap-6 pt-3 border-t">
+                            <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t">
 
-                              {/* Scadenza */}
-                              <div>
-                                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Scadenza</p>
-                                <p className="text-sm font-semibold">{formatData(p.dataScadenza)}</p>
-                                {(() => {
-                                  const g = giorniScadenza(p.dataScadenza);
-                                  if (g < 0) return <p className="text-xs text-destructive font-medium mt-0.5">Scaduto</p>;
-                                  if (g <= GIORNI_ALLERTA) return <p className="text-xs text-amber-600 font-medium mt-0.5">Scade in {g} giorn{g === 1 ? 'o' : 'i'}</p>;
-                                  return null;
-                                })()}
-                              </div>
+                              <div className="flex items-center gap-12 sm:gap-24">
+                                {/* Scadenza */}
+                                <div>
+                                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Scadenza</p>
+                                  <p className="text-sm font-semibold">{formatData(p.dataScadenza)}</p>
+                                  {(() => {
+                                    const g = giorniScadenza(p.dataScadenza);
+                                    if (g < 0) return <p className="text-xs text-destructive font-medium mt-0.5">Scaduto</p>;
+                                    if (g <= GIORNI_ALLERTA) return <p className="text-xs text-amber-600 font-medium mt-0.5">Scade in {g} giorn{g === 1 ? 'o' : 'i'}</p>;
+                                    return null;
+                                  })()}
+                                </div>
 
-                              {/* Posizione scaffale */}
-                              <div className="flex flex-col items-center gap-1.5">
-                                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Posizione</p>
-                                <MiniShelf posizione={p.posizione} />
-                                <span className="text-[11px] font-mono font-semibold bg-muted px-2 py-0.5 rounded">
-                                  R{p.posizione?.ripiano} · C{p.posizione?.colonna}
-                                </span>
+                                {/* Posizione scaffale */}
+                                <div className="flex flex-col items-center gap-1.5">
+                                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Posizione</p>
+                                  <MiniShelf posizione={p.posizione} />
+                                  <span className="text-[11px] font-mono font-semibold bg-muted px-2 py-0.5 rounded">
+                                    R{p.posizione?.ripiano} · C{p.posizione?.colonna}
+                                  </span>
+                                </div>
                               </div>
 
                               {/* Azioni */}
                               {isEducatore && (
-                                <div className="flex items-start pt-1">
+                                <div className="flex items-center pt-1 mt-2 sm:mt-0">
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                       <Button
