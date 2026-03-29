@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
 import { initAdminApp } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase-admin';
+import { Timestamp } from 'firebase-admin/firestore';
 
 function buildRegistrationEmailHtml(displayName: string, verificationLink: string): string {
   const today = new Date().toLocaleDateString('it-IT', {
@@ -99,6 +101,25 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('[email] ✅ Email di registrazione inviata a', email);
+
+    // Notifica admin: nuovo utente registrato
+    try {
+      if (adminDb) {
+        await adminDb.collection('notifiche').add({
+          userId: '__admin__',
+          title: `🆕 Nuovo utente registrato`,
+          body: `${displayName} (${email}) si è appena registrato.`,
+          type: 'generale',
+          href: '/admin/gestione-utenti',
+          letta: false,
+          eventType: 'nuovo_utente',
+          createdAt: Timestamp.now(),
+        });
+      }
+    } catch (notifErr) {
+      console.warn('[email] Notifica admin fallita (non bloccante):', notifErr);
+    }
+
     return NextResponse.json({ success: true, sentTo: email });
 
   } catch (err: any) {

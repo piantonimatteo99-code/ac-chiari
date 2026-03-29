@@ -82,7 +82,9 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabType>('notifiche');
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushSupported, setPushSupported] = useState<boolean | null>(null); // null = checking
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const firestore = useFirestore();
@@ -104,28 +106,39 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Check push permission
+  // Check push permission and FCM support on mount
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPushEnabled(Notification.permission === 'granted');
+    if (typeof window === 'undefined') return;
+    // Check basic Notification API
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      setPushSupported(false);
+      return;
     }
+    if (Notification.permission === 'granted') setPushEnabled(true);
+    // Check FCM isSupported() dynamically to avoid crash on Safari/iOS
+    import('firebase/messaging')
+      .then(({ isSupported }) => isSupported())
+      .then(supported => setPushSupported(supported))
+      .catch(() => setPushSupported(false));
   }, []);
 
   const handleEnablePush = async () => {
     if (!user || !firestore || !firebaseApp) return;
     setPushLoading(true);
+    setPushError(null);
     try {
+      if (!('Notification' in window)) {
+        setPushError('Il tuo browser non supporta le notifiche.');
+        return;
+      }
       const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        alert('Permesso notifiche negato. Abilitalo dalle impostazioni del browser.');
+      if (permission === 'denied') {
+        setPushError('Permesso negato. Abilitalo nelle impostazioni del browser.');
         return;
       }
-      const { getMessaging, getToken, isSupported } = await import('firebase/messaging');
-      const supported = await isSupported().catch(() => false);
-      if (!supported) {
-        alert('Le notifiche push non sono supportate su questo browser.');
-        return;
-      }
+      if (permission !== 'granted') return;
+
+      const { getMessaging, getToken } = await import('firebase/messaging');
       const messaging = getMessaging(firebaseApp);
       const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
       const token = await getToken(messaging, { vapidKey });
@@ -137,9 +150,9 @@ export function NotificationBell() {
         );
         setPushEnabled(true);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Errore push:', err);
-      alert('Impossibile abilitare le notifiche push. Riprova su HTTPS.');
+      setPushError('Attivazione fallita. Riprova tra qualche secondo.');
     } finally {
       setPushLoading(false);
     }
@@ -241,17 +254,35 @@ export function NotificationBell() {
               </ScrollArea>
 
               {/* Footer: push */}
-              <div className="border-t px-4 py-3 bg-muted/20">
+              <div className="border-t px-4 py-3 bg-muted/20 space-y-2">
                 {pushEnabled ? (
                   <div className="flex items-center gap-2 text-xs text-green-600">
                     <Check className="h-3.5 w-3.5" />
                     <span>Notifiche push attive sul dispositivo</span>
                   </div>
+                ) : pushSupported === false ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <BellOff className="h-3.5 w-3.5" />
+                    <span>Push non disponibili su Safari/iOS — usa Chrome su Android</span>
+                  </div>
+                ) : pushSupported === true ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full text-xs gap-2"
+                      onClick={handleEnablePush}
+                      disabled={pushLoading}
+                    >
+                      <Bell className="h-3.5 w-3.5" />
+                      {pushLoading ? 'Attivazione...' : '🔔 Attiva notifiche push sul dispositivo'}
+                    </Button>
+                    {pushError && (
+                      <p className="text-[11px] text-destructive text-center">{pushError}</p>
+                    )}
+                  </>
                 ) : (
-                  <Button size="sm" variant="outline" className="w-full text-xs gap-2" onClick={handleEnablePush} disabled={pushLoading}>
-                    <Bell className="h-3.5 w-3.5" />
-                    {pushLoading ? 'Attivazione...' : '🔔 Attiva notifiche push sul dispositivo'}
-                  </Button>
+                  <div className="text-xs text-muted-foreground text-center">Verifica supporto...</div>
                 )}
               </div>
             </>

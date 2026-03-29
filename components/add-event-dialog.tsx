@@ -20,11 +20,13 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from './ui/textarea';
 import { Switch } from './ui/switch';
 import { Loader2, Trash2 } from 'lucide-react';
+import { useGoogleCalendar } from '@/src/hooks/use-google-calendar';
+import { triggerNotification } from '@/lib/trigger-notification';
 import { format } from 'date-fns';
+import { it as itLocale } from 'date-fns/locale';
 import { Separator } from './ui/separator';
 import { slugify } from '@/lib/utils';
 import { ConfirmationDialog } from './confirmation-dialog';
-import { useGoogleCalendar } from '@/src/hooks/use-google-calendar';
 
 export interface Evento {
     id: string;
@@ -218,6 +220,15 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
 
                 await batch.commit();
 
+                // Trigger notifica broadcast
+                const startFormatted = format(finalStartDate, 'd MMMM yyyy', { locale: itLocale });
+                triggerNotification({
+                  eventType: 'evento_modificato',
+                  title: `📅 Impegno modificato: ${title}`,
+                  body: `L'impegno "${title}" è stato aggiornato (${startFormatted}).`,
+                  href: '/calendario',
+                });
+
             } else {
                 // --- CREATE LOGIC ---
                 if (isProject) {
@@ -255,6 +266,15 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
 
                     await batch.commit();
 
+                    // Trigger notifica progetto/evento
+                    const startFormatted = format(finalStartDate, 'd MMMM yyyy', { locale: itLocale });
+                    triggerNotification({
+                      eventType: 'progetto_nuovo',
+                      title: `🚀 Nuovo progetto: ${title}`,
+                      body: `È stato creato il progetto "${title}" con inizio il ${startFormatted}.`,
+                      href: '/progetti',
+                    });
+
                     // Fire-and-forget: create Drive folder in background (non-blocking)
                     // This will silently fail if Drive is not yet configured, which is fine
                     fetch('/api/drive/folders', {
@@ -276,6 +296,15 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         completed,
                     };
                     await addDoc(collection(firestore, 'eventi'), { ...eventData, createdAt: serverTimestamp() });
+
+                    // Trigger notifica nuovo evento
+                    const startFormatted = format(finalStartDate, 'd MMMM yyyy', { locale: itLocale });
+                    triggerNotification({
+                      eventType: 'evento_nuovo',
+                      title: `📅 Nuovo impegno: ${title}`,
+                      body: `È stato aggiunto un nuovo impegno: "${title}" il ${startFormatted}.`,
+                      href: '/calendario',
+                    });
                 }
 
                 if (pushToGcal) {
@@ -318,6 +347,15 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
             }
             
             await batch.commit();
+
+            // Trigger notifica eliminazione evento
+            triggerNotification({
+              eventType: 'evento_rimosso',
+              title: `❌ Impegno annullato: ${eventToEdit.title}`,
+              body: `L'impegno "${eventToEdit.title}" è stato eliminato dal calendario.`,
+              href: '/calendario',
+            });
+
             onOpenChange(false);
 
         } catch (err) {

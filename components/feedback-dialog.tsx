@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useUser } from '@/src/firebase';
 import { addFeedback, FeedbackType } from '@/lib/firebase/feedback';
+import { triggerNotification } from '@/lib/trigger-notification';
 import { Button } from '@/components/ui/button';
 import { Lightbulb, Loader2 } from 'lucide-react';
 import {
@@ -44,6 +45,15 @@ export function FeedbackDialog() {
         description,
         pathname || '/'
       );
+
+      // Notifica admin feedback
+      triggerNotification({
+        eventType: 'nuovo_feedback',
+        title: `💬 Nuovo feedback: ${type}`,
+        body: `${user.displayName || user.email} ha inviato un ${type.toLowerCase()}: "${description.substring(0, 80)}${description.length > 80 ? '...' : ''}"`,
+        href: '/admin/segnalazioni',
+        userId: '__broadcast__',
+      });
       toast({
         title: 'Segnalazione inviata!',
         description: 'Grazie per averci aiutato a migliorare.',

@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { DatePicker } from '@/components/ui/date-picker';
 import { useCollection, useFirestore, useMemoFirebase } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import { triggerNotification } from '@/lib/trigger-notification';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -192,11 +193,19 @@ export function NuovaRaccoltaDialog({ isOpen, onOpenChange, raccoltaToEdit, init
             let finalId: string;
 
             if (isEditing && raccoltaToEdit) {
-                 await setDoc(doc(firestore, 'raccolte', raccoltaToEdit.id), raccoltaData, { merge: true });
-                 finalId = raccoltaToEdit.id;
+                await setDoc(doc(firestore, 'raccolte', raccoltaToEdit.id), raccoltaData, { merge: true });
+                finalId = raccoltaToEdit.id;
             } else {
                 const newDocRef = await addDoc(collection(firestore, 'raccolte'), { ...raccoltaData, createdAt: serverTimestamp() });
                 finalId = newDocRef.id;
+
+                // Notifica broadcast nuova raccolta
+                triggerNotification({
+                  eventType: 'raccolta_nuova',
+                  title: `💳 Nuova raccolta: ${nomeRaccolta}`,
+                  body: `È stata aperta una nuova raccolta fondi: "${nomeRaccolta}". Accedi per visualizzare le scadenze.`,
+                  href: `/contabilita/raccolte`,
+                });
             }
             
             if (onSaveSuccess) {
