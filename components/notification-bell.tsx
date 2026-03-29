@@ -12,7 +12,6 @@ import { it as itLocale } from 'date-fns/locale';
 import Link from 'next/link';
 import { useFirestore, useUser, useFirebaseApp } from '@/src/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { getMessaging, getToken } from 'firebase/messaging';
 
 const NOTIFICA_ICONS: Record<Notifica['type'], string> = {
   pagamento: '💳',
@@ -127,12 +126,20 @@ export function NotificationBell() {
         return;
       }
 
+      // Dynamic import to avoid crashing on Safari/iOS
+      const { getMessaging, getToken, isSupported } = await import('firebase/messaging');
+      const supported = await isSupported().catch(() => false);
+      if (!supported) {
+        alert('Le notifiche push non sono supportate su questo browser (Safari/iOS non supportato).');
+        setPushLoading(false);
+        return;
+      }
+
       const messaging = getMessaging(firebaseApp);
       const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
       const token = await getToken(messaging, { vapidKey });
 
       if (token) {
-        // Save token to Firestore under the user's document
         await setDoc(
           doc(firestore, 'users', user.uid, 'fcmTokens', token.substring(0, 20)),
           { token, createdAt: serverTimestamp(), platform: 'web' },
