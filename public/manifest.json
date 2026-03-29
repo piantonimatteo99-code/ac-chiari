@@ -1,0 +1,27 @@
+{
+  "name": "AC Chiari — Azione Cattolica",
+  "short_name": "AC Chiari",
+  "description": "Gestionale interno per l'associazione Azione Cattolica di Chiari",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1d4ed8",
+  "orientation": "portrait-primary",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "/ac-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/ac-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "education"],
+  "prefer_related_applications": false
+}

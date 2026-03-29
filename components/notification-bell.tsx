@@ -12,9 +12,18 @@ import { useUserNotifPreferences } from '@/src/hooks/use-user-notif-preferences'
 import { formatDistanceToNow } from 'date-fns';
 import { it as itLocale } from 'date-fns/locale';
 import Link from 'next/link';
-import { useFirestore, useUser, useFirebaseApp } from '@/src/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useUser } from '@/src/firebase';
 import { NOTIFICA_TYPE_DEFINITIONS, getNotificasByCategory } from '@/lib/notification-types';
+
+/** Converts a base64url VAPID public key to Uint8Array for PushManager.subscribe() */
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const arr = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+  return arr.buffer;
+}
 
 const NOTIFICA_ICONS: Record<Notifica['type'], string> = {
   pagamento: '💳',
@@ -87,8 +96,6 @@ export function NotificationBell() {
   const [pushError, setPushError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const firestore = useFirestore();
-  const firebaseApp = useFirebaseApp();
   const { user } = useUser();
 
   // Close on outside click
@@ -106,53 +113,60 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Check push permission and FCM support on mount
+  // Check native Web Push support on mount (works on iOS PWA, Android, Desktop)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    // Check basic Notification API
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      setPushSupported(false);
-      return;
+    const supported =
+      'Notification' in window &&
+      'serviceWorker' in navigator &&
+      'PushManager' in window;
+    setPushSupported(supported);
+    if (supported && Notification.permission === 'granted') {
+      // Check if already subscribed
+      navigator.serviceWorker.ready.then(reg =>
+        reg.pushManager.getSubscription().then(sub => {
+          if (sub) setPushEnabled(true);
+        })
+      ).catch(() => {});
     }
-    if (Notification.permission === 'granted') setPushEnabled(true);
-    // Check FCM isSupported() dynamically to avoid crash on Safari/iOS
-    import('firebase/messaging')
-      .then(({ isSupported }) => isSupported())
-      .then(supported => setPushSupported(supported))
-      .catch(() => setPushSupported(false));
   }, []);
 
   const handleEnablePush = async () => {
-    if (!user || !firestore || !firebaseApp) return;
+    if (!user) return;
     setPushLoading(true);
     setPushError(null);
     try {
-      if (!('Notification' in window)) {
-        setPushError('Il tuo browser non supporta le notifiche.');
-        return;
-      }
+      // 1. Request notification permission
       const permission = await Notification.requestPermission();
       if (permission === 'denied') {
-        setPushError('Permesso negato. Abilitalo nelle impostazioni del browser.');
+        setPushError('Permesso negato. Abilitalo nelle impostazioni.');
         return;
       }
       if (permission !== 'granted') return;
 
-      const { getMessaging, getToken } = await import('firebase/messaging');
-      const messaging = getMessaging(firebaseApp);
-      const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
-      const token = await getToken(messaging, { vapidKey });
-      if (token) {
-        await setDoc(
-          doc(firestore, 'users', user.uid, 'fcmTokens', token.substring(0, 20)),
-          { token, createdAt: serverTimestamp(), platform: 'web' },
-          { merge: true }
-        );
-        setPushEnabled(true);
-      }
+      // 2. Get the active service worker
+      const reg = await navigator.serviceWorker.ready;
+
+      // 3. Subscribe via native Web Push (works on iOS 16.4+ PWA + Android + Desktop)
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(
+          process.env.NEXT_PUBLIC_WEBPUSH_PUBLIC_KEY!
+        ),
+      });
+
+      // 4. Save subscription to Firestore via API
+      const res = await fetch('/api/webpush/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user.uid, subscription: subscription.toJSON() }),
+      });
+
+      if (!res.ok) throw new Error('Salvataggio subscription fallito');
+      setPushEnabled(true);
     } catch (err: any) {
       console.error('Errore push:', err);
-      setPushError('Attivazione fallita. Riprova tra qualche secondo.');
+      setPushError('Attivazione fallita. Assicurati di usare HTTPS e che l\'app sia installata.');
     } finally {
       setPushLoading(false);
     }

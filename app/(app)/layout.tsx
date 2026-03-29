@@ -8,7 +8,7 @@ import { useUser } from '@/src/firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '@/src/firebase';
 import { Toaster } from '@/components/ui/toaster';
-import { FcmInitializer } from '@/components/fcm-initializer';
+import { IosInstallBanner } from '@/components/ios-install-banner';
 
 export default function AppLayout({
   children,
@@ -49,7 +49,7 @@ export default function AppLayout({
         </main>
       </div>
       <Toaster />
-      <FcmInitializer />
+      <IosInstallBanner />
     </div>
   );
 }
