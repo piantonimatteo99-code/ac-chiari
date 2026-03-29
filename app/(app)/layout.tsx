@@ -8,6 +8,7 @@ import { useUser } from '@/src/firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '@/src/firebase';
 import { Toaster } from '@/components/ui/toaster';
+import { FcmInitializer } from '@/components/fcm-initializer';
 
 export default function AppLayout({
   children,
@@ -48,6 +49,7 @@ export default function AppLayout({
         </main>
       </div>
       <Toaster />
+      <FcmInitializer />
     </div>
   );
 }

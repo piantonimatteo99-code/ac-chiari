@@ -33,6 +33,21 @@ export function initAdminApp() {
   initialized = true;
 }
 
+// Convenience accessors — call initAdminApp() first
+export const adminDb = new Proxy({} as admin.firestore.Firestore, {
+  get(_target, prop) {
+    initAdminApp();
+    return (admin.firestore() as any)[prop];
+  },
+});
+
+export const adminMessaging = new Proxy({} as admin.messaging.Messaging, {
+  get(_target, prop) {
+    initAdminApp();
+    return (admin.messaging() as any)[prop];
+  },
+});
+
 /**
  * Gets a fresh Google Drive access token using the stored refresh token.
  * The refresh token is saved in Firestore by the OAuth callback.

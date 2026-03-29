@@ -54,7 +54,20 @@ export default function SignupPage() {
         createdAt: serverTimestamp(),
       });
 
-      await sendEmailVerification(userCredential.user);
+      try {
+        const emailRes = await fetch('/api/send-registration-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, displayName: `${nome} ${cognome}` })
+        });
+        
+        if (!emailRes.ok) {
+          throw new Error('Errore nella risposta api, fallback');
+        }
+      } catch (err) {
+        console.warn("Invio custom email fallito, uso opzione di default:", err);
+        await sendEmailVerification(userCredential.user);
+      }
       await signOut(auth);
       
       router.push('/login?signup_success=true');

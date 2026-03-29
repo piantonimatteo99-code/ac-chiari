@@ -20,6 +20,7 @@ import { useCallback, useMemo, memo } from 'react';
 import type { Progetto } from '@/app/(app)/progetti/page';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
 import { differenceInDays, parseISO } from 'date-fns';
+import { useNotifications } from '@/src/hooks/use-notifications';
 
 
 const GIORNI_ALLERTA_MAGAZZINO = 7;
@@ -157,6 +158,9 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
       } catch { return false; }
     }).length;
   }, [alimentiScadenza]);
+
+  // Notifiche non lette (badge sulla dashboard)
+  const { unreadCount: notificheNonLette } = useNotifications();
   
   const userAndFamilyMembers = useMemo((): (typeof userData | Membro)[] => {
       if (!userData && !membri) return [];
@@ -248,7 +252,9 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     const isActive = pathname === item.href;
     const Icon = item.icon;
     const isMagazzino = item.href === '/magazzino';
-    const showBadge = isMagazzino && prodottiInScadenzaCount > 0;
+    const isDashboard = item.href === '/dashboard';
+    const showMagazzinoBadge = isMagazzino && prodottiInScadenzaCount > 0;
+    const showNotifBadge = isDashboard && notificheNonLette > 0;
     return (
       <Link
         href={item.href}
@@ -262,9 +268,14 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
       >
         {Icon && <Icon className="h-5 w-5" />}
         <span className="flex-1">{item.label}</span>
-        {showBadge && (
+        {showMagazzinoBadge && (
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
             {prodottiInScadenzaCount}
+          </span>
+        )}
+        {showNotifBadge && (
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            {notificheNonLette > 9 ? '9+' : notificheNonLette}
           </span>
         )}
       </Link>

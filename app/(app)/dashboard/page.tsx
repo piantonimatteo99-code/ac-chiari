@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/src/firebase';
 import { collection, query, where, collectionGroup } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
+import { useNotifications } from '@/src/hooks/use-notifications';
+import Link from 'next/link';
 import {
   format,
   isFuture,
@@ -20,10 +22,10 @@ import {
   areIntervalsOverlapping,
   startOfDay,
   endOfDay,
+  formatDistanceToNow,
 } from 'date-fns';
 import { it as itLocale } from 'date-fns/locale';
-import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -38,11 +40,13 @@ import {
   Users,
   CreditCard,
   Bell,
+  BellRing,
   ClipboardList,
   CheckCircle2,
   XCircle,
   AlertCircle,
   TrendingUp,
+  ExternalLink,
 } from 'lucide-react';
 import type { Evento } from '@/components/add-event-dialog';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
@@ -485,20 +489,93 @@ function RecentAttendanceCard({ userId, membri }: { userId: string; membri: Memb
 }
 
 // ============================================================
-// NOTICES PLACEHOLDER
+// NOTICES CARD (live from Firestore)
 // ============================================================
+const NOTIFICA_ICONS: Record<string, string> = {
+  pagamento: '💳', evento: '📅', iscrizione: '📝',
+  magazzino: '📦', generale: '📢', feedback: '💬',
+};
+const NOTIFICA_BG: Record<string, string> = {
+  pagamento: 'bg-amber-500/10 text-amber-600',
+  evento: 'bg-blue-500/10 text-blue-600',
+  iscrizione: 'bg-purple-500/10 text-purple-600',
+  magazzino: 'bg-red-500/10 text-red-600',
+  generale: 'bg-green-500/10 text-green-600',
+  feedback: 'bg-gray-500/10 text-gray-600',
+};
+
 function NoticesCard() {
+  const { notifiche, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const recent = notifiche.slice(0, 5);
+
   return (
-    <Card className="border-dashed">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
-          <Bell className="h-4 w-4" /> Avvisi & Comunicazioni
+    <Card>
+      <CardHeader className="pb-3 flex flex-row items-center justify-between">
+        <CardTitle className="text-base flex items-center gap-2">
+          {unreadCount > 0
+            ? <BellRing className="h-4 w-4 text-primary animate-pulse" />
+            : <Bell className="h-4 w-4 text-primary" />}
+          Avvisi & Comunicazioni
+          {unreadCount > 0 && (
+            <span className="inline-flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white">
+              {unreadCount}
+            </span>
+          )}
         </CardTitle>
-        <CardDescription>Sezione in arrivo — qui verranno mostrate le notizie e gli avvisi importanti.</CardDescription>
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllAsRead}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Segna tutte lette
+          </button>
+        )}
       </CardHeader>
-      <CardContent className="text-center text-muted-foreground py-6">
-        <Bell className="h-10 w-10 mx-auto mb-2 opacity-20" />
-        <p className="text-sm">Nessun avviso</p>
+      <CardContent className="p-0">
+        {recent.length === 0 ? (
+          <div className="flex flex-col items-center py-8 text-center px-4">
+            <Bell className="h-8 w-8 text-muted-foreground/20 mb-2" />
+            <p className="text-sm text-muted-foreground">Nessun avviso al momento</p>
+          </div>
+        ) : (
+          <div className="divide-y">
+            {recent.map(n => {
+              const ts = n.createdAt?.toDate ? n.createdAt.toDate() : n.createdAt ? new Date(n.createdAt) : null;
+              const inner = (
+                <div
+                  key={n.id}
+                  className={cn(
+                    'flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors group',
+                    !n.letta && 'bg-primary/5'
+                  )}
+                  onClick={() => markAsRead(n.id)}
+                >
+                  <div className={cn('rounded-full p-1.5 text-xs shrink-0 mt-0.5', NOTIFICA_BG[n.type] ?? 'bg-muted text-muted-foreground')}>
+                    {NOTIFICA_ICONS[n.type] ?? '🔔'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={cn('text-sm leading-tight', !n.letta ? 'font-semibold' : 'font-medium')}>
+                        {n.title}
+                      </p>
+                      {!n.letta && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
+                    {ts && (
+                      <p className="text-[10px] text-muted-foreground/50 mt-1">
+                        {formatDistanceToNow(ts, { addSuffix: true, locale: itLocale })}
+                      </p>
+                    )}
+                  </div>
+                  {n.href && <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                </div>
+              );
+              return n.href
+                ? <Link key={n.id} href={n.href} className="block">{inner}</Link>
+                : <div key={n.id}>{inner}</div>;
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
