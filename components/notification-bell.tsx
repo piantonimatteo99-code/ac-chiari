@@ -195,12 +195,21 @@ export function NotificationBell() {
         )}
       </Button>
 
-      {/* Panel */}
+      {/* Panel — fixed full-width on mobile, absolute dropdown on desktop */}
       {open && (
-        <div
-          ref={panelRef}
-          className="absolute right-0 top-full mt-2 w-[380px] max-w-[calc(100vw-1rem)] rounded-xl border bg-card shadow-xl z-50 overflow-hidden"
-        >
+        <>
+          {/* Mobile overlay backdrop */}
+          <div className="fixed inset-0 bg-black/20 z-40 sm:hidden" onClick={() => setOpen(false)} />
+          <div
+            ref={panelRef}
+            className={cn(
+              "z-50 overflow-hidden bg-card shadow-xl border rounded-xl",
+              // Mobile: fixed, full width, anchored to top of screen below header
+              "fixed left-2 right-2 top-16 sm:static",
+              // Desktop: absolute dropdown anchored to button
+              "sm:absolute sm:right-0 sm:left-auto sm:top-full sm:mt-2 sm:w-[380px]"
+            )}
+          >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
             <div className="flex items-center gap-2">
@@ -353,6 +362,7 @@ export function NotificationBell() {
             </>
           )}
         </div>
+        </>
       )}
     </div>
   );

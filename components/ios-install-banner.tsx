@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Share, PlusSquare, Smartphone } from 'lucide-react';
+import { Share, PlusSquare, Smartphone, X } from 'lucide-react';
 
 /**
- * Shows an "Add to Home Screen" banner on iOS Safari.
+ * Full-screen modal guiding iOS Safari users to install the PWA.
  * Only appears when:
  *  - Device is iOS (iPhone/iPad)
  *  - Browser is Safari (not already installed as PWA)
- *  - User hasn't dismissed it before (localStorage key)
+ *  - User hasn't dismissed it this session
  */
 export function IosInstallBanner() {
   const [show, setShow] = useState(false);
@@ -16,68 +16,129 @@ export function IosInstallBanner() {
   useEffect(() => {
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const isInStandaloneMode =
-      ('standalone' in navigator && (navigator as any).standalone) ||
+      ('standalone' in navigator && (navigator as any).standalone === true) ||
       window.matchMedia('(display-mode: standalone)').matches;
-    const dismissed = localStorage.getItem('ios-install-banner-dismissed');
+    const dismissed = sessionStorage.getItem('ios-install-dismissed');
 
     if (isIos && !isInStandaloneMode && !dismissed) {
-      // Small delay so it doesn't pop up immediately on page load
-      const t = setTimeout(() => setShow(true), 3000);
+      const t = setTimeout(() => setShow(true), 2000);
       return () => clearTimeout(t);
     }
   }, []);
 
   const dismiss = () => {
-    localStorage.setItem('ios-install-banner-dismissed', '1');
+    sessionStorage.setItem('ios-install-dismissed', '1');
     setShow(false);
   };
 
   if (!show) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe animate-in slide-in-from-bottom-4 duration-300">
-      <div className="relative max-w-md mx-auto rounded-2xl border bg-card shadow-2xl p-4">
-        <button
-          onClick={dismiss}
-          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
-          aria-label="Chiudi"
-        >
-          <X className="h-4 w-4" />
-        </button>
+    <div className="fixed inset-0 z-[100] flex flex-col">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={dismiss} />
 
-        <div className="flex items-start gap-3 pr-6">
-          <div className="rounded-xl bg-primary/10 p-2 shrink-0">
-            <Smartphone className="h-5 w-5 text-primary" />
+      {/* Modal full-screen card */}
+      <div className="relative z-10 flex flex-col h-full bg-background">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-14 pb-6 bg-gradient-to-b from-primary/10 to-background">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-primary p-3 shadow-lg">
+              <Smartphone className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-primary uppercase tracking-wider">AC Chiari</p>
+              <h1 className="text-xl font-bold">Installa l'app</h1>
+            </div>
           </div>
+          <button
+            onClick={dismiss}
+            className="rounded-full p-2 bg-muted hover:bg-muted/80 transition-colors"
+            aria-label="Chiudi"
+          >
+            <X className="h-5 w-5 text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
+          {/* Why install */}
+          <div className="rounded-2xl bg-primary/5 border border-primary/10 p-5">
+            <p className="text-sm font-semibold text-primary mb-2">Perché installare l'app?</p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-center gap-2">
+                <span className="text-green-500 font-bold">✓</span>
+                Ricevi <strong className="text-foreground">notifiche push</strong> su iPhone
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-500 font-bold">✓</span>
+                Accesso rapido dalla schermata Home
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-500 font-bold">✓</span>
+                Esperienza a schermo intero senza barra browser
+              </li>
+            </ul>
+          </div>
+
+          {/* Steps */}
           <div>
-            <p className="text-sm font-semibold">Installa su iPhone</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Per ricevere notifiche push su iPhone, aggiungi l'app alla schermata Home.
-            </p>
+            <p className="text-sm font-semibold mb-4">Come installarla — 3 passi:</p>
+            <div className="space-y-4">
+              <div className="flex gap-4 items-start">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">1</span>
+                <div className="flex-1 rounded-xl bg-muted p-4">
+                  <p className="text-sm font-medium">Tocca il pulsante <strong>Condividi</strong></p>
+                  <p className="text-xs text-muted-foreground mt-1">È il pulsante con la freccia verso l'alto nella barra del browser Safari, in basso allo schermo</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="rounded-lg bg-blue-500 p-2">
+                      <Share className="h-5 w-5 text-white" />
+                    </div>
+                    <span className="text-xs text-muted-foreground">Pulsante Condividi</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 items-start">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">2</span>
+                <div className="flex-1 rounded-xl bg-muted p-4">
+                  <p className="text-sm font-medium">Tocca <strong>"Aggiungi alla schermata Home"</strong></p>
+                  <p className="text-xs text-muted-foreground mt-1">Scorri verso il basso nel menu di condivisione finché non vedi questa opzione</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="rounded-lg bg-gray-500 p-2">
+                      <PlusSquare className="h-5 w-5 text-white" />
+                    </div>
+                    <span className="text-xs text-muted-foreground">Aggiungi alla schermata Home</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 items-start">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">3</span>
+                <div className="flex-1 rounded-xl bg-muted p-4">
+                  <p className="text-sm font-medium">Apri l'app e <strong>attiva le notifiche</strong></p>
+                  <p className="text-xs text-muted-foreground mt-1">Tocca l'icona AC Chiari sulla schermata Home, poi vai nella campanella 🔔 e attiva le notifiche push</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-[10px] font-bold shrink-0">1</span>
-            <span>Tocca <Share className="inline h-3.5 w-3.5 mx-0.5" /> <strong>Condividi</strong> in basso nella barra del browser</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-[10px] font-bold shrink-0">2</span>
-            <span>Scorri e tocca <PlusSquare className="inline h-3.5 w-3.5 mx-0.5" /> <strong>"Aggiungi alla schermata Home"</strong></span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-[10px] font-bold shrink-0">3</span>
-            <span>Apri l'app dalla schermata Home e attiva le notifiche</span>
-          </div>
+        {/* Footer */}
+        <div className="shrink-0 px-6 pb-10 pt-4 border-t bg-background space-y-3">
+          <button
+            onClick={dismiss}
+            className="w-full rounded-2xl bg-primary text-white py-4 font-semibold text-base shadow-lg hover:bg-primary/90 transition-colors"
+          >
+            Ho capito, installo dopo
+          </button>
+          <button
+            onClick={dismiss}
+            className="w-full rounded-2xl py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Non mostrare più
+          </button>
         </div>
-
-        <button
-          onClick={dismiss}
-          className="mt-4 w-full rounded-lg bg-muted py-2 text-xs font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
-        >
-          Ho capito, installa dopo
-        </button>
       </div>
     </div>
   );
