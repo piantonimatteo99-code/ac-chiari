@@ -270,8 +270,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                     const startFormatted = format(finalStartDate, 'd MMMM yyyy', { locale: itLocale });
                     triggerNotification({
                       eventType: 'progetto_nuovo',
-                      title: `🚀 Nuovo progetto: ${title}`,
-                      body: `È stato creato il progetto "${title}" con inizio il ${startFormatted}.`,
+                      title: `🚀 Nuovo evento: ${title}`,
+                      body: `È stato creato l'evento "${title}" con inizio il ${startFormatted}.`,
                       href: '/progetti',
                     });
 

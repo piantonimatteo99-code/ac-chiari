@@ -203,11 +203,11 @@ export function NotificationBell() {
           <div
             ref={panelRef}
             className={cn(
-              "z-50 overflow-hidden bg-card shadow-xl border rounded-xl",
-              // Mobile: fixed, full width, anchored to top of screen below header
-              "fixed left-2 right-2 top-16 sm:static",
+              "z-50 overflow-hidden bg-card shadow-xl border rounded-xl flex flex-col",
+              // Mobile: fixed, full width, anchored below header, max height to leave room for safe area
+              "fixed left-2 right-2 top-16 max-h-[calc(100dvh-5rem)] sm:static sm:max-h-none",
               // Desktop: absolute dropdown anchored to button
-              "sm:absolute sm:right-0 sm:left-auto sm:top-full sm:mt-2 sm:w-[380px]"
+              "sm:absolute sm:right-0 sm:left-auto sm:top-full sm:mt-2 sm:w-[380px] sm:max-h-[85vh]"
             )}
           >
           {/* Header */}
@@ -259,8 +259,8 @@ export function NotificationBell() {
 
           {/* TAB: NOTIFICHE */}
           {tab === 'notifiche' && (
-            <>
-              <ScrollArea className="max-h-[calc(100vh-16rem)]">
+            <div className="flex flex-col flex-1 min-h-0">
+              <ScrollArea className="flex-1 min-h-0">
                 {notifiche.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center px-4">
                     <Bell className="h-10 w-10 text-muted-foreground/30 mb-3" />
@@ -308,13 +308,13 @@ export function NotificationBell() {
                   <div className="text-xs text-muted-foreground text-center">Verifica supporto...</div>
                 )}
               </div>
-            </>
+            </div>
           )}
 
           {/* TAB: PREFERENZE */}
           {tab === 'preferenze' && (
-            <>
-              <ScrollArea className="max-h-[calc(100vh-16rem)]">
+            <div className="flex flex-col flex-1 min-h-0">
+              <ScrollArea className="flex-1 min-h-0">
                 <div className="p-4 space-y-1 text-xs text-muted-foreground border-b">
                   Personalizza quali notifiche vuoi ricevere. Le notifiche disattivate globalmente dall'admin non possono essere abilitate.
                 </div>
@@ -353,13 +353,13 @@ export function NotificationBell() {
               </ScrollArea>
 
               {/* Footer: reset */}
-              <div className="border-t px-4 py-3 bg-muted/20">
+              <div className="border-t px-4 py-3 bg-muted/20 shrink-0">
                 <Button variant="ghost" size="sm" className="w-full text-xs gap-2 text-muted-foreground" onClick={resetToDefaults}>
                   <RotateCcw className="h-3 w-3" />
                   Ripristina preferenze predefinite
                 </Button>
               </div>
-            </>
+            </div>
           )}
         </div>
         </>
