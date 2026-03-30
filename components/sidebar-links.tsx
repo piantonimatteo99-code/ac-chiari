@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Landmark, Building, Shield, GraduationCap, UserCog, FileCog, Group as GroupIcon, ShieldCheck, PenSquare, FlaskConical, CircleHelp, Coins, Calendar, Warehouse, Share2, Tent } from 'lucide-react';
+import { Home, Users, Landmark, Building, Shield, GraduationCap, UserCog, FileCog, Group as GroupIcon, ShieldCheck, PenSquare, FlaskConical, CircleHelp, Coins, Calendar, Warehouse, Share2, Tent, Gavel } from 'lucide-react';
 import { cn, slugify } from '@/lib/utils';
 import { useUserData } from '@/src/hooks/use-user-data';
 import {
@@ -33,6 +33,7 @@ const navConfig = [
   { id: 'calendario', href: '/calendario', label: 'Calendario', icon: Calendar, subItems: [] },
   { id: 'magazzino', href: '/magazzino', label: 'Magazzino', icon: Warehouse, subItems: [] },
   { id: 'campi', href: '/campi', label: 'Campi', icon: Tent, subItems: [] },
+  { id: 'consiglio', href: '/consiglio', label: 'Consiglio', icon: Gavel, subItems: [] },
   { 
     id: 'contabilita',
     label: 'Contabilità',
@@ -420,6 +421,11 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
           return <div key={item.id}>{renderMieiGruppi()}</div>;
         }
         if (item.id === 'social-media') {
+          // Only show to educatori and admin
+          if (!userData?.roles?.includes('educatore') && !userData?.roles?.includes('admin')) return null;
+          return <div key={item.id}>{renderLink(item as { href: string; icon: React.ElementType; label: string })}</div>;
+        }
+        if (item.id === 'consiglio') {
           // Only show to educatori and admin
           if (!userData?.roles?.includes('educatore') && !userData?.roles?.includes('admin')) return null;
           return <div key={item.id}>{renderLink(item as { href: string; icon: React.ElementType; label: string })}</div>;

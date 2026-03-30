@@ -9,7 +9,7 @@ import { useFirestore, useCollection, useMemoFirebase, useStorage } from '@/src/
 import { collection, doc, setDoc, getDocs, writeBatch, collectionGroup, deleteField, updateDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Home, FlaskConical, PenSquare, Building, Calendar, Warehouse, Tent, Landmark, ShieldCheck, Users, Share2, Shield, GraduationCap, UserCog, FileCog, CircleHelp, ChevronRight, FolderOpen } from 'lucide-react';
+import { Terminal, Home, FlaskConical, PenSquare, Building, Calendar, Warehouse, Tent, Landmark, ShieldCheck, Users, Share2, Shield, GraduationCap, UserCog, FileCog, CircleHelp, ChevronRight, FolderOpen, Gavel } from 'lucide-react';
 import type { Group } from '../../gestione-gruppi/tutti-i-gruppi/page';
 import { ref, getMetadata } from "firebase/storage";
 
@@ -32,6 +32,7 @@ const ALL_PAGES: Omit<PagePermission, 'visible' | 'requiresEducatorRoleCheck' | 
   { id: 'calendario', label: 'Calendario', path: '/calendario' },
   { id: 'magazzino', label: 'Magazzino', path: '/magazzino' },
   { id: 'campi', label: 'Campi', path: '/campi' },
+  { id: 'consiglio', label: 'Consiglio', path: '/consiglio' },
   { id: 'social-media', label: 'Social Media', path: '/social-media' },
   { id: 'contabilita-conto', label: 'Contabilità / Conto', path: '/contabilita/conto' },
   { id: 'contabilita-transazioni-da-controllare', label: 'Contabilità / Transazioni da Controllare', path: '/contabilita/transazioni-da-controllare' },
@@ -76,6 +77,13 @@ const SITE_MAP: SiteMapNode[] = [
       { label: 'Pullman', badge: 'tab' },
       { label: 'Spesa', badge: 'tab' },
       { label: 'Preventivo', badge: 'tab' },
+    ],
+  },
+  {
+    label: 'Consiglio', path: '/consiglio', icon: Gavel, badge: 'solo educatori',
+    children: [
+      { label: 'Ordine del Giorno', badge: 'tab' },
+      { label: 'Verbali', badge: 'tab' },
     ],
   },
   {
