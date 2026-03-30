@@ -27,6 +27,7 @@ import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@
 import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { ConfirmationDialog } from '@/components/confirmation-dialog';
+import { PageTutorial } from '@/components/page-tutorial';
 
 export interface Membro {
   id: string;
@@ -234,6 +235,27 @@ export default function NucleoFamiliarePage() {
           Clicca su un membro per modificare in qualsiasi momento anagrafica, allergie e consensi fotografici.
         </p>
       )}
+
+      <PageTutorial
+        pageId="nucleo-familiare"
+        steps={[
+          {
+            icon: '👨‍👩‍👧‍👦',
+            title: 'Il tuo Nucleo Familiare',
+            description: 'Questa pagina è il centro di gestione della tua famiglia. Qui puoi inserire te stesso, i tuoi figli o parenti.',
+          },
+          {
+            icon: '➕',
+            title: 'Aggiungi un membro',
+            description: 'Premi "Nuovo Membro" per aggiungere una persona. Ti verrà chiesto di compilare i suoi dati anagrafici e sanitari essenziali.',
+          },
+          {
+            icon: '✏️',
+            title: 'Gestione e Privacy',
+            description: 'I dati restano strettamente confidenziali. Puoi modificare in ogni momento consensi e referenze contattate cliccando "Modifica" sul nome della persona.',
+          }
+        ]}
+      />
     </div>
   );
 }

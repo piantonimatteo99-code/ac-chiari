@@ -12,6 +12,7 @@ import { IscrizioneFamigliaCard, type PaymentSelection } from '@/components/iscr
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import type { Tariffa } from '../tesserati/tariffe/page';
+import { PageTutorial } from '@/components/page-tutorial';
 import dynamic from 'next/dynamic';
 
 const UploadReceiptDialog = dynamic(() => 
@@ -245,6 +246,27 @@ export default function IscrizioniPage() {
                     }}
                 />
             )}
+
+            <PageTutorial
+                pageId="iscrizioni"
+                steps={[
+                    {
+                        icon: '✍️',
+                        title: 'Centro Iscrizioni e Pagamenti',
+                        description: 'Da questa pagina puoi gestire tutte le iscrizioni ai campi, i tesseramenti e i pagamenti associati.',
+                    },
+                    {
+                        icon: '💶',
+                        title: 'Gestione Pagamenti',
+                        description: 'Scegli le voci da saldare (quote o caparre), vedrai il totale aggiornarsi in basso. Puoi pagare per te o per i membri del tuo nucleo in un\'unica soluzione.',
+                    },
+                    {
+                        icon: '🧾',
+                        title: 'Carica la ricevuta',
+                        description: 'Dopo aver cliccato "Paga e Carica Ricevuta", potrai allegare la prova di pagamento (es. screenshot del bonifico). Gli educatori la valideranno al più presto.',
+                    }
+                ]}
+            />
         </div>
     );
 }

@@ -51,6 +51,7 @@ import {
 import type { Evento } from '@/components/add-event-dialog';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
+import { PageTutorial } from '@/components/page-tutorial';
 
 const getCurrentMembershipYear = () => {
   const today = new Date();
@@ -799,6 +800,32 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      <PageTutorial
+        pageId="dashboard"
+        steps={[
+          {
+            icon: '👋',
+            title: 'Benvenuto nella Dashboard',
+            description: 'Questa è la tua home page. Qui trovi un riepilogo di tutto ciò che è importante: prossimi eventi, avvisi, pagamenti e presenze.',
+          },
+          {
+            icon: '📅',
+            title: 'Calendario e Prossimi Impegni',
+            description: 'Il mini-calendario mostra i tuoi eventi del mese con colori per gruppo. Clicca su un giorno per vedere i dettagli. A sinistra trovi la lista degli impegni in arrivo.',
+          },
+          {
+            icon: '🔔',
+            title: 'Avvisi & Comunicazioni',
+            description: 'Qui ricevi le notifiche dall\'amministrazione. I messaggi in grassetto con il punto blu non sono ancora stati letti. Clicca su "Segna tutte lette" per azzerarli.',
+          },
+          {
+            icon: '💳',
+            title: 'Pagamenti in Scadenza',
+            description: 'Vedi a colpo d\'occhio le raccolte con pagamenti da effettuare per i tuoi familiari. Clicca su "Paga Ora" per andare alla pagina Iscrizioni.',
+          },
+        ]}
+      />
     </div>
   );
 }
