@@ -48,7 +48,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="AC Chiari" />
         <link rel="apple-touch-icon" href="/ac-logo.jpg" />
         <link rel="manifest" href="/manifest.json" />
-        {/* Register unified service worker */}
+        {/* Register unified service worker + capture beforeinstallprompt early */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -59,6 +59,16 @@ export default function RootLayout({
                     .catch(function(err) { console.warn('[SW] Registration failed:', err); });
                 });
               }
+              // Capture install prompt before React hydrates to avoid race condition
+              window.__pwaInstallPrompt = null;
+              window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                window.__pwaInstallPrompt = e;
+                window.dispatchEvent(new Event('pwa-prompt-ready'));
+              });
+              window.addEventListener('appinstalled', function() {
+                window.__pwaInstallPrompt = null;
+              });
             `,
           }}
         />

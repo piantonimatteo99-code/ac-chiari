@@ -10,6 +10,12 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+declare global {
+  interface Window {
+    __pwaInstallPrompt: BeforeInstallPromptEvent | null;
+  }
+}
+
 const STORAGE_KEY = 'pwa-install-dismissed-v1';
 
 function detectPlatform(): Platform {
@@ -21,7 +27,7 @@ function detectPlatform(): Platform {
     ('standalone' in navigator && (navigator as any).standalone === true) ||
     window.matchMedia('(display-mode: standalone)').matches;
 
-  if (isInStandaloneMode) return null; // Already installed
+  if (isInStandaloneMode) return null;
   if (isIos) return 'ios';
   if (isAndroid) return 'android';
   return 'desktop';
@@ -38,34 +44,47 @@ export function PwaInstallDialog() {
     if (dismissed) return;
 
     const detected = detectPlatform();
+    if (!detected) return;
     setPlatform(detected);
 
-    if (detected === 'android' || detected === 'desktop') {
-      // Listen for the native install prompt (Android + Desktop Chrome/Edge)
-      const handler = (e: Event) => {
-        e.preventDefault();
-        setDeferredPrompt(e as BeforeInstallPromptEvent);
-        const t = setTimeout(() => setShow(true), 1500);
-        return () => clearTimeout(t);
-      };
-      window.addEventListener('beforeinstallprompt', handler);
-
-      // Also show after a small delay even if the prompt hasn't fired yet
-      // (to show manual instructions as fallback)
-      const fallback = setTimeout(() => {
-        setShow(true);
-      }, 2000);
-
-      return () => {
-        window.removeEventListener('beforeinstallprompt', handler);
-        clearTimeout(fallback);
-      };
-    }
-
     if (detected === 'ios') {
+      // iOS: always show manual instructions after short delay
       const t = setTimeout(() => setShow(true), 1500);
       return () => clearTimeout(t);
     }
+
+    // Android / Desktop: try to get the native install prompt
+    // The prompt may already be captured globally (fired before React mounted)
+    const existingPrompt = window.__pwaInstallPrompt;
+    if (existingPrompt) {
+      setDeferredPrompt(existingPrompt);
+      const t = setTimeout(() => setShow(true), 1500);
+      return () => clearTimeout(t);
+    }
+
+    // Listen for the custom event dispatched by our early-capture script
+    const onPromptReady = () => {
+      const p = window.__pwaInstallPrompt;
+      if (p) {
+        setDeferredPrompt(p);
+        setShow(true);
+      }
+    };
+    window.addEventListener('pwa-prompt-ready', onPromptReady);
+
+    // Android fallback: if browser never fires the event, still show manual instructions
+    let fallback: ReturnType<typeof setTimeout> | null = null;
+    if (detected === 'android') {
+      fallback = setTimeout(() => {
+        if (!window.__pwaInstallPrompt) setShow(true);
+      }, 3000);
+    }
+    // Desktop: only show when native prompt fires (no fallback — manual steps useless on desktop)
+
+    return () => {
+      window.removeEventListener('pwa-prompt-ready', onPromptReady);
+      if (fallback) clearTimeout(fallback);
+    };
   }, []);
 
   const dismiss = (permanent = true) => {
