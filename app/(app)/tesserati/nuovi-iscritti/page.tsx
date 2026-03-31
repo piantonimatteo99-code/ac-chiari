@@ -64,14 +64,34 @@ function stringSimilarity(a: string, b: string): number {
   const maxLen = Math.max(s1.length, s2.length);
   return (maxLen - levenshtein(s1, s2)) / maxLen;
 }
+function getYearFromDate(dateStr?: string): number | null {
+  if (!dateStr) return null;
+  if (dateStr.includes('-')) return parseInt(dateStr.split('-')[0], 10) || null;
+  if (dateStr.includes('/')) {
+    const p = dateStr.split('/');
+    if (p.length === 3) return parseInt(p[2], 10) || null;
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getFullYear()) ? null : d.getFullYear();
+}
+
 function calcScore(p: ImportedMember, r: UnifiedMember): number {
-  const nome = stringSimilarity(p.nome, r.nome ?? '') * 60;
-  const cognome = stringSimilarity(p.cognome, r.cognome ?? '') * 60;
-  const data = p.dataNascita && r.dataNascita && p.dataNascita === r.dataNascita ? 40 : 0;
-  const hasCF = !!(p.codiceFiscale && r.codiceFiscale);
-  const cf = hasCF ? (p.codiceFiscale!.toUpperCase() === r.codiceFiscale!.toUpperCase() ? 60 : 0) : 0;
-  const max = 60 + 60 + 40 + (hasCF ? 60 : 0);
-  return Math.round(((nome + cognome + data + cf) / max) * 100);
+  const nomeSim = stringSimilarity(p.nome, r.nome ?? '');
+  const cognomeSim = stringSimilarity(p.cognome, r.cognome ?? '');
+
+  if (nomeSim < 0.6 || cognomeSim < 0.6) return 0;
+
+  if (p.dataNascita && r.dataNascita) {
+    const pY = getYearFromDate(p.dataNascita);
+    const rY = getYearFromDate(r.dataNascita);
+    if (pY !== null && rY !== null && pY !== rY) return 0;
+  }
+
+  if (p.codiceFiscale && r.codiceFiscale) {
+    if (stringSimilarity(p.codiceFiscale.toUpperCase(), r.codiceFiscale.toUpperCase()) < 0.7) return 0;
+  }
+
+  return Math.round(60 + (((nomeSim + cognomeSim) / 2) * 40));
 }
 const MATCH_THRESHOLD = 60;
 

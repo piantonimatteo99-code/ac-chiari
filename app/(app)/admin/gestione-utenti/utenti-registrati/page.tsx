@@ -78,22 +78,34 @@ function stringSimilarity(a: string, b: string): number {
   return (maxLen - levenshtein(s1, s2)) / maxLen;
 }
 
-// Weights: nome 60, cognome 60, dataNascita 40, codiceFiscale 60 (if present)
+function getYearFromDate(dateStr?: string): number | null {
+  if (!dateStr) return null;
+  if (dateStr.includes('-')) return parseInt(dateStr.split('-')[0], 10) || null;
+  if (dateStr.includes('/')) {
+    const p = dateStr.split('/');
+    if (p.length === 3) return parseInt(p[2], 10) || null;
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getFullYear()) ? null : d.getFullYear();
+}
+
 function calculateMatchScore(placeholder: ImportedMember, real: RealMember): number {
-  const nomeScore = stringSimilarity(placeholder.nome, real.nome) * 60;
-  const cognomeScore = stringSimilarity(placeholder.cognome, real.cognome) * 60;
-  const dataScore =
-    placeholder.dataNascita && real.dataNascita &&
-    placeholder.dataNascita === real.dataNascita ? 40 : 0;
+  const nomeSim = stringSimilarity(placeholder.nome, real.nome);
+  const cognomeSim = stringSimilarity(placeholder.cognome, real.cognome);
 
-  const hasCF = !!(placeholder.codiceFiscale && real.codiceFiscale);
-  const cfScore = hasCF
-    ? (placeholder.codiceFiscale!.toUpperCase() === real.codiceFiscale!.toUpperCase() ? 60 : 0)
-    : 0;
+  if (nomeSim < 0.6 || cognomeSim < 0.6) return 0;
 
-  const maxScore = 60 + 60 + 40 + (hasCF ? 60 : 0);
-  const total = nomeScore + cognomeScore + dataScore + cfScore;
-  return Math.round((total / maxScore) * 100);
+  if (placeholder.dataNascita && real.dataNascita) {
+    const pY = getYearFromDate(placeholder.dataNascita);
+    const rY = getYearFromDate(real.dataNascita);
+    if (pY !== null && rY !== null && pY !== rY) return 0;
+  }
+
+  if (placeholder.codiceFiscale && real.codiceFiscale) {
+    if (stringSimilarity(placeholder.codiceFiscale.toUpperCase(), real.codiceFiscale.toUpperCase()) < 0.7) return 0;
+  }
+
+  return Math.round(60 + (((nomeSim + cognomeSim) / 2) * 40));
 }
 
 const MATCH_THRESHOLD = 60;
@@ -149,6 +161,7 @@ export default function UtentiRegistratiPage() {
   const [confirmingMatch, setConfirmingMatch] = useState<MatchPair | null>(null);
   const [manualMatchPlaceholder, setManualMatchPlaceholder] = useState<ImportedMember | null>(null);
   const [selectedRealMemberId, setSelectedRealMemberId] = useState<string>('');
+  const [manualMatchSearch, setManualMatchSearch] = useState<string>('');
   const [isConfirming, setIsConfirming] = useState(false);
 
   // Pairs ignored for this session
@@ -242,6 +255,16 @@ export default function UtentiRegistratiPage() {
     const matchedIds = new Set(matches.map(m => m.placeholder.id));
     return importedMembers.filter(m => !matchedIds.has(m.id));
   }, [importedMembers, matches]);
+
+  const filteredRealMembersForManual = useMemo(() => {
+     if (!manualMatchSearch) return realMembers;
+     const s = manualMatchSearch.toLowerCase();
+     return realMembers.filter(r => 
+        r.nome.toLowerCase().includes(s) || 
+        r.cognome.toLowerCase().includes(s) || 
+        (r.codiceFiscale && r.codiceFiscale.toLowerCase().includes(s))
+     );
+  }, [realMembers, manualMatchSearch]);
 
   // ── CSV Import ─────────────────────────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -843,24 +866,43 @@ export default function UtentiRegistratiPage() {
               Seleziona l'utente reale a cui associare il placeholder <strong>{manualMatchPlaceholder?.nome} {manualMatchPlaceholder?.cognome}</strong>.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Select value={selectedRealMemberId} onValueChange={setSelectedRealMemberId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona utente registrato..." />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                {realMembers
-                   .sort((a, b) => `${a.cognome} ${a.nome}`.localeCompare(`${b.cognome} ${b.nome}`, 'it'))
-                   .map(rm => (
-                  <SelectItem key={rm.id} value={rm.id}>
-                    {rm.cognome} {rm.nome} {rm.dataNascita ? `(${formatDate(rm.dataNascita)})` : ''} - {rm.codiceFiscale || 'C.F. mancante'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="py-4 space-y-3">
+            <div className="relative">
+              <input 
+                type="text"
+                placeholder="Cerca utente per nome, cognome o CF..." 
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                value={manualMatchSearch} 
+                onChange={e => setManualMatchSearch(e.target.value)} 
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto border rounded-md p-1 space-y-1 bg-muted/20">
+              {filteredRealMembersForManual.length === 0 ? (
+                <div className="p-3 text-center text-sm text-muted-foreground">Nessun utente trovato</div>
+              ) : (
+                filteredRealMembersForManual.map(rm => (
+                  <div 
+                    key={rm.id} 
+                    onClick={() => setSelectedRealMemberId(rm.id)}
+                    className={`p-2 text-sm rounded-md cursor-pointer flex items-center justify-between ${
+                      selectedRealMemberId === rm.id 
+                        ? 'bg-primary/10 border-primary/30 border' 
+                        : 'hover:bg-muted border border-transparent'
+                    }`}
+                  >
+                     <div>
+                       <span className="font-medium">{rm.nome} {rm.cognome}</span>
+                       <span className="text-muted-foreground ml-2">{rm.dataNascita ? `(${formatDate(rm.dataNascita)})` : ''}</span>
+                       {rm.codiceFiscale && <span className="text-muted-foreground ml-2 text-xs font-mono">{rm.codiceFiscale}</span>}
+                     </div>
+                     {selectedRealMemberId === rm.id && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setManualMatchPlaceholder(null); setSelectedRealMemberId(''); }}>
+            <Button variant="outline" onClick={() => { setManualMatchPlaceholder(null); setSelectedRealMemberId(''); setManualMatchSearch(''); }}>
               Annulla
             </Button>
             <Button
