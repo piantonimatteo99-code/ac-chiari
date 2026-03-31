@@ -21,6 +21,7 @@ export interface UnifiedMember extends Partial<Membro>, Partial<UserData> {
   groupName?: string;
   familyId?: string; // UID of the family head
   ref?: any;
+  isPlaceholder?: boolean;
 }
 interface MembriRaccoltaListProps {
   raccolta: Raccolta;
@@ -346,7 +347,21 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
 
                  return (
                     <TableRow key={member.id}>
-                        {columnVisibility.nomeCognome && <TableCell className="font-medium">{member.nome} {member.cognome}</TableCell>}
+                        {columnVisibility.nomeCognome && (
+                            <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                    {member.nome} {member.cognome}
+                                    {member.isPlaceholder && (
+                                        <Badge
+                                         variant="outline"
+                                         className="text-[10px] text-yellow-600 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 px-1.5 py-0 h-4 ml-1 whitespace-nowrap"
+                                        >
+                                         Da confermare
+                                        </Badge>
+                                    )}
+                                </div>
+                            </TableCell>
+                        )}
                         {columnVisibility.gruppo && <TableCell>{member.groupName}</TableCell>}
                         {columnVisibility.conferma && faseConferma.attiva && (
                             <TableCell className="text-center">

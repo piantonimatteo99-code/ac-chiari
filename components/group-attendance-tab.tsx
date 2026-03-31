@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collectionGroup } from 'firebase/firestore';
+import { collectionGroup, collection } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -73,13 +73,20 @@ export function GroupAttendanceTab({ groupId, memberIds, events }: GroupAttendan
   }, [firestore, memberIds]);
   const { data: allMembri } = useCollection<Membro>(membriQuery);
 
+  const placeholdersQuery = useMemoFirebase(() => {
+    if (!firestore || memberIds.length === 0) return null;
+    return collection(firestore, 'imported-members');
+  }, [firestore, memberIds]);
+  const { data: allPlaceholders } = useCollection<any>(placeholdersQuery);
+
   const membri = useMemo(() => {
-    if (!allMembri) return [];
+    if (!allMembri && !allPlaceholders) return [];
     const idSet = new Set(memberIds);
-    return allMembri
-      .filter(m => idSet.has(m.id))
+    const validMembri = (allMembri || []).filter(m => idSet.has(m.id));
+    const validPlaceholders = (allPlaceholders || []).filter(m => idSet.has(m.id)).map(p => ({ ...p, isPlaceholder: true }));
+    return [...validMembri, ...validPlaceholders]
       .sort((a, b) => `${a.cognome} ${a.nome}`.localeCompare(`${b.cognome} ${b.nome}`, 'it'));
-  }, [allMembri, memberIds]);
+  }, [allMembri, allPlaceholders, memberIds]);
 
   // All attendance records via collectionGroup('partecipanti')
   // path: presenze/{eventId}/partecipanti/{membroId}
@@ -208,8 +215,16 @@ export function GroupAttendanceTab({ groupId, memberIds, events }: GroupAttendan
                     const pct = yearEvents.length > 0 ? Math.round((presentiCount / yearEvents.length) * 100) : 0;
                     return (
                       <tr key={m.id} className="border-b hover:bg-muted/20 transition-colors">
-                        <td className="p-3 font-medium sticky left-0 bg-background z-10 border-r whitespace-nowrap">
+                        <td className="p-3 font-medium sticky left-0 bg-background z-10 border-r whitespace-nowrap flex items-center gap-2">
                           {m.cognome} {m.nome}
+                          {(m as any).isPlaceholder && (
+                             <Badge
+                              variant="outline"
+                              className="text-[10px] text-yellow-600 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 px-1.5 py-0 h-4 ml-1"
+                            >
+                              Da confermare
+                            </Badge>
+                          )}
                         </td>
                         {yearEvents.map(e => {
                           const val = em?.get(e.id) ?? null;

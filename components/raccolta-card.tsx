@@ -114,6 +114,12 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
     }, [firestore, raccolta.id, raccolta.tipo]);
     const { data: movimentiContantiTesseramento, isLoading: isLoadingMovimentiContanti } = useCollection<MovimentoContante>(movimentiContantiQuery);
 
+    const importedMembersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'imported-members');
+    }, [firestore]);
+    const { data: importedMembersData, isLoading: isLoadingImported } = useCollection<any>(importedMembersQuery);
+
 
     const allMembers = useMemo(() => {
         if (!membersData && !usersData) return [];
@@ -152,10 +158,23 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
                 ...member
             });
         });
+
+        importedMembersData?.forEach(imported => {
+            addToList({
+                id: imported.id,
+                nome: imported.nome || '',
+                cognome: imported.cognome || '',
+                groupId: undefined,
+                groupName: imported.gruppo || '',
+                familyId: undefined,
+                isPlaceholder: true,
+                ...imported
+            });
+        });
         
         return combinedList;
 
-    }, [usersData, membersData]);
+    }, [usersData, membersData, importedMembersData]);
 
     const targetGroupMembers = useMemo(() => {
         const targetGroupIds = new Set(raccolta.gruppiId);

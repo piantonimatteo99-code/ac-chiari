@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFirestore } from '@/src/firebase';
 import {
   collection, collectionGroup, getDocs, addDoc, serverTimestamp,
-  deleteDoc, doc, writeBatch, arrayUnion, arrayRemove,
+  deleteDoc, doc, writeBatch, arrayUnion, arrayRemove, query, where
 } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,8 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { Upload, CheckCircle2, XCircle, Trash2, Download, RefreshCw, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Upload, CheckCircle2, XCircle, Trash2, Download, RefreshCw, ArrowRight, AlertTriangle, UserPlus } from 'lucide-react';
 import { useUserData } from '@/src/hooks/use-user-data';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import Papa from 'papaparse';
@@ -77,25 +78,25 @@ function stringSimilarity(a: string, b: string): number {
   return (maxLen - levenshtein(s1, s2)) / maxLen;
 }
 
-// Weights: nome 70, cognome 70, dataNascita 40, codiceFiscale 80 (if present)
+// Weights: nome 60, cognome 60, dataNascita 40, codiceFiscale 60 (if present)
 function calculateMatchScore(placeholder: ImportedMember, real: RealMember): number {
-  const nomeScore = stringSimilarity(placeholder.nome, real.nome) * 70;
-  const cognomeScore = stringSimilarity(placeholder.cognome, real.cognome) * 70;
+  const nomeScore = stringSimilarity(placeholder.nome, real.nome) * 60;
+  const cognomeScore = stringSimilarity(placeholder.cognome, real.cognome) * 60;
   const dataScore =
     placeholder.dataNascita && real.dataNascita &&
     placeholder.dataNascita === real.dataNascita ? 40 : 0;
 
   const hasCF = !!(placeholder.codiceFiscale && real.codiceFiscale);
   const cfScore = hasCF
-    ? (placeholder.codiceFiscale!.toUpperCase() === real.codiceFiscale!.toUpperCase() ? 80 : 0)
+    ? (placeholder.codiceFiscale!.toUpperCase() === real.codiceFiscale!.toUpperCase() ? 60 : 0)
     : 0;
 
-  const maxScore = 70 + 70 + 40 + (hasCF ? 80 : 0);
+  const maxScore = 60 + 60 + 40 + (hasCF ? 60 : 0);
   const total = nomeScore + cognomeScore + dataScore + cfScore;
   return Math.round((total / maxScore) * 100);
 }
 
-const MATCH_THRESHOLD = 70;
+const MATCH_THRESHOLD = 60;
 
 function ScoreBadge({ score }: { score: number }) {
   const color =
@@ -146,6 +147,8 @@ export default function UtentiRegistratiPage() {
 
   // Match confirmation dialog
   const [confirmingMatch, setConfirmingMatch] = useState<MatchPair | null>(null);
+  const [manualMatchPlaceholder, setManualMatchPlaceholder] = useState<ImportedMember | null>(null);
+  const [selectedRealMemberId, setSelectedRealMemberId] = useState<string>('');
   const [isConfirming, setIsConfirming] = useState(false);
 
   // Pairs ignored for this session
@@ -348,7 +351,83 @@ export default function UtentiRegistratiPage() {
         });
       }
 
-      // Delete placeholder (irreversible)
+      // --- 1. Migrazione Presenze (Attendances) ---
+      const partQuery = query(collectionGroup(firestore, 'partecipanti'), where('membroId', '==', pair.placeholder.id));
+      const partSnap = await getDocs(partQuery);
+      partSnap.docs.forEach((d) => {
+        const oldRef = d.ref;
+        const newRef = doc(oldRef.parent, pair.realMember.id);
+        const data = d.data() as any;
+        batch.set(newRef, {
+           ...data,
+           membroId: pair.realMember.id,
+           nome: pair.realMember.nome,
+           cognome: pair.realMember.cognome
+        });
+        batch.delete(oldRef);
+      });
+
+      // --- 2. Migrazione Movimenti in Contanti ---
+      const movQuery = query(collection(firestore, 'movimenti-contanti'), where('membroId', '==', pair.placeholder.id));
+      const movSnap = await getDocs(movQuery);
+      movSnap.docs.forEach((d) => {
+        batch.update(d.ref, { membroId: pair.realMember.id });
+      });
+
+      // --- 3. Migrazione Raccolte (Payments) ---
+      const raccSnap = await getDocs(collection(firestore, 'raccolte'));
+      raccSnap.docs.forEach(d => {
+         const data = d.data();
+         let changed = false;
+         
+         const swapArray = (arr: string[] | undefined) => {
+             if (!arr) return arr;
+             if (arr.includes(pair.placeholder.id)) {
+                 changed = true;
+                 return arr.filter(id => id !== pair.placeholder.id).concat(pair.realMember.id);
+             }
+             return arr;
+         };
+         
+         const confermatiIds = swapArray(data.confermatiIds);
+         const caparraPaidIds = swapArray(data.caparraPaidIds);
+         const saldoPaidIds = swapArray(data.saldoPaidIds);
+         const tesseratiIds = swapArray(data.tesseratiIds);
+         
+         const newPaymentDetails = { ...(data.paymentDetails || {}) } as any;
+         if (Object.keys(newPaymentDetails).length > 0) {
+            ['caparra', 'saldo', 'tesseramento'].forEach(fase => {
+               if (newPaymentDetails[fase] && newPaymentDetails[fase][pair.placeholder.id]) {
+                  changed = true;
+                  newPaymentDetails[fase][pair.realMember.id] = { ...newPaymentDetails[fase][pair.placeholder.id] };
+                  delete newPaymentDetails[fase][pair.placeholder.id];
+               }
+            });
+         }
+         
+         let newPartecipanti = data.partecipanti;
+         if (newPartecipanti && Array.isArray(newPartecipanti)) {
+             const idx = newPartecipanti.findIndex((p: any) => p.memberId === pair.placeholder.id);
+             if (idx >= 0) {
+                 changed = true;
+                 newPartecipanti = [...newPartecipanti];
+                 newPartecipanti[idx] = { ...newPartecipanti[idx], memberId: pair.realMember.id };
+             }
+         }
+         
+         if (changed) {
+             batch.update(d.ref, {
+                 confermatiIds,
+                 caparraPaidIds,
+                 saldoPaidIds,
+                 tesseratiIds,
+                 paymentDetails: newPaymentDetails,
+                 partecipanti: newPartecipanti
+             });
+         }
+      });
+
+      // --- 4. Delete placeholder ---
       batch.delete(doc(firestore, 'imported-members', pair.placeholder.id));
 
       await batch.commit();
@@ -583,7 +662,16 @@ export default function UtentiRegistratiPage() {
                       ? new Date(m.importedAt.toDate()).toLocaleDateString('it-IT')
                       : '—'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-primary hover:text-primary"
+                      title="Associa Manualmente"
+                      onClick={() => setManualMatchPlaceholder(m)}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"
@@ -741,6 +829,56 @@ export default function UtentiRegistratiPage() {
               disabled={isConfirming}
             >
               {isConfirming ? 'Conferma in corso...' : 'Conferma e Procedi'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Match Dialog */}
+      <Dialog open={!!manualMatchPlaceholder} onOpenChange={(o) => !o && setManualMatchPlaceholder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Associazione Manuale</DialogTitle>
+            <DialogDescription>
+              Seleziona l'utente reale a cui associare il placeholder <strong>{manualMatchPlaceholder?.nome} {manualMatchPlaceholder?.cognome}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedRealMemberId} onValueChange={setSelectedRealMemberId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona utente registrato..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {realMembers
+                   .sort((a, b) => `${a.cognome} ${a.nome}`.localeCompare(`${b.cognome} ${b.nome}`, 'it'))
+                   .map(rm => (
+                  <SelectItem key={rm.id} value={rm.id}>
+                    {rm.cognome} {rm.nome} {rm.dataNascita ? `(${formatDate(rm.dataNascita)})` : ''} - {rm.codiceFiscale || 'C.F. mancante'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setManualMatchPlaceholder(null); setSelectedRealMemberId(''); }}>
+              Annulla
+            </Button>
+            <Button
+              disabled={!selectedRealMemberId}
+              onClick={() => {
+                const real = realMembers.find(r => r.id === selectedRealMemberId);
+                if (manualMatchPlaceholder && real) {
+                  setConfirmingMatch({
+                      placeholder: manualMatchPlaceholder,
+                      realMember: real,
+                      score: 100
+                  });
+                  setManualMatchPlaceholder(null);
+                  setSelectedRealMemberId('');
+                }
+              }}
+            >
+              Procedi al Riepilogo
             </Button>
           </DialogFooter>
         </DialogContent>

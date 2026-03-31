@@ -105,11 +105,27 @@ export function GroupEventDetailDialog({
   }, [firestore, memberIds]);
   const { data: allMembri } = useCollection<Membro>(membriQuery);
 
+  const placeholdersQuery = useMemoFirebase(() => {
+    if (!firestore || !memberIds || memberIds.length === 0) return null;
+    return collection(firestore, 'imported-members');
+  }, [firestore, memberIds]);
+  const { data: allPlaceholders } = useCollection<any>(placeholdersQuery);
+
   const membri = useMemo(() => {
-      if (!allMembri || !memberIds) return [];
-      const memberIdSet = new Set(memberIds);
-      return allMembri.filter(m => memberIdSet.has(m.id));
-  }, [allMembri, memberIds]);
+    if (!allMembri && !allPlaceholders) return [];
+    if (!memberIds) return [];
+    const memberIdSet = new Set(memberIds);
+    
+    const validMembri = (allMembri || []).filter(m => memberIdSet.has(m.id));
+    const validPlaceholders = (allPlaceholders || []).filter(m => memberIdSet.has(m.id)).map(p => ({
+        ...p,
+        isPlaceholder: true
+    }));
+
+    return [...validMembri, ...validPlaceholders].sort((a, b) => 
+        `${a.cognome} ${a.nome}`.localeCompare(`${b.cognome} ${b.nome}`, 'it')
+    );
+  }, [allMembri, allPlaceholders, memberIds]);
 
   // -------- Existing attendance for this event --------
   const presenzaColRef = useMemoFirebase(() => {
@@ -345,9 +361,17 @@ export function GroupEventDetailDialog({
                             />
                             <label
                               htmlFor={`presenza-${m.id}`}
-                              className="flex-1 text-sm font-medium cursor-pointer select-none"
+                              className="flex-1 text-sm font-medium cursor-pointer select-none flex items-center gap-2"
                             >
                               {m.cognome} {m.nome}
+                              {(m as any).isPlaceholder && (
+                                  <Badge
+                                   variant="outline"
+                                   className="text-[10px] text-yellow-600 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 px-1.5 py-0 h-4"
+                                 >
+                                   Da confermare
+                                 </Badge>
+                              )}
                             </label>
                             {isSaving && (
                               <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground shrink-0" />

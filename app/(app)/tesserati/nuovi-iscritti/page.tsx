@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collection, doc, updateDoc, arrayUnion, arrayRemove, writeBatch, getDocs, collectionGroup, getDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, arrayUnion, arrayRemove, writeBatch, getDocs, collectionGroup, getDoc, query, where } from 'firebase/firestore';
 import type { Membro } from '../../nucleo-familiare/page';
 import type { Group } from '../../admin/gestione-gruppi/tutti-i-gruppi/page';
 import type { ImportedMember } from '../../admin/gestione-utenti/utenti-registrati/page';
@@ -65,15 +65,15 @@ function stringSimilarity(a: string, b: string): number {
   return (maxLen - levenshtein(s1, s2)) / maxLen;
 }
 function calcScore(p: ImportedMember, r: UnifiedMember): number {
-  const nome = stringSimilarity(p.nome, r.nome ?? '') * 70;
-  const cognome = stringSimilarity(p.cognome, r.cognome ?? '') * 70;
+  const nome = stringSimilarity(p.nome, r.nome ?? '') * 60;
+  const cognome = stringSimilarity(p.cognome, r.cognome ?? '') * 60;
   const data = p.dataNascita && r.dataNascita && p.dataNascita === r.dataNascita ? 40 : 0;
   const hasCF = !!(p.codiceFiscale && r.codiceFiscale);
-  const cf = hasCF ? (p.codiceFiscale!.toUpperCase() === r.codiceFiscale!.toUpperCase() ? 80 : 0) : 0;
-  const max = 70 + 70 + 40 + (hasCF ? 80 : 0);
+  const cf = hasCF ? (p.codiceFiscale!.toUpperCase() === r.codiceFiscale!.toUpperCase() ? 60 : 0) : 0;
+  const max = 60 + 60 + 40 + (hasCF ? 60 : 0);
   return Math.round(((nome + cognome + data + cf) / max) * 100);
 }
-const MATCH_THRESHOLD = 70;
+const MATCH_THRESHOLD = 60;
 
 const getCurrentMembershipYear = () => {
   const today = new Date();
@@ -255,7 +255,83 @@ export default function NuoviIscrittiPage() {
         });
       }
 
-      // Delete placeholder
+      // --- 1. Migrazione Presenze (Attendances) ---
+      const partQuery = query(collectionGroup(firestore, 'partecipanti'), where('membroId', '==', placeholder.id));
+      const partSnap = await getDocs(partQuery);
+      partSnap.docs.forEach((d) => {
+        const oldRef = d.ref;
+        const newRef = doc(oldRef.parent, realMember.id);
+        const data = d.data() as any;
+        batch.set(newRef, {
+           ...data,
+           membroId: realMember.id,
+           nome: realMember.nome,
+           cognome: realMember.cognome
+        });
+        batch.delete(oldRef);
+      });
+
+      // --- 2. Migrazione Movimenti in Contanti ---
+      const movQuery = query(collection(firestore, 'movimenti-contanti'), where('membroId', '==', placeholder.id));
+      const movSnap = await getDocs(movQuery);
+      movSnap.docs.forEach((d) => {
+        batch.update(d.ref, { membroId: realMember.id });
+      });
+
+      // --- 3. Migrazione Raccolte (Payments) ---
+      const raccSnap = await getDocs(collection(firestore, 'raccolte'));
+      raccSnap.docs.forEach(d => {
+         const data = d.data();
+         let changed = false;
+         
+         const swapArray = (arr: string[] | undefined) => {
+             if (!arr) return arr;
+             if (arr.includes(placeholder.id)) {
+                 changed = true;
+                 return arr.filter(id => id !== placeholder.id).concat(realMember.id);
+             }
+             return arr;
+         };
+         
+         const confermatiIds = swapArray(data.confermatiIds);
+         const caparraPaidIds = swapArray(data.caparraPaidIds);
+         const saldoPaidIds = swapArray(data.saldoPaidIds);
+         const tesseratiIds = swapArray(data.tesseratiIds);
+         
+         const newPaymentDetails = { ...(data.paymentDetails || {}) } as any;
+         if (Object.keys(newPaymentDetails).length > 0) {
+            ['caparra', 'saldo', 'tesseramento'].forEach(fase => {
+               if (newPaymentDetails[fase] && newPaymentDetails[fase][placeholder.id]) {
+                  changed = true;
+                  newPaymentDetails[fase][realMember.id] = { ...newPaymentDetails[fase][placeholder.id] };
+                  delete newPaymentDetails[fase][placeholder.id];
+               }
+            });
+         }
+         
+         let newPartecipanti = data.partecipanti;
+         if (newPartecipanti && Array.isArray(newPartecipanti)) {
+             const idx = newPartecipanti.findIndex((p: any) => p.memberId === placeholder.id);
+             if (idx >= 0) {
+                 changed = true;
+                 newPartecipanti = [...newPartecipanti];
+                 newPartecipanti[idx] = { ...newPartecipanti[idx], memberId: realMember.id };
+             }
+         }
+         
+         if (changed) {
+             batch.update(d.ref, {
+                 confermatiIds,
+                 caparraPaidIds,
+                 saldoPaidIds,
+                 tesseratiIds,
+                 paymentDetails: newPaymentDetails,
+                 partecipanti: newPartecipanti
+             });
+         }
+      });
+
+      // --- 4. Delete placeholder ---
       batch.delete(doc(firestore, 'imported-members', placeholder.id));
 
       await batch.commit();
