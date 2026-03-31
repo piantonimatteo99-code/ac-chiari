@@ -4,9 +4,9 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Users, User } from 'lucide-react';
+import { Users, User, Clock } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collectionGroup, query, where } from 'firebase/firestore';
+import { collection, collectionGroup, query, where } from 'firebase/firestore';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
 
 interface GroupMembersCardProps {
@@ -25,28 +25,44 @@ function formatDate(dateString: string) {
 export function GroupMembersCard({ groupId, groupName, memberIds }: GroupMembersCardProps) {
   const firestore = useFirestore();
 
-  // Load all members and filter in memory since members don't have a reliable groupId field
-  // The grouping is stored in the Group's memberIds array instead.
+  // Load real members
   const membriQuery = useMemoFirebase(() => {
     if (!firestore || !memberIds || memberIds.length === 0) return null;
     return collectionGroup(firestore, 'membri');
   }, [firestore, memberIds]);
+  const { data: allMembri, isLoading: isLoadingMembri } = useCollection<Membro>(membriQuery);
 
-  const { data: allMembri, isLoading } = useCollection<Membro>(membriQuery);
+  // Load imported placeholder members
+  const importedQuery = useMemoFirebase(() => {
+    if (!firestore || !memberIds || memberIds.length === 0) return null;
+    return collection(firestore, 'imported-members');
+  }, [firestore, memberIds]);
+  // Type as any to accommodate the extra isImported flag
+  const { data: allImported, isLoading: isLoadingImported } = useCollection<any>(importedQuery);
+
+  const isLoading = isLoadingMembri || isLoadingImported;
 
   const sorted = useMemo(() => {
-    if (!allMembri || !memberIds) return [];
+    if (!allMembri && !allImported) return [];
+    if (!memberIds) return [];
     
     // Create a Set for fast lookup
     const memberIdSet = new Set(memberIds);
-    const inGroup = allMembri.filter(m => memberIdSet.has(m.id));
+    
+    // Combine real members and imported placeholders
+    const combined = [
+      ...(allMembri || []),
+      ...(allImported || [])
+    ];
+
+    const inGroup = combined.filter(m => memberIdSet.has(m.id));
 
     return inGroup.sort((a, b) => {
       const la = `${a.cognome} ${a.nome}`.toLowerCase();
       const lb = `${b.cognome} ${b.nome}`.toLowerCase();
       return la.localeCompare(lb, 'it');
     });
-  }, [allMembri, memberIds]);
+  }, [allMembri, allImported, memberIds]);
 
   return (
     <Card>
@@ -91,17 +107,32 @@ export function GroupMembersCard({ groupId, groupName, memberIds }: GroupMembers
                 <TableRow key={m.id}>
                   <TableCell className="font-medium">
                     {m.cognome} {m.nome}
+                    {m.isImported && (
+                       <span className="ml-2 inline-flex items-center gap-1 rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-medium text-yellow-800">
+                         <Clock className="w-3 h-3" />
+                         Dal Database
+                       </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(m.dataNascita)}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant="outline"
-                      className="text-green-600 border-green-300 bg-green-50 dark:bg-green-950/30"
-                    >
-                      Attivo
-                    </Badge>
+                    {m.isImported ? (
+                      <Badge
+                        variant="outline"
+                        className="text-yellow-600 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30"
+                      >
+                        Da confermare
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-green-600 border-green-300 bg-green-50 dark:bg-green-950/30"
+                      >
+                        Attivo
+                      </Badge>
+                    )}
                   </TableCell>
                 </TableRow>
             ))}
