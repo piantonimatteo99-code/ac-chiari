@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collection, doc, updateDoc, arrayUnion, writeBatch, getDocs, collectionGroup, getDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, arrayUnion, arrayRemove, writeBatch, getDocs, collectionGroup, getDoc } from 'firebase/firestore';
 import type { Membro } from '../../nucleo-familiare/page';
 import type { Group } from '../../admin/gestione-gruppi/tutti-i-gruppi/page';
 import type { ImportedMember } from '../../admin/gestione-utenti/utenti-registrati/page';
@@ -245,6 +245,13 @@ export default function NuoviIscrittiPage() {
         });
         batch.update(doc(firestore, 'gruppi', matchingGroup.id), {
           memberIds: arrayUnion(realMember.id),
+        });
+      }
+
+      const placeholderGroup = groups.find(g => g.name === placeholder.gruppo);
+      if (placeholderGroup) {
+        batch.update(doc(firestore, 'gruppi', placeholderGroup.id), {
+          memberIds: arrayRemove(placeholder.id)
         });
       }
 

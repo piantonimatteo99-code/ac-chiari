@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFirestore } from '@/src/firebase';
 import {
   collection, collectionGroup, getDocs, addDoc, serverTimestamp,
-  deleteDoc, doc, writeBatch, arrayUnion,
+  deleteDoc, doc, writeBatch, arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -152,7 +152,7 @@ export default function UtentiRegistratiPage() {
   const [ignoredPairs, setIgnoredPairs] = useState<Set<string>>(new Set());
 
   // Delete confirmation
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingPlaceholder, setDeletingPlaceholder] = useState<ImportedMember | null>(null);
 
   // ── Load data ──────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -274,12 +274,22 @@ export default function UtentiRegistratiPage() {
         const gruppo = (row['Gruppo'] ?? row['gruppo'] ?? '').trim();
         if (!nome || !cognome) continue;
         const newRef = doc(collection(firestore, 'imported-members'));
+        
         batch.set(newRef, {
           nome, cognome, dataNascita, codiceFiscale, luogoNascita, gruppo,
           isImported: true,
           importedAt: serverTimestamp(),
           matchedWith: null,
         });
+
+        if (gruppo) {
+          const matchingGroup = groups.find(g => g.name === gruppo);
+          if (matchingGroup) {
+            batch.update(doc(firestore, 'gruppi', matchingGroup.id), {
+              memberIds: arrayUnion(newRef.id)
+            });
+          }
+        }
       }
       await batch.commit();
       setIsImportDialogOpen(false);
@@ -325,7 +335,17 @@ export default function UtentiRegistratiPage() {
           groupName: matchingGroup.name,
         });
         const groupDocRef = doc(firestore, 'gruppi', matchingGroup.id);
-        batch.update(groupDocRef, { memberIds: arrayUnion(pair.realMember.id) });
+        batch.update(groupDocRef, { 
+          memberIds: arrayUnion(pair.realMember.id),
+        });
+      }
+
+      // If the placeholder was in a group, we should remove its ID from that group
+      const placeholderGroup = groups.find(g => g.name === pair.placeholder.gruppo);
+      if (placeholderGroup) {
+        batch.update(doc(firestore, 'gruppi', placeholderGroup.id), {
+          memberIds: arrayRemove(pair.placeholder.id)
+        });
       }
 
       // Delete placeholder (irreversible)
@@ -342,15 +362,27 @@ export default function UtentiRegistratiPage() {
     }
   };
 
-  const handleDeletePlaceholder = async (id: string) => {
+  const handleDeletePlaceholder = async (placeholder: ImportedMember) => {
     if (!firestore) return;
+    setIsLoading(true);
     try {
-      await deleteDoc(doc(firestore, 'imported-members', id));
-      setDeletingId(null);
+      const batch = writeBatch(firestore);
+      batch.delete(doc(firestore, 'imported-members', placeholder.id));
+      
+      const placeholderGroup = groups.find(g => g.name === placeholder.gruppo);
+      if (placeholderGroup) {
+        batch.update(doc(firestore, 'gruppi', placeholderGroup.id), {
+          memberIds: arrayRemove(placeholder.id)
+        });
+      }
+
+      await batch.commit();
+      setDeletingPlaceholder(null);
       await loadData();
     } catch (e) {
       console.error(e);
       alert("Errore durante l'eliminazione.");
+      setIsLoading(false);
     }
   };
 
@@ -556,7 +588,7 @@ export default function UtentiRegistratiPage() {
                       size="icon"
                       variant="ghost"
                       className="text-destructive hover:text-destructive"
-                      onClick={() => setDeletingId(m.id)}
+                      onClick={() => setDeletingPlaceholder(m)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -715,7 +747,7 @@ export default function UtentiRegistratiPage() {
       </Dialog>
 
       {/* Delete Placeholder Dialog */}
-      <Dialog open={!!deletingId} onOpenChange={(o) => !o && setDeletingId(null)}>
+      <Dialog open={!!deletingPlaceholder} onOpenChange={(o) => !o && setDeletingPlaceholder(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Elimina Placeholder</DialogTitle>
@@ -724,8 +756,8 @@ export default function UtentiRegistratiPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletingId(null)}>Annulla</Button>
-            <Button variant="destructive" onClick={() => deletingId && handleDeletePlaceholder(deletingId)}>
+            <Button variant="outline" onClick={() => setDeletingPlaceholder(null)}>Annulla</Button>
+            <Button variant="destructive" onClick={() => deletingPlaceholder && handleDeletePlaceholder(deletingPlaceholder)}>
               Elimina
             </Button>
           </DialogFooter>
