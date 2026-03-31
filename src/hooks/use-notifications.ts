@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/src/firebase';
 import { collection, query, where, orderBy, limit, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { useUserData } from '@/src/hooks/use-user-data';
 
 export interface Notifica {
   id: string;
@@ -18,16 +19,22 @@ export interface Notifica {
 export function useNotifications() {
   const firestore = useFirestore();
   const { user } = useUser();
+  const { userData } = useUserData();
 
   const notifQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    
+    const isAdmin = userData?.roles?.includes('admin');
+    const validIds = [user.uid, '__broadcast__'];
+    if (isAdmin) validIds.push('__admin_broadcast__');
+
     return query(
       collection(firestore, 'notifiche'),
-      where('userId', 'in', [user.uid, '__broadcast__']),
+      where('userId', 'in', validIds),
       orderBy('createdAt', 'desc'),
       limit(30)
     );
-  }, [firestore, user]);
+  }, [firestore, user, userData]);
 
   const { data: notifiche, isLoading } = useCollection<Notifica>(notifQuery);
 

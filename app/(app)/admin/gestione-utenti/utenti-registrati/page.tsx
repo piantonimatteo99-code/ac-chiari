@@ -820,15 +820,15 @@ export default function UtentiRegistratiPage() {
           {confirmingMatch && (
             <div className="flex flex-col gap-3 py-2">
               <div className="flex items-center gap-3 rounded-md bg-muted p-3 text-sm">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground mb-0.5">Placeholder</p>
-                  <p className="font-semibold">{confirmingMatch.placeholder.nome} {confirmingMatch.placeholder.cognome}</p>
+                  <p className="font-semibold truncate">{confirmingMatch.placeholder.nome} {confirmingMatch.placeholder.cognome}</p>
                   {confirmingMatch.placeholder.gruppo && (
-                    <p className="text-xs text-muted-foreground">Gruppo: {confirmingMatch.placeholder.gruppo}</p>
+                    <p className="text-xs text-muted-foreground truncate">Gruppo: {confirmingMatch.placeholder.gruppo}</p>
                   )}
                 </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1">
+                <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground mb-0.5">Membro Reale</p>
                   <p className="font-semibold">{confirmingMatch.realMember.nome} {confirmingMatch.realMember.cognome}</p>
                   {confirmingMatch.realMember.docPath && (

@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth, useUser, useFirestore } from '@/src/firebase';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth';
-import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { setDoc, doc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -53,6 +53,21 @@ export default function SignupPage() {
         roles: ["utente"],
         createdAt: serverTimestamp(),
       });
+
+      try {
+        const notificheRef = collection(firestore, 'notifiche');
+        await addDoc(notificheRef, {
+          title: "Nuovo Utente Registrato",
+          body: `L'utente ${nome} ${cognome} ha creato un account sul portale.`,
+          type: "iscrizione",
+          href: "/admin/gestione-utenti/utenti-registrati",
+          letta: false,
+          createdAt: serverTimestamp(),
+          userId: "__admin_broadcast__"
+        });
+      } catch (err) {
+        console.warn("Errore creazione notifica:", err);
+      }
 
       try {
         const emailRes = await fetch('/api/send-registration-email', {

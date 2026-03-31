@@ -183,6 +183,18 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
             createdAt: serverTimestamp(),
             archived: false,
         });
+
+        // Notifica per gli amministratori (verifica match)
+        const notificheRef = collection(firestore, 'notifiche');
+        await addDoc(notificheRef, {
+          title: "Nuovo Utente Registrato",
+          body: `È stato registrato il membro ${membroData.nome} ${membroData.cognome}. Controlla se compare tra i match in coda.`,
+          type: "iscrizione",
+          href: "/admin/gestione-utenti/utenti-registrati",
+          letta: false,
+          createdAt: serverTimestamp(),
+          userId: "__admin_broadcast__"
+        });
       }
 
       handleClose();

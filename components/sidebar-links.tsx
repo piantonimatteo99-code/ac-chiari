@@ -403,11 +403,22 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     return adminGroups.filter(group => group.links.some(link => pathname.startsWith(link.href))).map(g => g.title);
   };
   
+  const notificheUtentiRegistrati = useMemo(() => {
+    if (!notifiche) return 0;
+    return notifiche.filter(n => !n.letta && n.href === '/admin/gestione-utenti/utenti-registrati').length;
+  }, [notifiche]);
+
   const renderAdminSubLink = (href: string, label: string) => {
     const isActive = pathname.startsWith(href);
+    const showUtentiBadge = href === '/admin/gestione-utenti/utenti-registrati' && notificheUtentiRegistrati > 0;
     return (
-       <Link href={href} onClick={onLinkClick} className={cn("flex w-full text-left items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary", isActive ? "text-primary" : "text-muted-foreground")}>
-        {label}
+       <Link href={href} onClick={onLinkClick} className={cn("flex w-full text-left items-center justify-between rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary", isActive ? "text-primary bg-primary/5" : "text-muted-foreground")}>
+        <span className="flex items-center gap-3">{label}</span>
+        {showUtentiBadge && (
+           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+             {notificheUtentiRegistrati > 9 ? '9+' : notificheUtentiRegistrati}
+           </span>
+        )}
       </Link>
     );
   }
