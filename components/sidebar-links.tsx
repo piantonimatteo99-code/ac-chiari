@@ -85,6 +85,7 @@ const adminGroups = [
     links: [
       { href: '/admin/gestione-utenti/users', label: 'Database' },
       { href: '/admin/gestione-utenti/permessi', label: 'Permessi' },
+      { href: '/admin/gestione-utenti/utenti-registrati', label: 'Utenti Registrati' },
     ],
   },
    {
