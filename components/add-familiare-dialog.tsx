@@ -18,6 +18,7 @@ import { collection, addDoc, serverTimestamp, doc, updateDoc, setDoc } from 'fir
 import type { Membro as MembroBase } from '@/app/(app)/nucleo-familiare/page';
 import { User } from 'firebase/auth';
 import { UserData } from '@/src/hooks/use-user-data';
+import { triggerNotification } from '@/lib/trigger-notification';
 
 
 type Membro = Omit<MembroBase, 'id'>;
@@ -185,14 +186,11 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
         });
 
         // Notifica per gli amministratori (verifica match)
-        const notificheRef = collection(firestore, 'notifiche');
-        await addDoc(notificheRef, {
+        triggerNotification({
+          eventType: 'nuovo_utente',
           title: "Nuovo Utente Registrato",
           body: `È stato registrato il membro ${membroData.nome} ${membroData.cognome}. Controlla se compare tra i match in coda.`,
-          type: "iscrizione",
           href: "/admin/gestione-utenti/utenti-registrati",
-          letta: false,
-          createdAt: serverTimestamp(),
           userId: "__admin_broadcast__"
         });
       }

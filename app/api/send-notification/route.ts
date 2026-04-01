@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminMessaging } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import webpush from 'web-push';
+
+webpush.setVapidDetails(
+  process.env.WEBPUSH_SUBJECT!,
+  process.env.NEXT_PUBLIC_WEBPUSH_PUBLIC_KEY!,
+  process.env.WEBPUSH_PRIVATE_KEY!
+);
 
 /**
  * POST /api/send-notification
  *
  * Body:
  * {
- *   userId: string | '__broadcast__',
+ *   userId: string | '__broadcast__' | '__admin_broadcast__',
  *   title: string,
  *   body: string,
  *   type: 'pagamento' | 'evento' | 'iscrizione' | 'magazzino' | 'generale' | 'feedback',
@@ -18,7 +25,6 @@ import { FieldValue } from 'firebase-admin/firestore';
 
 type NotifRole = 'admin' | 'educatore' | 'genitore';
 
-/** Maps a user's roles[] array to the three notification roles */
 function userNotifRoles(roles: string[]): NotifRole[] {
   const out: NotifRole[] = [];
   if (roles.includes('admin')) out.push('admin');
@@ -56,61 +62,42 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 2. Collect target users ───────────────────────────────────────────
-    let tokens: string[] = [];
     let targetUserIds: string[] = [];
 
     if (userId === '__broadcast__') {
       const usersSnap = await adminDb.collection('users').get();
-
       for (const userDoc of usersSnap.docs) {
         const userData = userDoc.data();
-
-        // Role filtering
         if (enabledFor) {
           const userRoles: string[] = Array.isArray(userData.roles) ? userData.roles : [];
           const notifRoles = userNotifRoles(userRoles);
           const shouldReceive = notifRoles.some(r => enabledFor![r]);
           if (!shouldReceive) continue;
         }
-
         targetUserIds.push(userDoc.id);
       }
-
-      // Collect FCM tokens for filtered users
-      const tokenPromises = targetUserIds.map(async uid => {
-        const tokensSnap = await adminDb.collection('users').doc(uid).collection('fcmTokens').get();
-        return tokensSnap.docs.map(t => t.data().token as string).filter(Boolean);
-      });
-      const allTokenArrays = await Promise.all(tokenPromises);
-      tokens = allTokenArrays.flat();
-
-      // Save in-app notification for each target user
-      const notifBatch = adminDb.batch();
-      for (const uid of targetUserIds) {
-        const notifRef = adminDb.collection('notifiche').doc();
-        notifBatch.set(notifRef, {
-          userId: uid,
-          title,
-          body,
-          type,
-          href: href ?? null,
-          letta: false,
-          createdAt: FieldValue.serverTimestamp(),
-        });
+    } else if (userId === '__admin_broadcast__') {
+      const usersSnap = await adminDb.collection('users').where('roles', 'array-contains', 'admin').get();
+      for (const userDoc of usersSnap.docs) {
+        targetUserIds.push(userDoc.id);
       }
-      await notifBatch.commit();
-
     } else {
       // Single user
-      const tokensSnap = await adminDb
-        .collection('users')
-        .doc(userId)
-        .collection('fcmTokens')
-        .get();
-      tokens = tokensSnap.docs.map(t => t.data().token as string).filter(Boolean);
+      targetUserIds.push(userId);
+    }
 
-      await adminDb.collection('notifiche').add({
-        userId,
+    if (targetUserIds.length === 0) {
+       return NextResponse.json({ success: true, message: 'No eligible recipients found' });
+    }
+
+    // ── 3. Save to Firestore (In-App notifications) ──────────────────────
+    const batches = [];
+    let currBatch = adminDb.batch();
+    let ops = 0;
+    for (const uid of targetUserIds) {
+      const notifRef = adminDb.collection('notifiche').doc();
+      currBatch.set(notifRef, {
+        userId: uid,
         title,
         body,
         type,
@@ -118,12 +105,54 @@ export async function POST(req: NextRequest) {
         letta: false,
         createdAt: FieldValue.serverTimestamp(),
       });
+      ops++;
+      if (ops === 400) { // Limit chunk to safe < 500
+        batches.push(currBatch.commit());
+        currBatch = adminDb.batch();
+        ops = 0;
+      }
+    }
+    if (ops > 0) batches.push(currBatch.commit());
+    await Promise.all(batches);
+
+    // ── 4. Collect FCM Tokens & WebPush Subscriptions ─────────────────────
+    const getCredentials = async (uid: string) => {
+        const tokensSnap = await adminDb.collection('users').doc(uid).collection('fcmTokens').get();
+        const fcmTokens = tokensSnap.docs.map(t => t.data().token as string).filter(Boolean);
+        const wpSnap = await adminDb.collection('users').doc(uid).collection('webPushSubscriptions').get();
+        return { fcmTokens, wpDocs: wpSnap.docs };
+    };
+
+    const credentialsResults = await Promise.all(targetUserIds.map(uid => getCredentials(uid)));
+    const allFCMTokens = credentialsResults.flatMap(c => c.fcmTokens);
+    const allWPDocs = credentialsResults.flatMap(c => c.wpDocs);
+
+    // ── 5. Send NATIVE Web Push ─────────────────────────────────────────
+    const wpPayload = JSON.stringify({ title, body, href: href || '/dashboard' });
+    let wpSent = 0;
+    if (allWPDocs.length > 0) {
+        const wpResults = await Promise.allSettled(
+          allWPDocs.map(async (docSnap) => {
+            const { subscription } = docSnap.data();
+            try {
+              await webpush.sendNotification(subscription, wpPayload);
+            } catch (err: any) {
+              if (err.statusCode === 410 || err.statusCode === 404) {
+                // Subscription expired/revoked
+                await docSnap.ref.delete();
+              }
+              throw err;
+            }
+          })
+        );
+        wpSent = wpResults.filter(r => r.status === 'fulfilled').length;
     }
 
-    // ── 3. Send FCM push in batches of 500 ───────────────────────────────
+    // ── 6. Send FCM Push ────────────────────────────────────────────────
+    let fcmSentCount = 0;
     const BATCH_SIZE = 500;
-    for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
-      const batch = tokens.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < allFCMTokens.length; i += BATCH_SIZE) {
+      const batch = allFCMTokens.slice(i, i + BATCH_SIZE);
       if (batch.length === 0) continue;
       try {
         const response = await adminMessaging.sendEachForMulticast({
@@ -139,6 +168,7 @@ export async function POST(req: NextRequest) {
             fcmOptions: { link: href ?? '/dashboard' },
           },
         });
+        fcmSentCount += response.successCount;
         const invalidCount = response.responses.filter(
           r => !r.success && (
             r.error?.code === 'messaging/registration-token-not-registered' ||
@@ -153,8 +183,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      recipients: userId === '__broadcast__' ? targetUserIds.length : 1,
-      fcmTokens: tokens.length,
+      recipients: targetUserIds.length,
+      fcmSent: fcmSentCount,
+      webPushSent: wpSent
     });
 
   } catch (error: any) {

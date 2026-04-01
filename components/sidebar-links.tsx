@@ -163,7 +163,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   }, [alimentiScadenza]);
 
   // Notifiche non lette (badge sulla dashboard)
-  const { unreadCount: notificheNonLette } = useNotifications();
+  const { notifiche, unreadCount: notificheNonLette } = useNotifications();
   
   const userAndFamilyMembers = useMemo((): (typeof userData | Membro)[] => {
       if (!userData && !membri) return [];

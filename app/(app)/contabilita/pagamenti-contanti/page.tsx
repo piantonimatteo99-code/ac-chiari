@@ -19,6 +19,7 @@ import { Spesa } from '@/components/add-spesa-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { Tariffa } from '../../tesserati/tariffe/page';
+import { triggerNotification } from '@/lib/trigger-notification';
 
 
 export interface MovimentoContante {
@@ -318,6 +319,14 @@ export default function PagamentiContantiPage() {
                         paymentMethod: 'contanti',
                     }),
                 }).catch(e => console.warn('Errore invio email pagamento:', e));
+
+                triggerNotification({
+                    eventType: 'pagamento_ricevuto',
+                    title: `Nuovo Incasso in Contanti (${userData.displayName})`,
+                    body: `Registrato pagamento in contanti per ${raccolta.nome} (Membro: ${memberName}, Fase: ${phaseLabel}, Importo: €${importo.toFixed(2)})`,
+                    href: '/contabilita/contanti-depositi',
+                    userId: '__admin_broadcast__'
+                });
             }
         } catch (error) {
             console.error(`Error updating ${phase} payment:`, error);
@@ -559,6 +568,14 @@ export default function PagamentiContantiPage() {
                                                                     paymentMethod: 'contanti',
                                                                 }),
                                                             }).catch(e => console.warn('Errore invio email pagamento:', e));
+
+                                                            triggerNotification({
+                                                                eventType: 'pagamento_ricevuto',
+                                                                title: `Nuovo Incasso Tesseramento (${userData.displayName})`,
+                                                                body: `Registrato pagamento tesseramento per ${raccolta.nome} (Membro: ${memberName}, Importo: €${fee.toFixed(2)})`,
+                                                                href: '/contabilita/contanti-depositi',
+                                                                userId: '__admin_broadcast__'
+                                                            });
                                                         }
                                                     }
                                                     catch (error) { console.error(`Error updating tesseramento payment:`, error); }

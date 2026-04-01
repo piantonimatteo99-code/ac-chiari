@@ -24,6 +24,7 @@ import { useUserData } from '@/src/hooks/use-user-data';
 import { Separator } from './ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { Raccolta } from './raccolta-card';
+import { triggerNotification } from '@/lib/trigger-notification';
 
 export interface Spesa {
     id: string;
@@ -194,6 +195,14 @@ export function AddSpesaDialog({ isOpen, onOpenChange }: AddSpesaDialogProps) {
       };
 
       await addDoc(collection(firestore, 'spese'), spesaData);
+
+      triggerNotification({
+          eventType: 'transazione_da_controllare',
+          title: `Nuova Spesa Registrata (${userData.displayName})`,
+          body: `Registrata una spesa di €${Number(importo).toFixed(2)} per: ${descrizione}`,
+          href: '/contabilita/conto',
+          userId: '__admin_broadcast__'
+      });
 
       onOpenChange(false);
     } catch (err: any) {

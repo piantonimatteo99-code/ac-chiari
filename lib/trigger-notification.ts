@@ -46,7 +46,7 @@ const TYPE_MAP: Record<NotificaEventType, 'pagamento' | 'evento' | 'iscrizione' 
 export async function triggerNotification(payload: TriggerNotificationPayload): Promise<void> {
   const userId = payload.userId ?? '__broadcast__';
 
-  // 1. Save to Firestore (in-app notification bell)
+  // 1. Save to Firestore (in-app notification bell) and send Native FCM/WebPush via unified backend
   fetch('/api/send-notification', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -58,17 +58,5 @@ export async function triggerNotification(payload: TriggerNotificationPayload): 
       href: payload.href,
       eventType: payload.eventType,
     }),
-  }).catch(err => console.warn('[triggerNotification] Firestore save failed:', err));
-
-  // 2. Send native Web Push (iOS PWA + Android + Desktop)
-  fetch('/api/webpush/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userId,
-      title: payload.title,
-      body: payload.body,
-      href: payload.href,
-    }),
-  }).catch(err => console.warn('[triggerNotification] Web Push failed:', err));
+  }).catch(err => console.warn('[triggerNotification] Failed:', err));
 }
