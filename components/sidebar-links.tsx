@@ -165,6 +165,11 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   // Notifiche non lette (badge sulla dashboard)
   const { notifiche, unreadCount: notificheNonLette } = useNotifications();
   
+  const notificheUtentiRegistrati = useMemo(() => {
+    if (!notifiche) return 0;
+    return notifiche.filter((n: any) => !n.letta && n.href === '/admin/gestione-utenti/utenti-registrati').length;
+  }, [notifiche]);
+  
   const userAndFamilyMembers = useMemo((): (typeof userData | Membro)[] => {
       if (!userData && !membri) return [];
       const allFamilyMembers = [];
@@ -402,11 +407,6 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   const getActiveAdminGroups = () => {
     return adminGroups.filter(group => group.links.some(link => pathname.startsWith(link.href))).map(g => g.title);
   };
-  
-  const notificheUtentiRegistrati = useMemo(() => {
-    if (!notifiche) return 0;
-    return notifiche.filter(n => !n.letta && n.href === '/admin/gestione-utenti/utenti-registrati').length;
-  }, [notifiche]);
 
   const renderAdminSubLink = (href: string, label: string) => {
     const isActive = pathname.startsWith(href);
