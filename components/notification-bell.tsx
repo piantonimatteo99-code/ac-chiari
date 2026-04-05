@@ -131,6 +131,18 @@ export function NotificationBell() {
     }
   }, []);
 
+  // Update the app icon badge (Web App Badging API — works on Android, Windows, macOS PWA)
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return;
+    if ('setAppBadge' in navigator) {
+      if (unreadCount > 0) {
+        (navigator as any).setAppBadge(unreadCount).catch(() => {});
+      } else {
+        (navigator as any).clearAppBadge().catch(() => {});
+      }
+    }
+  }, [unreadCount]);
+
   const handleEnablePush = async () => {
     if (!user) return;
     setPushLoading(true);
