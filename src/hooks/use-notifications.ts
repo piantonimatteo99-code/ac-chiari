@@ -13,7 +13,7 @@ export interface Notifica {
   href?: string;
   letta: boolean;
   createdAt: any;
-  userId?: string; // undefined = broadcast a tutti
+  userId?: string;
 }
 
 export function useNotifications() {
@@ -21,25 +21,71 @@ export function useNotifications() {
   const { user } = useUser();
   const { userData } = useUserData();
 
-  const notifQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    
-    const isAdmin = userData?.roles?.includes('admin');
-    const validIds = [user.uid, '__broadcast__'];
-    if (isAdmin) validIds.push('__admin_broadcast__');
+  const isAdmin = userData?.roles?.includes('admin');
 
+  // Query 1: notifications for the specific logged-in user
+  const userNotifQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
     return query(
       collection(firestore, 'notifiche'),
-      where('userId', 'in', validIds),
+      where('userId', '==', user.uid),
       orderBy('createdAt', 'desc'),
-      limit(30)
+      limit(20)
     );
-  }, [firestore, user, userData]);
+  }, [firestore, user]);
 
-  const { data: notifiche, isLoading } = useCollection<Notifica>(notifQuery);
+  // Query 2: broadcast notifications for all users
+  const broadcastNotifQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(
+      collection(firestore, 'notifiche'),
+      where('userId', '==', '__broadcast__'),
+      orderBy('createdAt', 'desc'),
+      limit(15)
+    );
+  }, [firestore]);
+
+  // Query 3: admin-only broadcast notifications (only fetched if admin)
+  const adminNotifQuery = useMemoFirebase(() => {
+    if (!firestore || !isAdmin) return null;
+    return query(
+      collection(firestore, 'notifiche'),
+      where('userId', '==', '__admin_broadcast__'),
+      orderBy('createdAt', 'desc'),
+      limit(15)
+    );
+  }, [firestore, isAdmin]);
+
+  const { data: userNotifiche, isLoading: isLoadingUser } = useCollection<Notifica>(userNotifQuery);
+  const { data: broadcastNotifiche, isLoading: isLoadingBroadcast } = useCollection<Notifica>(broadcastNotifQuery);
+  const { data: adminNotifiche, isLoading: isLoadingAdmin } = useCollection<Notifica>(adminNotifQuery);
+
+  // Merge and sort all notifications client-side, dedup by id
+  const notifiche = useMemo(() => {
+    const all = [
+      ...(userNotifiche ?? []),
+      ...(broadcastNotifiche ?? []),
+      ...(adminNotifiche ?? []),
+    ];
+    // Deduplicate by id
+    const seen = new Set<string>();
+    const deduped = all.filter(n => {
+      if (seen.has(n.id)) return false;
+      seen.add(n.id);
+      return true;
+    });
+    // Sort by createdAt descending
+    return deduped.sort((a, b) => {
+      const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    }).slice(0, 30);
+  }, [userNotifiche, broadcastNotifiche, adminNotifiche]);
+
+  const isLoading = isLoadingUser || isLoadingBroadcast || isLoadingAdmin;
 
   const unreadCount = useMemo(
-    () => notifiche?.filter(n => !n.letta).length ?? 0,
+    () => notifiche.filter(n => !n.letta).length,
     [notifiche]
   );
 
@@ -57,5 +103,6 @@ export function useNotifications() {
     await batch.commit();
   };
 
-  return { notifiche: notifiche ?? [], unreadCount, isLoading, markAsRead, markAllAsRead };
+  return { notifiche, unreadCount, isLoading, markAsRead, markAllAsRead };
 }
+
