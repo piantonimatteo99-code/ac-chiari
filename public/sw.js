@@ -1,10 +1,10 @@
 /**
- * AC Chiari — Unified Service Worker
- * Handles both:
- *  1. Native Web Push (W3C PushManager) — works on iOS 16.4+ PWA, Android, Desktop
- *  2. Firebase Cloud Messaging background messages (Chrome/Android fallback)
+ * AC Chiari — Native Web Push Service Worker
+ * Handles W3C PushManager push events (iOS 16.4+ PWA, Android Chrome, Desktop).
  *
- * This file MUST be served from the root: /sw.js
+ * NOTE: FCM is intentionally NOT imported here to avoid double notifications.
+ * Firebase background messages are handled separately by firebase-messaging-sw.js
+ * only for pure FCM devices (Android without a native WebPush subscription).
  */
 
 // ─── Native Web Push: push event ─────────────────────────────────────────────
@@ -54,38 +54,3 @@ self.addEventListener('notificationclick', (event) => {
       })
   );
 });
-
-// ─── Firebase Messaging fallback (Chrome/Android) ────────────────────────────
-// Only runs if the Firebase compat scripts are imported (they won't be on iOS).
-try {
-  importScripts('https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js');
-  importScripts('https://www.gstatic.com/firebasejs/10.14.0/firebase-messaging-compat.js');
-
-  const firebaseConfig = {
-    apiKey: 'AIzaSyBQM55rxYKOc7-H0amuUbr2lc39Gxva5Kw',
-    authDomain: 'ac-chiari-import-2024.firebaseapp.com',
-    projectId: 'ac-chiari-import-2024',
-    storageBucket: 'ac-chiari-import-2024.firebasestorage.app',
-    messagingSenderId: '901135690459',
-    appId: '1:901135690459:web:bf13c0ff2d857b991c7afe',
-  };
-
-  if (!self.firebase?.apps?.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  const messaging = firebase.messaging();
-
-  messaging.onBackgroundMessage((payload) => {
-    const title = payload.notification?.title || 'Nuova notifica – AC Chiari';
-    const options = {
-      body: payload.notification?.body || '',
-      icon: '/ac-logo.jpg',
-      badge: '/ac-logo.jpg',
-      data: payload.data,
-      tag: payload.data?.notificationId || 'ac-chiari-fcm',
-    };
-    self.registration.showNotification(title, options);
-  });
-} catch (_) {
-  // Firebase not available on this browser — native Web Push only
-}

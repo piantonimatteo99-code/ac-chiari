@@ -115,12 +115,15 @@ export async function POST(req: NextRequest) {
     if (ops > 0) batches.push(currBatch.commit());
     await Promise.all(batches);
 
-    // ── 4. Collect FCM Tokens & WebPush Subscriptions ─────────────────────
+    // ── 4. Collect FCM Tokens & WebPush Subscriptions per user ─────────────
     const getCredentials = async (uid: string) => {
         const tokensSnap = await adminDb.collection('users').doc(uid).collection('fcmTokens').get();
         const fcmTokens = tokensSnap.docs.map(t => t.data().token as string).filter(Boolean);
         const wpSnap = await adminDb.collection('users').doc(uid).collection('webPushSubscriptions').get();
-        return { fcmTokens, wpDocs: wpSnap.docs };
+        const wpDocs = wpSnap.docs;
+        // If user has a native WebPush subscription, prefer it over FCM to avoid duplicates
+        const hasWebPush = wpDocs.length > 0;
+        return { fcmTokens: hasWebPush ? [] : fcmTokens, wpDocs };
     };
 
     const credentialsResults = await Promise.all(targetUserIds.map(uid => getCredentials(uid)));
@@ -148,7 +151,7 @@ export async function POST(req: NextRequest) {
         wpSent = wpResults.filter(r => r.status === 'fulfilled').length;
     }
 
-    // ── 6. Send FCM Push ────────────────────────────────────────────────
+    // ── 6. Send FCM Push (only to users WITHOUT a WebPush subscription) ─
     let fcmSentCount = 0;
     const BATCH_SIZE = 500;
     for (let i = 0; i < allFCMTokens.length; i += BATCH_SIZE) {
@@ -180,6 +183,7 @@ export async function POST(req: NextRequest) {
         console.error('[send-notification] FCM send error:', fcmError);
       }
     }
+
 
     return NextResponse.json({
       success: true,
