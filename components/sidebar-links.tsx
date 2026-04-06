@@ -165,23 +165,30 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
 
   // Notifiche non lette (badge sulla dashboard)
   const { notifiche, unreadCount: notificheNonLette } = useNotifications();
-  
-  const notificheUtentiRegistrati = useMemo(() => {
-    if (!notifiche) return 0;
-    return notifiche.filter((n: any) => !n.letta && n.href === '/admin/gestione-utenti/utenti-registrati').length;
+
+  // ── Centralized badge system ──────────────────────────────────────────────
+  // Maps each unread notification's href to its count
+  const hrefBadgeMap = useMemo(() => {
+    const map = new Map<string, number>();
+    notifiche.forEach((n: any) => {
+      if (!n.letta && n.href) {
+        map.set(n.href, (map.get(n.href) ?? 0) + 1);
+      }
+    });
+    return map;
   }, [notifiche]);
 
-  // Badge: transazioni da controllare (notifiche con pagamento_in_attesa)
-  const notificheTransazioni = useMemo(() => {
-    if (!notifiche) return 0;
-    return notifiche.filter((n: any) => !n.letta && n.href === '/contabilita/transazioni-da-controllare').length;
-  }, [notifiche]);
+  // Returns unread count for a single href
+  const getBadge = useCallback((href: string) => hrefBadgeMap.get(href) ?? 0, [hrefBadgeMap]);
 
-  // Badge: nuovi iscritti (notifiche nuovo_iscritto o nuovo_utente -> tesserati/nuovi-iscritti)
-  const notificheNuoviIscritti = useMemo(() => {
-    if (!notifiche) return 0;
-    return notifiche.filter((n: any) => !n.letta && (n.href === '/tesserati/nuovi-iscritti' || n.href === '/admin/gestione-utenti/utenti-registrati')).length;
-  }, [notifiche]);
+  // Returns total unread count for a list of hrefs
+  const getSectionBadge = useCallback((hrefs: string[]) =>
+    hrefs.reduce((sum, h) => sum + (hrefBadgeMap.get(h) ?? 0), 0)
+  , [hrefBadgeMap]);
+
+  // Pre-computed section totals used for accordion headers
+  const adminAllHrefs = useMemo(() => adminGroups.flatMap(g => g.links.map(l => l.href)), []);
+  const adminTotalBadge = useMemo(() => getSectionBadge(adminAllHrefs), [getSectionBadge, adminAllHrefs]);
   
   const userAndFamilyMembers = useMemo((): (typeof userData | Membro)[] => {
       if (!userData && !membri) return [];
@@ -269,13 +276,22 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     return <div className="px-3 py-2 text-muted-foreground">Caricamento...</div>;
   }
   
+  const renderBadge = (count: number, color = 'bg-primary text-primary-foreground') =>
+    count > 0 ? (
+      <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold ${color}`}>
+        {count > 9 ? '9+' : count}
+      </span>
+    ) : null;
+
   const renderLink = (item: { href: string; icon?: React.ElementType; label: string }, isSubItem = false) => {
     const isActive = pathname === item.href;
     const Icon = item.icon;
     const isMagazzino = item.href === '/magazzino';
     const isDashboard = item.href === '/dashboard';
+    // Dashboard: use total unread. Magazzino: product expiry. Others: per-href badge.
+    const notifBadge = isDashboard ? 0 : getBadge(item.href);
     const showMagazzinoBadge = isMagazzino && prodottiInScadenzaCount > 0;
-    const showNotifBadge = isDashboard && notificheNonLette > 0;
+    const showDashboard = isDashboard && notificheNonLette > 0;
     return (
       <Link
         href={item.href}
@@ -289,35 +305,20 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
       >
         {Icon && <Icon className="h-5 w-5" />}
         <span className="flex-1">{item.label}</span>
-        {showMagazzinoBadge && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
-            {prodottiInScadenzaCount}
-          </span>
-        )}
-        {showNotifBadge && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-            {notificheNonLette > 9 ? '9+' : notificheNonLette}
-          </span>
-        )}
+        {showMagazzinoBadge && renderBadge(prodottiInScadenzaCount, 'bg-destructive text-destructive-foreground')}
+        {showDashboard && renderBadge(notificheNonLette)}
+        {!isDashboard && !isMagazzino && renderBadge(notifBadge)}
       </Link>
     );
   };
 
   const renderAccordion = (item: { id: string, label: string, icon: React.ElementType, subItems: any[] }) => {
     const visibleSubItems = item.subItems.filter(sub => getPageVisibility(sub).visible);
-    
     if (visibleSubItems.length === 0) return null;
-    
     const isInside = pathname.startsWith(`/${item.id}`);
     const Icon = item.icon;
-
-    // Determine if the whole section has any unread badge
-    const sectionBadge = (() => {
-      if (item.id === 'tesserati') return notificheNuoviIscritti;
-      if (item.id === 'contabilita') return notificheTransazioni;
-      return 0;
-    })();
-    
+    // Sum badges for all visible subItems of this section
+    const sectionBadge = getSectionBadge(visibleSubItems.map((s: any) => s.href));
     return (
       <Accordion type="single" collapsible defaultValue={isInside ? `${item.id}-panel` : ''} className="w-full">
         <AccordionItem value={`${item.id}-panel`} className="border-b-0">
@@ -326,28 +327,18 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
             <div className="flex items-center gap-4 pointer-events-none flex-1 min-w-0">
               <Icon className="h-5 w-5 shrink-0" />
               <span className="flex-1 text-left">{item.label}</span>
-              {sectionBadge > 0 && !isInside && (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shrink-0">
-                  {sectionBadge > 9 ? '9+' : sectionBadge}
-                </span>
-              )}
+              {sectionBadge > 0 && !isInside && renderBadge(sectionBadge)}
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-1 pl-3 space-y-1">
             {visibleSubItems.map((sub: any) => {
-              const subBadge = (() => {
-                if (sub.href === '/tesserati/nuovi-iscritti') return notificheNuoviIscritti;
-                if (sub.href === '/contabilita/transazioni-da-controllare') return notificheTransazioni;
-                return 0;
-              })();
+              const subBadge = getBadge(sub.href);
               return (
-                <Link key={sub.id} href={sub.href} onClick={onLinkClick} className={cn("flex w-full text-left items-center justify-between rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary", pathname === sub.href ? "text-primary" : "text-muted-foreground")}>
+                <Link key={sub.id} href={sub.href} onClick={onLinkClick}
+                  className={cn("flex w-full text-left items-center justify-between rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary",
+                    pathname === sub.href ? "text-primary" : "text-muted-foreground")}>
                   <span>{sub.label}</span>
-                  {subBadge > 0 && (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                      {subBadge > 9 ? '9+' : subBadge}
-                    </span>
-                  )}
+                  {renderBadge(subBadge)}
                 </Link>
               );
             })}
@@ -447,18 +438,13 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
 
   const renderAdminSubLink = (href: string, label: string) => {
     const isActive = pathname.startsWith(href);
-    const showUtentiBadge = href === '/admin/gestione-utenti/utenti-registrati' && notificheUtentiRegistrati > 0;
-    const showTransazioniBadge = href === '/contabilita/transazioni-da-controllare' && notificheTransazioni > 0;
-    const badgeCount = showUtentiBadge ? notificheUtentiRegistrati : showTransazioniBadge ? notificheTransazioni : 0;
-    const showBadge = badgeCount > 0;
+    const badge = getBadge(href);
     return (
-       <Link href={href} onClick={onLinkClick} className={cn("flex w-full text-left items-center justify-between rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary", isActive ? "text-primary bg-primary/5" : "text-muted-foreground")}>
+      <Link href={href} onClick={onLinkClick}
+        className={cn("flex w-full text-left items-center justify-between rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary",
+          isActive ? "text-primary bg-primary/5" : "text-muted-foreground")}>
         <span className="flex items-center gap-3">{label}</span>
-        {showBadge && (
-           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-             {badgeCount > 9 ? '9+' : badgeCount}
-           </span>
-        )}
+        {renderBadge(badge)}
       </Link>
     );
   }
@@ -497,26 +483,32 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
                 <AccordionTrigger
                   className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground", {'bg-accent text-accent-foreground': pathname.startsWith('/admin')})}
                 >
-                    <div className="flex items-center gap-4 pointer-events-none">
-                        <Shield className="h-5 w-5" />
+                    <div className="flex items-center gap-4 pointer-events-none flex-1 min-w-0">
+                        <Shield className="h-5 w-5 shrink-0" />
                         <span className="flex-1 text-left">Admin Panel</span>
+                        {adminTotalBadge > 0 && !pathname.startsWith('/admin') && renderBadge(adminTotalBadge)}
                     </div>
                 </AccordionTrigger>
                 <AccordionContent className="pt-1">
                     <Accordion type="multiple" defaultValue={getActiveAdminGroups()} className="w-full space-y-1">
-                        {adminGroups.map((group) => (
+                        {adminGroups.map((group) => {
+                            const groupBadge = getSectionBadge(group.links.map(l => l.href));
+                            const isGroupActive = group.links.some(l => pathname.startsWith(l.href));
+                            return (
                             <AccordionItem value={group.title} key={group.title} className="border-b-0">
-                                <AccordionTrigger className={cn("py-2 pl-3 hover:no-underline flex justify-start", { "text-primary": group.links.some(l => pathname.startsWith(l.href)) })}>
-                                    <div className="flex items-center gap-3 rounded-lg text-sm font-medium pointer-events-none">
-                                        <group.icon className="h-4 w-4" />
-                                        <span>{group.title}</span>
+                                <AccordionTrigger className={cn("py-2 pl-3 hover:no-underline flex justify-start", { "text-primary": isGroupActive })}>
+                                    <div className="flex items-center gap-3 rounded-lg text-sm font-medium pointer-events-none flex-1 min-w-0">
+                                        <group.icon className="h-4 w-4 shrink-0" />
+                                        <span className="flex-1">{group.title}</span>
+                                        {groupBadge > 0 && !isGroupActive && renderBadge(groupBadge)}
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-1 pl-3 space-y-1">
                                     {group.links.map(link => <div key={link.href}>{renderAdminSubLink(link.href, link.label)}</div>)}
                                 </AccordionContent>
                             </AccordionItem>
-                        ))}
+                            );
+                        })}
                     </Accordion>
                 </AccordionContent>
             </AccordionItem>
