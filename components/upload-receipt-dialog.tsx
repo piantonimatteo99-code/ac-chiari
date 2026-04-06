@@ -25,6 +25,7 @@ import { Separator } from './ui/separator';
 import { Raccolta } from '@/components/raccolta-card';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { triggerNotification } from '@/lib/trigger-notification';
 
 interface AnalysisResult {
   importo?: number | null;
@@ -658,6 +659,18 @@ const handleConfirm = async () => {
         }).catch(e => console.warn('Errore invio email pagamento:', e));
 
         clearCachedPaymentId();
+
+        // Notifica agli admin: nuovo pagamento da verificare
+        const memberNames = paymentItems.map(i => i.memberName).join(', ');
+        const raccoltaNames = Array.from(new Set(paymentItems.map(i => i.raccoltaNome))).join(', ');
+        triggerNotification({
+          eventType: 'pagamento_in_attesa',
+          title: '💳 Nuova ricevuta di pagamento caricata',
+          body: `${memberNames} ha caricato la ricevuta per: ${raccoltaNames} (€${importoAtteso}). Verificare.`,
+          href: '/contabilita/transazioni-da-controllare',
+          userId: '__admin_broadcast__',
+        });
+
         onSuccess();
         onOpenChange(false);
 

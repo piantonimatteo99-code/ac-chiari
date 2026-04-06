@@ -43,15 +43,39 @@ const NOTIFICA_COLORS: Record<Notifica['type'], string> = {
   feedback: 'bg-gray-500/10 text-gray-600',
 };
 
-function NotificaItem({ n, onRead }: { n: Notifica; onRead: (id: string) => void }) {
+function NotificaItem({ n, onRead, onDelete }: { n: Notifica; onRead: (id: string) => void; onDelete: (id: string) => void }) {
   const ts = n.createdAt?.toDate ? n.createdAt.toDate() : n.createdAt ? new Date(n.createdAt) : null;
+  const [swipeX, setSwipeX] = useState(0);
+  const [startX, setStartX] = useState<number | null>(null);
+  const [dismissed, setDismissed] = useState(false);
 
-  const content = (
+  const handleTouchStart = (e: React.TouchEvent) => setStartX(e.touches[0].clientX);
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startX === null) return;
+    const delta = e.touches[0].clientX - startX;
+    if (delta < 0) setSwipeX(delta); // only swipe left
+  };
+  const handleTouchEnd = () => {
+    if (swipeX < -80) {
+      setDismissed(true);
+      setTimeout(() => onDelete(n.id), 250);
+    } else {
+      setSwipeX(0);
+    }
+    setStartX(null);
+  };
+
+  const inner = (
     <div
       className={cn(
-        'flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer group',
-        !n.letta && 'bg-primary/5'
+        'relative flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-all cursor-pointer group',
+        !n.letta && 'bg-primary/5',
+        dismissed && 'opacity-0 scale-95'
       )}
+      style={{ transform: `translateX(${swipeX}px)`, transition: swipeX === 0 ? 'transform 0.2s ease, opacity 0.2s ease' : undefined }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onClick={() => onRead(n.id)}
     >
       <div className={cn('rounded-full p-2 text-sm shrink-0 mt-0.5', NOTIFICA_COLORS[n.type])}>
@@ -74,19 +98,27 @@ function NotificaItem({ n, onRead }: { n: Notifica; onRead: (id: string) => void
       {n.href && (
         <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
       )}
+      {/* Delete button — visible on hover (desktop) */}
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(n.id); }}
+        className="absolute top-2 right-2 h-5 w-5 rounded-full flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+        title="Rimuovi notifica"
+      >
+        <X className="h-3 w-3" />
+      </button>
     </div>
   );
 
   if (n.href) {
-    return <Link href={n.href} className="block">{content}</Link>;
+    return <Link href={n.href} className="block">{inner}</Link>;
   }
-  return content;
+  return inner;
 }
 
 type TabType = 'notifiche' | 'preferenze';
 
 export function NotificationBell() {
-  const { notifiche, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifiche, unreadCount, markAsRead, markAllAsRead, deleteNotifica } = useNotifications();
   const { isEnabled, setPreference, resetToDefaults, isLoading: isPrefLoading } = useUserNotifPreferences();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabType>('notifiche');
@@ -282,7 +314,7 @@ export function NotificationBell() {
                 ) : (
                   <div className="divide-y">
                     {notifiche.map(n => (
-                      <NotificaItem key={n.id} n={n} onRead={markAsRead} />
+                      <NotificaItem key={n.id} n={n} onRead={markAsRead} onDelete={deleteNotifica} />
                     ))}
                   </div>
                 )}

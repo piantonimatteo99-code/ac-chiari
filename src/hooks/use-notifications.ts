@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collection, query, where, limit, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, limit, doc, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
 
 export interface Notifica {
@@ -100,6 +100,11 @@ export function useNotifications() {
     await batch.commit();
   };
 
-  return { notifiche, unreadCount, isLoading, markAsRead, markAllAsRead };
+  const deleteNotifica = async (id: string) => {
+    if (!firestore) return;
+    await deleteDoc(doc(firestore, 'notifiche', id));
+  };
+
+  return { notifiche, unreadCount, isLoading, markAsRead, markAllAsRead, deleteNotifica };
 }
 
