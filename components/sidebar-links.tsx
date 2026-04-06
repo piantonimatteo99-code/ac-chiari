@@ -16,7 +16,7 @@ import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { PagePermission } from '@/app/(app)/admin/configurazione/gestione-pagine/page';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import type { EducatorRole } from '@/app/(app)/admin/area-educatori/ruoli-educatori/page';
-import { useCallback, useMemo, memo } from 'react';
+import { useCallback, useMemo, memo, useState } from 'react';
 import type { Progetto } from '@/app/(app)/progetti/page';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
 import { differenceInDays, parseISO } from 'date-fns';
@@ -115,6 +115,27 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   const { user } = useUser();
   const { userData, isLoading: isUserLoading } = useUserData();
   const firestore = useFirestore();
+
+  // Track which accordion sections are open (to hide badge on header when open)
+  const [openSections, setOpenSections] = useState<Set<string>>(() => {
+    const init = new Set<string>();
+    navConfig.forEach(item => {
+      if (item.subItems.length > 0 && pathname.startsWith(`/${item.id}`)) init.add(item.id);
+    });
+    if (pathname.startsWith('/admin')) init.add('admin-panel');
+    adminGroups.forEach(g => {
+      if (g.links.some(l => pathname.startsWith(l.href))) init.add(g.title);
+    });
+    return init;
+  });
+
+  const toggleSection = useCallback((id: string, isOpen: boolean) => {
+    setOpenSections(prev => {
+      const next = new Set(prev);
+      if (isOpen) next.add(id); else next.delete(id);
+      return next;
+    });
+  }, []);
 
   const isAdmin = useMemo(() => userData?.roles?.includes('admin') ?? false, [userData]);
 
@@ -315,19 +336,24 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   const renderAccordion = (item: { id: string, label: string, icon: React.ElementType, subItems: any[] }) => {
     const visibleSubItems = item.subItems.filter(sub => getPageVisibility(sub).visible);
     if (visibleSubItems.length === 0) return null;
-    const isInside = pathname.startsWith(`/${item.id}`);
+    const isOpen = openSections.has(item.id);
     const Icon = item.icon;
-    // Sum badges for all visible subItems of this section
     const sectionBadge = getSectionBadge(visibleSubItems.map((s: any) => s.href));
     return (
-      <Accordion type="single" collapsible defaultValue={isInside ? `${item.id}-panel` : ''} className="w-full">
+      <Accordion
+        type="single" collapsible
+        value={isOpen ? `${item.id}-panel` : ''}
+        onValueChange={val => toggleSection(item.id, !!val)}
+        className="w-full"
+      >
         <AccordionItem value={`${item.id}-panel`} className="border-b-0">
           <AccordionTrigger
-            className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground", {'bg-accent text-accent-foreground': isInside})}>
+            className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground",
+              {'bg-accent text-accent-foreground': pathname.startsWith(`/${item.id}`)})}>
             <div className="flex items-center gap-4 pointer-events-none flex-1 min-w-0">
               <Icon className="h-5 w-5 shrink-0" />
               <span className="flex-1 text-left">{item.label}</span>
-              {sectionBadge > 0 && !isInside && renderBadge(sectionBadge)}
+              {sectionBadge > 0 && !isOpen && renderBadge(sectionBadge)}
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-1 pl-3 space-y-1">
@@ -478,7 +504,12 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
       })}
 
       {isAdmin && (
-        <Accordion type="single" collapsible defaultValue={pathname.startsWith('/admin') ? 'admin-panel' : ''} className="w-full">
+        <Accordion
+          type="single" collapsible
+          value={openSections.has('admin-panel') ? 'admin-panel' : ''}
+          onValueChange={val => toggleSection('admin-panel', !!val)}
+          className="w-full"
+        >
             <AccordionItem value="admin-panel" className="border-b-0">
                 <AccordionTrigger
                   className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground", {'bg-accent text-accent-foreground': pathname.startsWith('/admin')})}
@@ -486,13 +517,26 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
                     <div className="flex items-center gap-4 pointer-events-none flex-1 min-w-0">
                         <Shield className="h-5 w-5 shrink-0" />
                         <span className="flex-1 text-left">Admin Panel</span>
-                        {adminTotalBadge > 0 && !pathname.startsWith('/admin') && renderBadge(adminTotalBadge)}
+                        {adminTotalBadge > 0 && !openSections.has('admin-panel') && renderBadge(adminTotalBadge)}
                     </div>
                 </AccordionTrigger>
                 <AccordionContent className="pt-1">
-                    <Accordion type="multiple" defaultValue={getActiveAdminGroups()} className="w-full space-y-1">
+                    <Accordion
+                      type="multiple"
+                      value={Array.from(openSections).filter(s => adminGroups.some(g => g.title === s))}
+                      onValueChange={vals => {
+                        setOpenSections(prev => {
+                          const next = new Set(prev);
+                          adminGroups.forEach(g => next.delete(g.title));
+                          vals.forEach(v => next.add(v));
+                          return next;
+                        });
+                      }}
+                      className="w-full space-y-1"
+                    >
                         {adminGroups.map((group) => {
                             const groupBadge = getSectionBadge(group.links.map(l => l.href));
+                            const isGroupOpen = openSections.has(group.title);
                             const isGroupActive = group.links.some(l => pathname.startsWith(l.href));
                             return (
                             <AccordionItem value={group.title} key={group.title} className="border-b-0">
@@ -500,7 +544,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
                                     <div className="flex items-center gap-3 rounded-lg text-sm font-medium pointer-events-none flex-1 min-w-0">
                                         <group.icon className="h-4 w-4 shrink-0" />
                                         <span className="flex-1">{group.title}</span>
-                                        {groupBadge > 0 && !isGroupActive && renderBadge(groupBadge)}
+                                        {groupBadge > 0 && !isGroupOpen && renderBadge(groupBadge)}
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-1 pl-3 space-y-1">
@@ -514,6 +558,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
             </AccordionItem>
         </Accordion>
       )}
+
     </div>
   );
 }
