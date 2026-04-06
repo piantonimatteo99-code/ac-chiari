@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collection, query, where, orderBy, limit, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, limit, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
 
 export interface Notifica {
@@ -29,7 +29,6 @@ export function useNotifications() {
     return query(
       collection(firestore, 'notifiche'),
       where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
       limit(20)
     );
   }, [firestore, user]);
@@ -40,7 +39,6 @@ export function useNotifications() {
     return query(
       collection(firestore, 'notifiche'),
       where('userId', '==', '__broadcast__'),
-      orderBy('createdAt', 'desc'),
       limit(15)
     );
   }, [firestore]);
@@ -51,7 +49,6 @@ export function useNotifications() {
     return query(
       collection(firestore, 'notifiche'),
       where('userId', '==', '__admin_broadcast__'),
-      orderBy('createdAt', 'desc'),
       limit(15)
     );
   }, [firestore, isAdmin]);
