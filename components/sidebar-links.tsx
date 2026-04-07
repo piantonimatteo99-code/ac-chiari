@@ -520,7 +520,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
                         {adminTotalBadge > 0 && !openSections.has('admin-panel') && renderBadge(adminTotalBadge)}
                     </div>
                 </AccordionTrigger>
-                <AccordionContent className="pt-1">
+                <AccordionContent className="pt-1 pb-0">
                     <Accordion
                       type="multiple"
                       value={Array.from(openSections).filter(s => adminGroups.some(g => g.title === s))}
@@ -540,14 +540,19 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
                             const isGroupActive = group.links.some(l => pathname.startsWith(l.href));
                             return (
                             <AccordionItem value={group.title} key={group.title} className="border-b-0">
-                                <AccordionTrigger className={cn("py-2 pl-3 hover:no-underline flex justify-start", { "text-primary": isGroupActive })}>
-                                    <div className="flex items-center gap-3 rounded-lg text-sm font-medium pointer-events-none flex-1 min-w-0">
+                                <AccordionTrigger
+                                  className={cn(
+                                    "w-full py-2 pl-3 pr-3 hover:no-underline text-left",
+                                    isGroupActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                                  )}
+                                >
+                                    <div className="flex items-center gap-3 text-sm font-medium flex-1 min-w-0">
                                         <group.icon className="h-4 w-4 shrink-0" />
-                                        <span className="flex-1">{group.title}</span>
+                                        <span className="flex-1 text-left">{group.title}</span>
                                         {groupBadge > 0 && !isGroupOpen && renderBadge(groupBadge)}
                                     </div>
                                 </AccordionTrigger>
-                                <AccordionContent className="pt-1 pl-3 space-y-1">
+                                <AccordionContent className="pt-1 pl-4 space-y-1">
                                     {group.links.map(link => <div key={link.href}>{renderAdminSubLink(link.href, link.label)}</div>)}
                                 </AccordionContent>
                             </AccordionItem>

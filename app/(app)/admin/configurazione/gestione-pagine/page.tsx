@@ -2,12 +2,14 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
 import { collection, doc, setDoc, writeBatch } from 'firebase/firestore';
-import { Home, FlaskConical, PenSquare, Building, Calendar, Warehouse, Tent, Landmark, ShieldCheck, Users, Share2, Shield, GraduationCap, UserCog, FileCog, CircleHelp, ChevronRight, FolderOpen, Gavel } from 'lucide-react';
+import { Home, FlaskConical, PenSquare, Building, Calendar, Warehouse, Tent, Landmark, ShieldCheck, Users, Share2, Shield, GraduationCap, UserCog, FileCog, CircleHelp, ChevronRight, FolderOpen, Gavel, Trash2, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import type { Group } from '../../gestione-gruppi/tutti-i-gruppi/page';
 
 
@@ -152,6 +154,28 @@ const SITE_MAP: SiteMapNode[] = [
 
 export default function GestionePaginePage() {
   const firestore = useFirestore();
+
+  // ── Reset test data ──────────────────────────────────────────────────────
+  const [showResetConfirm1, setShowResetConfirm1] = useState(false);
+  const [showResetConfirm2, setShowResetConfirm2] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetResult, setResetResult] = useState<{ success: boolean; deleted?: Record<string, number>; error?: string } | null>(null);
+
+  const handleReset = async () => {
+    setShowResetConfirm2(false);
+    setIsResetting(true);
+    setResetResult(null);
+    try {
+      const res = await fetch('/api/reset-test-data', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore sconosciuto');
+      setResetResult({ success: true, deleted: data.deleted });
+    } catch (e: any) {
+      setResetResult({ success: false, error: e.message });
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const permissionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -356,6 +380,118 @@ export default function GestionePaginePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Zona di Pericolo ──────────────────────────────────────────────── */}
+      <Card className="border-destructive/40 bg-destructive/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <CardTitle className="text-destructive">Zona di Pericolo — Reset Dati di Test</CardTitle>
+          </div>
+          <CardDescription>
+            Elimina <strong>tutti i dati inseriti</strong> durante i test: gruppi, eventi, raccolte, spese, notifiche,
+            magazzino, presenze, familiari, movimenti contanti, ecc.<br />
+            Gli <strong>utenti</strong> e la <strong>configurazione</strong> (Drive, notifiche) vengono conservati.
+            Questa operazione è <strong className="text-destructive">irreversibile</strong>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {/* Result banner */}
+          {resetResult && (
+            <div className={`rounded-lg border p-4 text-sm ${
+              resetResult.success
+                ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-950/30 dark:border-green-800 dark:text-green-300'
+                : 'bg-destructive/10 border-destructive/30 text-destructive'
+            }`}>
+              {resetResult.success ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 font-semibold">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Reset completato con successo!
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs font-mono mt-2">
+                    {Object.entries(resetResult.deleted ?? {}).map(([col, count]) => (
+                      <span key={col} className="truncate">
+                        <span className="font-semibold">{col}:</span> {count < 0 ? 'errore' : `${count} doc`}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Errore: {resetResult.error}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <Button
+              variant="destructive"
+              disabled={isResetting}
+              onClick={() => { setShowResetConfirm1(true); setResetResult(null); }}
+            >
+              {isResetting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Reset in corso...</>
+              ) : (
+                <><Trash2 className="mr-2 h-4 w-4" />Resetta tutti i dati di test</>
+              )}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Gli utenti registrati e la configurazione rimarranno intatti.
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Confirm dialogs ─────────────────────────────────────────────── */}
+      {/* Step 1 */}
+      <Dialog open={showResetConfirm1} onOpenChange={setShowResetConfirm1}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Sei sicuro di voler resettare?
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Stai per eliminare <strong>tutti i dati di test</strong> presenti nel database:
+              gruppi, eventi, raccolte, spese, pagamenti, notifiche, presenze, magazzino e altro ancora.
+              <br /><br />
+              Gli account utente e la configurazione del sistema <strong>non verranno toccati</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowResetConfirm1(false)}>Annulla</Button>
+            <Button variant="destructive" onClick={() => { setShowResetConfirm1(false); setShowResetConfirm2(true); }}>
+              Sì, continua
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Step 2 — final */}
+      <Dialog open={showResetConfirm2} onOpenChange={setShowResetConfirm2}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Ultima conferma — operazione irreversibile
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Cliccando <strong>«Elimina tutto»</strong> tutti i dati di test verranno cancellati
+              definitivamente da Firestore. Non è possibile annullare questa operazione.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowResetConfirm2(false)}>Annulla</Button>
+            <Button variant="destructive" onClick={handleReset}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Elimina tutto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
