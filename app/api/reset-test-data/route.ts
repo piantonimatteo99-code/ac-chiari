@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb, initAdminApp } from '@/lib/firebase-admin';
+import { initAdminApp } from '@/lib/firebase-admin';
 import * as admin from 'firebase-admin';
+
+// ── Email da proteggere (non verrà mai eliminata) ────────────────────────────
+const PROTECTED_EMAIL = 'piantonimatteo.99@gmail.com';
 
 // Collections to fully wipe (all documents)
 const COLLECTIONS_TO_WIPE = [
@@ -17,14 +20,13 @@ const COLLECTIONS_TO_WIPE = [
   'magazzino-alimenti',
   'magazzino-categorie-storico',
   'tariffe-tesseramento',
-  'famiglie',
   'feedback',
   'generate',
   'ruoli-educatori',
   'page-settings',
 ];
 
-// Sub-collections to wipe for each user document
+// Sub-collections to wipe under every user doc (incluso admin)
 const USER_SUBCOLLECTIONS = [
   'fcmTokens',
   'webPushSubscriptions',
@@ -38,19 +40,14 @@ async function deleteCollection(
 ) {
   const colRef = db.collection(collectionPath);
   let deleted = 0;
-
   while (true) {
     const snap = await colRef.limit(batchSize).get();
     if (snap.empty) break;
-
     const batch = db.batch();
-    for (const docSnap of snap.docs) {
-      batch.delete(docSnap.ref);
-    }
+    for (const d of snap.docs) batch.delete(d.ref);
     await batch.commit();
     deleted += snap.size;
   }
-
   return deleted;
 }
 
@@ -58,10 +55,9 @@ export async function POST(req: NextRequest) {
   try {
     initAdminApp();
     const db = admin.firestore();
+    const auth = admin.auth();
 
-    // ── 1. Security: only allow if a secret header matches ──────
-    // We check for an Authorization header with a simple pre-shared token
-    // stored in env. In dev it can be omitted.
+    // ── 0. Security ───────────────────────────────────────────────────────────
     const authHeader = req.headers.get('x-reset-secret');
     const expectedSecret = process.env.RESET_SECRET;
     if (expectedSecret && authHeader !== expectedSecret) {
@@ -70,7 +66,84 @@ export async function POST(req: NextRequest) {
 
     const results: Record<string, number> = {};
 
-    // ── 2. Wipe top-level collections ───────────────────────────
+    // ── 1. Trova UID protetto dal suo email ───────────────────────────────────
+    let protectedUid: string | null = null;
+    try {
+      const protectedUser = await auth.getUserByEmail(PROTECTED_EMAIL);
+      protectedUid = protectedUser.uid;
+    } catch {
+      console.warn('[reset] Protected user not found by email, proceeding without protection');
+    }
+
+    // ── 2. Elimina tutti gli utenti Firebase Auth tranne il protetto ──────────
+    let authDeleted = 0;
+    let pageToken: string | undefined;
+    const uidsToDelete: string[] = [];
+
+    do {
+      const listResult = await auth.listUsers(1000, pageToken);
+      for (const u of listResult.users) {
+        if (u.uid !== protectedUid) uidsToDelete.push(u.uid);
+      }
+      pageToken = listResult.pageToken;
+    } while (pageToken);
+
+    // Firebase Auth deleteUsers accetta max 1000 per chiamata
+    for (let i = 0; i < uidsToDelete.length; i += 1000) {
+      const chunk = uidsToDelete.slice(i, i + 1000);
+      const res = await auth.deleteUsers(chunk);
+      authDeleted += res.successCount;
+      if (res.errors.length > 0) {
+        console.warn('[reset] Some auth users could not be deleted:', res.errors);
+      }
+    }
+    results['auth/users_deleted'] = authDeleted;
+
+    // ── 3. Elimina documenti Firestore in `users` tranne il protetto ──────────
+    const usersSnap = await db.collection('users').get();
+    let firestoreUsersDeleted = 0;
+    let subCollectionsDeleted = 0;
+
+    for (const userDoc of usersSnap.docs) {
+      // Cancella sempre le sotto-collezioni (fcmTokens, ecc.) per tutti i doc
+      for (const sub of USER_SUBCOLLECTIONS) {
+        const subSnap = await userDoc.ref.collection(sub).get();
+        if (!subSnap.empty) {
+          const batch = db.batch();
+          subSnap.docs.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+          subCollectionsDeleted += subSnap.size;
+        }
+      }
+
+      // Cancella il documento utente solo se non è l'admin protetto
+      if (userDoc.id !== protectedUid) {
+        await userDoc.ref.delete();
+        firestoreUsersDeleted++;
+      }
+    }
+    results['users/docs_deleted'] = firestoreUsersDeleted;
+    results['users/subcollections_deleted'] = subCollectionsDeleted;
+
+    // ── 4. Elimina tutta la collezione `famiglie` (incluso il nucleo admin) ───
+    // Prima svuota tutte le sotto-collezioni `membri`
+    try {
+      const membriSnap = await db.collectionGroup('membri').get();
+      if (!membriSnap.empty) {
+        const batch = db.batch();
+        membriSnap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        results['famiglie/membri'] = membriSnap.size;
+      } else {
+        results['famiglie/membri'] = 0;
+      }
+    } catch (e: any) {
+      console.warn('[reset] Could not wipe famiglie/membri:', e.message);
+    }
+    // Poi i documenti radice di famiglie
+    results['famiglie'] = await deleteCollection(db, 'famiglie');
+
+    // ── 5. Wipe top-level collections ────────────────────────────────────────
     for (const col of COLLECTIONS_TO_WIPE) {
       try {
         results[col] = await deleteCollection(db, col);
@@ -80,28 +153,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 3. Wipe sub-collections under each user ──────────────────
-    const usersSnap = await db.collection('users').get();
-    let subDeleted = 0;
-    for (const userDoc of usersSnap.docs) {
-      for (const sub of USER_SUBCOLLECTIONS) {
-        const subSnap = await userDoc.ref.collection(sub).get();
-        if (subSnap.empty) continue;
-        const batch = db.batch();
-        subSnap.docs.forEach((d) => batch.delete(d.ref));
-        await batch.commit();
-        subDeleted += subSnap.size;
-      }
-    }
-    results['users/subcollections'] = subDeleted;
-
-    // ── 4. Wipe sub-collections of progetti ─────────────────────
-    // (messaggi, social-posts, acquisti) — these live under projects
-    // which were already deleted, but Firestore orphans can persist.
-    const projectSubcols = ['messaggi', 'social-posts', 'acquisti'];
-    for (const sub of projectSubcols) {
+    // ── 6. Orphaned sub-collections di progetti ───────────────────────────────
+    for (const sub of ['messaggi', 'social-posts', 'acquisti']) {
       try {
-        // collectionGroup query to find any orphaned docs
         const snap = await db.collectionGroup(sub).get();
         if (!snap.empty) {
           const batch = db.batch();
@@ -114,7 +168,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 5. Wipe presenze sub-collections (partecipanti) ──────────
+    // ── 7. Orphaned partecipanti di presenze ──────────────────────────────────
     try {
       const partSnap = await db.collectionGroup('partecipanti').get();
       if (!partSnap.empty) {
@@ -127,22 +181,9 @@ export async function POST(req: NextRequest) {
       console.warn('[reset] Could not wipe partecipanti:', e.message);
     }
 
-    // ── 6. Wipe famiglie sub-collections (membri) ─────────────────
-    try {
-      const membriSnap = await db.collectionGroup('membri').get();
-      if (!membriSnap.empty) {
-        const batch = db.batch();
-        membriSnap.docs.forEach((d) => batch.delete(d.ref));
-        await batch.commit();
-        results['famiglie/membri'] = membriSnap.size;
-      }
-    } catch (e: any) {
-      console.warn('[reset] Could not wipe famiglie/membri:', e.message);
-    }
-
     console.log('[reset-test-data] Completed:', results);
-
     return NextResponse.json({ success: true, deleted: results });
+
   } catch (error: any) {
     console.error('[reset-test-data] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

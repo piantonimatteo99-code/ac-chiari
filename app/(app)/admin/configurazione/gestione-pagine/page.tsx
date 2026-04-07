@@ -390,8 +390,11 @@ export default function GestionePaginePage() {
           </div>
           <CardDescription>
             Elimina <strong>tutti i dati inseriti</strong> durante i test: gruppi, eventi, raccolte, spese, notifiche,
-            magazzino, presenze, familiari, movimenti contanti, ecc.<br />
-            Gli <strong>utenti</strong> e la <strong>configurazione</strong> (Drive, notifiche) vengono conservati.
+            magazzino, presenze, movimenti contanti, ecc.<br />
+            Vengono eliminati anche <strong>tutti gli utenti registrati</strong> (Firebase Auth + profili) e i loro
+            <strong> nuclei familiari</strong>, ad eccezione dell'account admin
+            (<code className="text-xs bg-muted px-1 py-0.5 rounded">piantonimatteo.99@gmail.com</code>).<br />
+            La <strong>configurazione</strong> del sistema (Drive, notifiche) viene conservata.
             Questa operazione è <strong className="text-destructive">irreversibile</strong>.
           </CardDescription>
         </CardHeader>
