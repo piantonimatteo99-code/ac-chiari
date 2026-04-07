@@ -28,6 +28,25 @@ import { Separator } from './ui/separator';
 import { slugify } from '@/lib/utils';
 import { ConfirmationDialog } from './confirmation-dialog';
 
+export type TipoCampo = 'campo_elementari' | 'campo_medie' | 'campo_estivo';
+
+export const TIPO_CAMPO_LABELS: Record<TipoCampo, string> = {
+    campo_elementari: 'Campo Elementari',
+    campo_medie: 'Campo Medie',
+    campo_estivo: 'Campo Estivo',
+};
+
+export interface Campo {
+    id: string;
+    nome: string;
+    tipo: TipoCampo;
+    eventoId: string;
+    startDate: any;
+    endDate: any;
+    groupIds: string[];
+    createdAt: any;
+}
+
 export interface Evento {
     id: string;
     title: string;
@@ -41,6 +60,9 @@ export interface Evento {
     isProject?: boolean;
     projectId?: string;
     raccoltaId?: string;
+    isCampo?: boolean;
+    tipoCampo?: TipoCampo;
+    campoId?: string;
 }
 
 export interface Progetto {
@@ -84,6 +106,10 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
     
     // Project state
     const [isProject, setIsProject] = useState(false);
+
+    // Campo state
+    const [isCampo, setIsCampo] = useState(false);
+    const [tipoCampo, setTipoCampo] = useState<TipoCampo>('campo_estivo');
     
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -113,6 +139,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
         setError(null);
         setIsSaving(false);
         setIsProject(false);
+        setIsCampo(false);
+        setTipoCampo('campo_estivo');
         setNotes('');
         setCompleted(false);
         setPushToGcal(!!isConnected);
@@ -134,6 +162,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                 }
                 setSelectedGroups(eventToEdit.groupIds);
                 setIsProject(eventToEdit.isProject || false);
+                setIsCampo(eventToEdit.isCampo || false);
+                setTipoCampo(eventToEdit.tipoCampo || 'campo_estivo');
                 setNotes(eventToEdit.notes || '');
                 setCompleted(eventToEdit.completed || false);
 
@@ -231,7 +261,50 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
 
             } else {
                 // --- CREATE LOGIC ---
-                if (isProject) {
+                if (isCampo) {
+                    // Create both Campo and Evento
+                    const batch = writeBatch(firestore);
+
+                    const campoDocRef = doc(collection(firestore, 'campi'));
+                    const eventoDocRef = doc(collection(firestore, 'eventi'));
+
+                    const campoData: Omit<Campo, 'id'> = {
+                        nome: title,
+                        tipo: tipoCampo,
+                        eventoId: eventoDocRef.id,
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        groupIds: selectedGroups,
+                        createdAt: serverTimestamp(),
+                    };
+                    batch.set(campoDocRef, campoData);
+
+                    const eventoData: Omit<Evento, 'id' | 'raccoltaId' | 'isProject' | 'projectId'> = {
+                        title,
+                        description,
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        allDay,
+                        groupIds: selectedGroups,
+                        isCampo: true,
+                        tipoCampo,
+                        campoId: campoDocRef.id,
+                        notes: '',
+                        completed: false,
+                    };
+                    batch.set(eventoDocRef, eventoData);
+
+                    await batch.commit();
+
+                    const startFormatted = format(finalStartDate, 'd MMMM yyyy', { locale: itLocale });
+                    triggerNotification({
+                        eventType: 'evento_nuovo',
+                        title: `⛺ Nuovo campo: ${title}`,
+                        body: `È stato creato il campo "${title}" con inizio il ${startFormatted}.`,
+                        href: '/campi',
+                    });
+
+                } else if (isProject) {
                     // Create both Progetto and Evento
                     const batch = writeBatch(firestore);
                     
@@ -445,10 +518,30 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         <Separator />
                         
                         <div className="flex items-center space-x-2">
+                           <Switch id="is-campo" checked={isCampo} onCheckedChange={(v) => { setIsCampo(v); if (v) setIsProject(false); }} disabled={isEditing}/>
+                           <Label htmlFor="is-campo">⛺ Crea un campo da questo impegno</Label>
+                       </div>
+                       {isCampo && (
+                           <div className="pl-6 space-y-2">
+                               <Label className="text-sm">Tipo di campo</Label>
+                               <div className="flex flex-col gap-2">
+                                 {(['campo_elementari', 'campo_medie', 'campo_estivo'] as TipoCampo[]).map(tipo => (
+                                   <label key={tipo} className={`flex items-center gap-2 p-2 border rounded-md cursor-pointer text-sm transition-colors ${tipoCampo === tipo ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
+                                     <input type="radio" name="tipoCampo" value={tipo} checked={tipoCampo === tipo} onChange={() => setTipoCampo(tipo)} className="sr-only" />
+                                     <span>{TIPO_CAMPO_LABELS[tipo]}</span>
+                                   </label>
+                                 ))}
+                               </div>
+                               <p className="text-xs text-muted-foreground">Verrà creata una sezione dedicata in /campi con gestione alloggi, pullman, spesa e preventivo.</p>
+                           </div>
+                       )}
+                       {!isCampo && (
+                         <div className="flex items-center space-x-2">
                            <Switch id="is-project" checked={isProject} onCheckedChange={setIsProject} disabled={isEditing}/>
                            <Label htmlFor="is-project">Crea un progetto da questo impegno</Label>
-                       </div>
-                       {isProject && (
+                         </div>
+                       )}
+                       {!isCampo && isProject && (
                            <div className="pl-6 text-sm text-muted-foreground">
                                Verrà creata una pagina dedicata al progetto in `/progetti/{slugify(title)}`. Potrai gestire la raccolta fondi e altri dettagli da lì.
                            </div>

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/src/firebase';
-import { collection, addDoc, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -15,131 +15,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, Pencil, ShoppingCart, Users, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Pencil, ShoppingCart, Users, AlertTriangle, ChevronDown, ChevronUp, Save, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import type { Piatto, GiornoMenu, SlotMenu, TipoPasto } from '../tab-spesa';
+import { PASTO_LABELS, CAT_LABELS } from '../tab-spesa';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface Piatto {
-  id: string;
-  nome: string;
-  categoria: 'primo' | 'secondo' | 'contorno' | 'frutta' | 'dolce' | 'colazione' | 'merenda' | 'altro';
-  costoPorzione: number; // € per persona
-  ingredienti: { nome: string; quantitaPerPersona: number; unita: string }[];
-  intolleranze: string[];
-  note?: string;
-}
-
-export type TipoPasto = 'colazione' | 'merenda_mattina' | 'pranzo' | 'merenda' | 'cena';
-
-export interface SlotMenu {
-  piattoPrincipaleId?: string;
-  contornoId?: string;
-  fruttaId?: string;
-}
-
-export interface GiornoMenu {
-  giorno: number;
-  colazione: SlotMenu;
-  merenda_mattina: SlotMenu;
-  pranzo: SlotMenu;
-  merenda: SlotMenu;
-  cena: SlotMenu;
-}
-
-export const PASTO_LABELS: Record<TipoPasto, string> = {
-  colazione: '🌅 Colazione',
-  merenda_mattina: '☕ Merenda mattina',
-  pranzo: '🍽️ Pranzo',
-  merenda: '🍎 Merenda',
-  cena: '🌙 Cena',
-};
-
-export const CAT_LABELS: Record<string, string> = {
-  primo: 'Primo',
-  secondo: 'Secondo',
-  contorno: 'Contorno',
-  frutta: 'Frutta',
-  dolce: 'Dolce',
-  colazione: 'Colazione',
-  merenda: 'Merenda',
-  altro: 'Altro',
-};
-
-// ─── Form Piatto ──────────────────────────────────────────────────────────────
-
-function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; onSave: (d: Partial<Piatto>) => Promise<void>; onClose: () => void }) {
-  const [nome, setNome] = useState(initial?.nome ?? '');
-  const [categoria, setCategoria] = useState<Piatto['categoria']>(initial?.categoria ?? 'primo');
-  const [costoPorzione, setCostoPorzione] = useState(initial?.costoPorzione ?? 0);
-  const [intolleranze, setIntolleranze] = useState(initial?.intolleranze?.join(', ') ?? '');
-  const [note, setNote] = useState(initial?.note ?? '');
-  const [ingredienti, setIngredienti] = useState<Piatto['ingredienti']>(initial?.ingredienti ?? [{ nome: '', quantitaPerPersona: 0, unita: 'g' }]);
-  const [saving, setSaving] = useState(false);
-
-  const addIngrediente = () => setIngredienti(p => [...p, { nome: '', quantitaPerPersona: 0, unita: 'g' }]);
-  const removeIngrediente = (i: number) => setIngredienti(p => p.filter((_, idx) => idx !== i));
-  const updateIngrediente = (i: number, field: keyof Piatto['ingredienti'][0], value: any) =>
-    setIngredienti(p => p.map((ing, idx) => idx === i ? { ...ing, [field]: value } : ing));
-
-  const handleSave = async () => {
-    if (!nome) return;
-    setSaving(true);
-    await onSave({
-      nome, categoria, costoPorzione,
-      intolleranze: intolleranze.split(',').map(s => s.trim()).filter(Boolean),
-      ingredienti: ingredienti.filter(i => i.nome),
-      note,
-    });
-    setSaving(false);
-    onClose();
-  };
-
-  return (
-    <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1 col-span-2"><Label>Nome piatto *</Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder="es. Pasta al pomodoro" /></div>
-        <div className="space-y-1">
-          <Label>Categoria</Label>
-          <Select value={categoria} onValueChange={v => setCategoria(v as Piatto['categoria'])}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1"><Label>Costo per persona (€)</Label><Input type="number" min={0} step={0.01} value={costoPorzione} onChange={e => setCostoPorzione(parseFloat(e.target.value) || 0)} /></div>
-        <div className="space-y-1 col-span-2"><Label>Intolleranze (separate da virgola)</Label><Input value={intolleranze} onChange={e => setIntolleranze(e.target.value)} placeholder="es. glutine, lattosio, frutta secca" /></div>
-        <div className="space-y-1 col-span-2"><Label>Note</Label><Input value={note} onChange={e => setNote(e.target.value)} placeholder="Note aggiuntive..." /></div>
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label>Ingredienti (per persona)</Label>
-          <Button size="sm" variant="outline" onClick={addIngrediente}><Plus className="h-3 w-3 mr-1" />Aggiungi</Button>
-        </div>
-        {ingredienti.map((ing, i) => (
-          <div key={i} className="flex gap-2 items-center">
-            <Input value={ing.nome} onChange={e => updateIngrediente(i, 'nome', e.target.value)} placeholder="ingrediente" className="flex-1" />
-            <Input type="number" min={0} step={0.1} value={ing.quantitaPerPersona} onChange={e => updateIngrediente(i, 'quantitaPerPersona', parseFloat(e.target.value) || 0)} className="w-20" />
-            <Select value={ing.unita} onValueChange={v => updateIngrediente(i, 'unita', v)}>
-              <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {['g', 'kg', 'ml', 'cl', 'l', 'pz', 'cucchiai', 'fette'].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeIngrediente(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={onClose}>Annulla</Button>
-        <Button onClick={handleSave} disabled={!nome || saving}>{saving ? 'Salvataggio...' : 'Salva'}</Button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Menu Builder ─────────────────────────────────────────────────────────────
+// ─── SlotSelector (same as parent) ───────────────────────────────────────────
 
 function SlotSelector({ value, onChange, piatti, label, tipoPasto }: {
   value?: string; onChange: (id: string | undefined) => void;
@@ -196,9 +77,9 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
           costo += piatto.costoPorzione * nPersone;
           piatto.intolleranze?.forEach(i => intSet.add(i));
           piatto.ingredienti?.forEach(ing => {
-            const key = `${ing.nome}__${ing.unita}`;
-            if (!totali[key]) totali[key] = { quantita: 0, unita: ing.unita };
-            totali[key].quantita += ing.quantitaPerPersona * nPersone;
+            const k = `${ing.nome}__${ing.unita}`;
+            if (!totali[k]) totali[k] = { quantita: 0, unita: ing.unita };
+            totali[k].quantita += ing.quantitaPerPersona * nPersone;
           });
         }
       }
@@ -214,16 +95,13 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-4">
-        <Card className="col-span-1">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Costo totale spesa</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Costo totale spesa</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold text-primary">€ {costoTotale.toFixed(2)}</p></CardContent>
         </Card>
-        <Card className="col-span-1">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Per persona</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Per persona</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">€ {nPersone > 0 ? (costoTotale / nPersone).toFixed(2) : '0.00'}</p></CardContent>
         </Card>
-        <Card className="col-span-1">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Intolleranze</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Intolleranze</CardTitle></CardHeader>
           <CardContent>
             {intolleranzeUniche.length === 0
               ? <p className="text-sm text-muted-foreground">Nessuna</p>
@@ -232,7 +110,6 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
           </CardContent>
         </Card>
       </div>
-
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><ShoppingCart className="h-4 w-4" />Lista della spesa ({nPersone} persone)</CardTitle></CardHeader>
         <CardContent>
@@ -255,9 +132,87 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
   );
 }
 
-// ─── Main Tab Spesa ──────────────────────────────────────────────────────────
+// ─── PiattoForm ───────────────────────────────────────────────────────────────
 
-export default function TabSpesa() {
+function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; onSave: (d: Partial<Piatto>) => Promise<void>; onClose: () => void }) {
+  const [nome, setNome] = useState(initial?.nome ?? '');
+  const [categoria, setCategoria] = useState<Piatto['categoria']>(initial?.categoria ?? 'primo');
+  const [costoPorzione, setCostoPorzione] = useState(initial?.costoPorzione ?? 0);
+  const [intolleranze, setIntolleranze] = useState(initial?.intolleranze?.join(', ') ?? '');
+  const [note, setNote] = useState(initial?.note ?? '');
+  const [ingredienti, setIngredienti] = useState<Piatto['ingredienti']>(initial?.ingredienti ?? [{ nome: '', quantitaPerPersona: 0, unita: 'g' }]);
+  const [saving, setSaving] = useState(false);
+
+  const addIngrediente = () => setIngredienti(p => [...p, { nome: '', quantitaPerPersona: 0, unita: 'g' }]);
+  const removeIngrediente = (i: number) => setIngredienti(p => p.filter((_, idx) => idx !== i));
+  const updateIngrediente = (i: number, field: keyof Piatto['ingredienti'][0], value: any) =>
+    setIngredienti(p => p.map((ing, idx) => idx === i ? { ...ing, [field]: value } : ing));
+
+  const handleSave = async () => {
+    if (!nome) return;
+    setSaving(true);
+    await onSave({
+      nome, categoria, costoPorzione,
+      intolleranze: intolleranze.split(',').map(s => s.trim()).filter(Boolean),
+      ingredienti: ingredienti.filter(i => i.nome),
+      note,
+    });
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1 col-span-2"><Label>Nome piatto *</Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder="es. Pasta al pomodoro" /></div>
+        <div className="space-y-1">
+          <Label>Categoria</Label>
+          <Select value={categoria} onValueChange={v => setCategoria(v as Piatto['categoria'])}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>{Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1"><Label>Costo per persona (€)</Label><Input type="number" min={0} step={0.01} value={costoPorzione} onChange={e => setCostoPorzione(parseFloat(e.target.value) || 0)} /></div>
+        <div className="space-y-1 col-span-2"><Label>Intolleranze (separate da virgola)</Label><Input value={intolleranze} onChange={e => setIntolleranze(e.target.value)} placeholder="es. glutine, lattosio" /></div>
+        <div className="space-y-1 col-span-2"><Label>Note</Label><Input value={note} onChange={e => setNote(e.target.value)} /></div>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>Ingredienti (per persona)</Label>
+          <Button size="sm" variant="outline" onClick={addIngrediente}><Plus className="h-3 w-3 mr-1" />Aggiungi</Button>
+        </div>
+        {ingredienti.map((ing, i) => (
+          <div key={i} className="flex gap-2 items-center">
+            <Input value={ing.nome} onChange={e => updateIngrediente(i, 'nome', e.target.value)} placeholder="ingrediente" className="flex-1" />
+            <Input type="number" min={0} step={0.1} value={ing.quantitaPerPersona} onChange={e => updateIngrediente(i, 'quantitaPerPersona', parseFloat(e.target.value) || 0)} className="w-20" />
+            <Select value={ing.unita} onValueChange={v => updateIngrediente(i, 'unita', v)}>
+              <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {['g', 'kg', 'ml', 'cl', 'l', 'pz', 'cucchiai', 'fette'].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeIngrediente(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="outline" onClick={onClose}>Annulla</Button>
+        <Button onClick={handleSave} disabled={!nome || saving}>{saving ? 'Salvataggio...' : 'Salva'}</Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Tab Spesa Campo ─────────────────────────────────────────────────────
+
+interface TabSpesaCampoProps {
+  campoId: string;
+}
+
+const makeSlot = (): SlotMenu => ({});
+const makeGiorno = (g: number): GiornoMenu => ({ giorno: g, colazione: makeSlot(), merenda_mattina: makeSlot(), pranzo: makeSlot(), merenda: makeSlot(), cena: makeSlot() });
+
+export default function TabSpesaCampo({ campoId }: TabSpesaCampoProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { userData } = useUserData();
@@ -271,15 +226,38 @@ export default function TabSpesa() {
   const [openAdd, setOpenAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nPersone, setNPersone] = useState(20);
-
-  // Menu giorni
-  const makeSlot = (): SlotMenu => ({});
-  const makeGiorno = (g: number): GiornoMenu => ({ giorno: g, colazione: makeSlot(), merenda_mattina: makeSlot(), pranzo: makeSlot(), merenda: makeSlot(), cena: makeSlot() });
   const [menu, setMenu] = useState<GiornoMenu[]>([makeGiorno(1)]);
+  const [expandedGiorno, setExpandedGiorno] = useState<number>(0);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  // Load menu from Firestore
+  useEffect(() => {
+    if (!firestore || !campoId) return;
+    setIsLoadingConfig(true);
+    getDoc(doc(firestore, 'campi', campoId)).then(snap => {
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d.menu && Array.isArray(d.menu)) setMenu(d.menu);
+        if (d.nPersone) setNPersone(d.nPersone);
+      }
+    }).finally(() => setIsLoadingConfig(false));
+  }, [firestore, campoId]);
+
+  const saveMenu = async () => {
+    if (!firestore) return;
+    setIsSavingConfig(true);
+    try {
+      await updateDoc(doc(firestore, 'campi', campoId), { menu, nPersone });
+      toast({ title: 'Menù salvato' });
+    } catch {
+      toast({ title: 'Errore nel salvataggio', variant: 'destructive' });
+    }
+    setIsSavingConfig(false);
+  };
 
   const addGiorno = () => setMenu(m => [...m, makeGiorno(m.length + 1)]);
   const removeGiorno = (idx: number) => setMenu(m => m.filter((_, i) => i !== idx).map((g, i) => ({ ...g, giorno: i + 1 })));
-
   const updateSlot = (giornoIdx: number, pasto: TipoPasto, field: keyof SlotMenu, value: string | undefined) => {
     setMenu(m => m.map((g, i) => i === giornoIdx ? { ...g, [pasto]: { ...g[pasto], [field]: value } } : g));
   };
@@ -298,7 +276,7 @@ export default function TabSpesa() {
     catch { toast({ title: 'Errore', variant: 'destructive' }); }
   };
 
-  const [expandedGiorno, setExpandedGiorno] = useState<number>(0);
+  if (isLoadingConfig) return <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
   return (
     <div className="space-y-6">
@@ -318,6 +296,10 @@ export default function TabSpesa() {
               <Input type="number" min={1} value={nPersone} onChange={e => setNPersone(parseInt(e.target.value) || 1)} className="w-24" />
             </div>
             <Button size="sm" variant="outline" onClick={addGiorno}><Plus className="h-4 w-4 mr-1" />Aggiungi giorno</Button>
+            <Button size="sm" onClick={saveMenu} disabled={isSavingConfig} className="ml-auto">
+              {isSavingConfig ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+              Salva menù
+            </Button>
           </div>
 
           <div className="space-y-3">
@@ -385,7 +367,6 @@ export default function TabSpesa() {
               </Dialog>
             )}
           </div>
-
           <div className="grid gap-3 md:grid-cols-2">
             {piatti.length === 0 && <p className="col-span-2 text-center text-muted-foreground py-8">Nessun piatto nel database. {isAdmin && 'Aggiungine uno!'}</p>}
             {piatti.map(p => (
@@ -399,9 +380,7 @@ export default function TabSpesa() {
                         {p.costoPorzione > 0 && <Badge variant="outline" className="text-xs">€ {p.costoPorzione.toFixed(2)}/p</Badge>}
                         {p.intolleranze?.map(i => <Badge key={i} variant="outline" className="text-xs border-orange-400 text-orange-600">{i}</Badge>)}
                       </div>
-                      {p.ingredienti?.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1.5">🥘 {p.ingredienti.map(i => `${i.nome} ${i.quantitaPerPersona}${i.unita}`).join(', ')}</p>
-                      )}
+                      {p.ingredienti?.length > 0 && <p className="text-xs text-muted-foreground mt-1.5">🥘 {p.ingredienti.map(i => `${i.nome} ${i.quantitaPerPersona}${i.unita}`).join(', ')}</p>}
                       {p.note && <p className="text-xs text-muted-foreground mt-1">{p.note}</p>}
                     </div>
                     {isAdmin && (
