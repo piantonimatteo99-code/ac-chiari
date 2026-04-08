@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { FirebaseClientProvider } from "@/src/firebase/client-provider";
 import { Toaster } from "@/components/ui/toaster";
+import { Analytics } from "@vercel/analytics/next";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -86,6 +87,7 @@ export default function RootLayout({
       >
         <FirebaseClientProvider>{children}</FirebaseClientProvider>
         <Toaster />
+        <Analytics />
       </body>
     </html>
   );
