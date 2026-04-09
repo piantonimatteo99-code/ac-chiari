@@ -690,7 +690,32 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ── Banner: completa il profilo (solo utenti nuovi senza dati) ── */}
+      {!isAdmin && !isEducatore && membri.length === 0 && (
+        <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-800 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
+            <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-sm text-blue-900 dark:text-blue-100">Completa il tuo profilo</p>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+              Per usare tutte le funzionalità (iscrizioni, pagamenti, presenze) aggiungi i tuoi dati anagrafici
+              oppure collegati al nucleo familiare già esistente.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link href="/nucleo-familiare" passHref>
+              <Button size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white">
+                Vai al Nucleo Familiare
+                <ChevronRight className="h-3 w-3 ml-1" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Main grid */}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT COLUMN */}
         <div className="lg:col-span-2 flex flex-col gap-6">

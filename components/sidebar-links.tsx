@@ -258,19 +258,25 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   const isLoading = isUserLoading || isLoadingPageSettings || isLoadingGroups || isLoadingEducatorRoles || isLoadingAllGroups || isLoadingAllProjects || isLoadingMembri;
 
   const getPageVisibility = useCallback((page: { id: string; href?: string; label: string; }): { visible: boolean; reason: string } => {
-    if (!pageSettings || !userData || !user) {
-        return { visible: false, reason: 'Dati di inizializzazione non ancora pronti' };
+    if (!userData || !user) {
+        return { visible: false, reason: 'Dati utente non ancora caricati' };
     } 
+
+    // These pages are ALWAYS visible to every authenticated user
+    const alwaysVisible = ['dashboard', 'nucleo-familiare'];
+    if (alwaysVisible.includes(page.id)) {
+        return { visible: true, reason: 'Pagina sempre visibile' };
+    }
     
-    const setting = pageSettings.find(p => p.id === page.id || p.path === page.href);
+    const setting = pageSettings?.find(p => p.id === page.id || p.path === page.href);
     if (!setting) {
-        // Fallback for new pages not yet in DB
-        if (isAdmin) return { visible: true, reason: 'Accesso garantito come Amministratore (fallback)' };
-        return { visible: false, reason: `Impostazioni non trovate nel DB per: ${page.label}` };
+        // page-settings not configured yet (admin hasn't visited Gestione Pagine)
+        // Default: visible for all authenticated users
+        return { visible: true, reason: 'Nessuna configurazione trovata — visibile di default' };
     } 
     
     if (!setting.visible) {
-        return { visible: false, reason: 'Disabilitato globalmente in Gestione Pagine' };
+        return { visible: false, reason: 'Disabilitata in Gestione Pagine' };
     } 
     
     if (isAdmin) {
@@ -278,6 +284,8 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     } 
     
     const userIsEducator = userData.roles?.includes('educatore');
+    const userIsGenitore = userData.roles?.includes('genitore');
+    const userIsUtente = !userIsEducator && !isAdmin; // 'utente' semplice
 
     if (setting.requiresGroupAssignmentCheck) {
         if (userIsEducator && myGroups && myGroups.length > 0) {
@@ -298,6 +306,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     return { visible: true, reason: 'Nessun permesso speciale richiesto' };
     
   }, [pageSettings, userData, user, isAdmin, myGroups, mySpecificRoles]);
+
 
   if (isLoading) {
     return <div className="px-3 py-2 text-muted-foreground">Caricamento...</div>;
