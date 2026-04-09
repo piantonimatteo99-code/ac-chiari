@@ -555,13 +555,11 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
           return <div key={item.id}>{renderMieiGruppi()}</div>;
         }
         if (item.id === 'social-media') {
-          // Only show to educatori and admin
-          if (!userData?.roles?.includes('educatore') && !userData?.roles?.includes('admin')) return null;
+          if (!getPageVisibility(item).visible) return null;
           return <div key={item.id}>{renderLink(item as { href: string; icon: React.ElementType; label: string })}</div>;
         }
         if (item.id === 'consiglio') {
-          // Only show to educatori and admin
-          if (!userData?.roles?.includes('educatore') && !userData?.roles?.includes('admin')) return null;
+          if (!getPageVisibility(item).visible) return null;
           return <div key={item.id}>{renderLink(item as { href: string; icon: React.ElementType; label: string })}</div>;
         }
         if (item.subItems.length > 0) {
