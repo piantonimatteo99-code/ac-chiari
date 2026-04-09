@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Share, PlusSquare, Smartphone, Monitor, X, Download } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Share, PlusSquare, Smartphone, Monitor, X, Download, AlertCircle } from 'lucide-react';
 
 type Platform = 'ios' | 'android' | 'desktop' | null;
 
@@ -38,6 +38,9 @@ export function PwaInstallDialog() {
   const [show, setShow] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installing, setInstalling] = useState(false);
+  const [installError, setInstallError] = useState<string | null>(null);
+  const [showManualFallback, setShowManualFallback] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const dismissed = localStorage.getItem(STORAGE_KEY);
@@ -48,13 +51,17 @@ export function PwaInstallDialog() {
     setPlatform(detected);
 
     if (detected === 'ios') {
-      // iOS: always show manual instructions after short delay
       const t = setTimeout(() => setShow(true), 1500);
       return () => clearTimeout(t);
     }
 
     // Android / Desktop: try to get the native install prompt
-    // The prompt may already be captured globally (fired before React mounted)
+    const capturePrompt = (prompt: BeforeInstallPromptEvent) => {
+      setDeferredPrompt(prompt);
+      setShow(true);
+    };
+
+    // Check if already captured globally
     const existingPrompt = window.__pwaInstallPrompt;
     if (existingPrompt) {
       setDeferredPrompt(existingPrompt);
@@ -62,26 +69,36 @@ export function PwaInstallDialog() {
       return () => clearTimeout(t);
     }
 
+    // Secondary capture handler (in case the component mounted before the event fired)
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      const bipe = e as BeforeInstallPromptEvent;
+      window.__pwaInstallPrompt = bipe;
+      capturePrompt(bipe);
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+
     // Listen for the custom event dispatched by our early-capture script
     const onPromptReady = () => {
       const p = window.__pwaInstallPrompt;
-      if (p) {
-        setDeferredPrompt(p);
-        setShow(true);
-      }
+      if (p) capturePrompt(p);
     };
     window.addEventListener('pwa-prompt-ready', onPromptReady);
 
-    // Android fallback: if browser never fires the event, still show manual instructions
+    // Android fallback: if browser never fires the event, show manual instructions
     let fallback: ReturnType<typeof setTimeout> | null = null;
     if (detected === 'android') {
       fallback = setTimeout(() => {
-        if (!window.__pwaInstallPrompt) setShow(true);
+        if (!window.__pwaInstallPrompt) {
+          setShow(true);
+          setShowManualFallback(true);
+        }
       }, 3000);
     }
-    // Desktop: only show when native prompt fires (no fallback — manual steps useless on desktop)
+    // Desktop: only show when native prompt fires
 
     return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
       window.removeEventListener('pwa-prompt-ready', onPromptReady);
       if (fallback) clearTimeout(fallback);
     };
@@ -90,19 +107,48 @@ export function PwaInstallDialog() {
   const dismiss = (permanent = true) => {
     if (permanent) localStorage.setItem(STORAGE_KEY, '1');
     setShow(false);
+    setInstallError(null);
+    setShowManualFallback(false);
   };
 
   const handleNativeInstall = async () => {
-    if (!deferredPrompt) return;
-    setInstalling(true);
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      localStorage.setItem(STORAGE_KEY, '1');
+    if (!deferredPrompt) {
+      setShowManualFallback(true);
+      return;
     }
-    setDeferredPrompt(null);
-    setInstalling(false);
-    setShow(false);
+
+    setInstalling(true);
+    setInstallError(null);
+
+    // Safety timeout: if userChoice never resolves in 8s, reset
+    timeoutRef.current = setTimeout(() => {
+      console.warn('[PWA] Install prompt timed out — resetting');
+      setInstalling(false);
+      setInstallError('Il browser non ha risposto. Usa il pulsante ⊕ nella barra indirizzi del browser.');
+      setShowManualFallback(true);
+    }, 8000);
+
+    try {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+      if (outcome === 'accepted') {
+        localStorage.setItem(STORAGE_KEY, '1');
+        setShow(false);
+      } else {
+        setInstallError('Installazione annullata. Puoi installarla in qualsiasi momento dal menu del browser.');
+      }
+    } catch (err: any) {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      console.error('[PWA] Install error:', err);
+      setInstallError("Impossibile avviare l'installazione automatica. Usa il pulsante nella barra indirizzi.");
+      setShowManualFallback(true);
+    } finally {
+      setDeferredPrompt(null);
+      setInstalling(false);
+    }
   };
 
   if (!show || !platform) return null;
@@ -127,7 +173,7 @@ export function PwaInstallDialog() {
             </div>
             <div>
               <p className="text-xs font-medium text-primary uppercase tracking-wider">AC Chiari</p>
-              <h1 className="text-xl font-bold">Installa l'app</h1>
+              <h1 className="text-xl font-bold">Installa l&apos;app</h1>
             </div>
           </div>
           <button
@@ -141,9 +187,10 @@ export function PwaInstallDialog() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
+
           {/* Benefits */}
           <div className="rounded-2xl bg-primary/5 border border-primary/10 p-5">
-            <p className="text-sm font-semibold text-primary mb-2">Perché installare l'app?</p>
+            <p className="text-sm font-semibold text-primary mb-2">Perché installare l&apos;app?</p>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <span className="text-green-500 font-bold">✓</span>
@@ -160,7 +207,15 @@ export function PwaInstallDialog() {
             </ul>
           </div>
 
-          {/* ── iOS Steps ── */}
+          {/* Error / fallback message */}
+          {installError && (
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800">{installError}</p>
+            </div>
+          )}
+
+          {/* iOS Steps */}
           {platform === 'ios' && (
             <div>
               <p className="text-sm font-semibold mb-4">Come installarla — 3 passi:</p>
@@ -169,7 +224,7 @@ export function PwaInstallDialog() {
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">1</span>
                   <div className="flex-1 rounded-xl bg-muted p-4">
                     <p className="text-sm font-medium">Tocca il pulsante <strong>Condividi</strong></p>
-                    <p className="text-xs text-muted-foreground mt-1">È il pulsante con la freccia verso l'alto nella barra di Safari</p>
+                    <p className="text-xs text-muted-foreground mt-1">È il pulsante con la freccia verso l&apos;alto nella barra di Safari</p>
                     <div className="mt-3 flex items-center gap-2">
                       <div className="rounded-lg bg-blue-500 p-2">
                         <Share className="h-5 w-5 text-white" />
@@ -182,7 +237,7 @@ export function PwaInstallDialog() {
                 <div className="flex gap-4 items-start">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">2</span>
                   <div className="flex-1 rounded-xl bg-muted p-4">
-                    <p className="text-sm font-medium">Tocca <strong>"Aggiungi alla schermata Home"</strong></p>
+                    <p className="text-sm font-medium">Tocca <strong>&quot;Aggiungi alla schermata Home&quot;</strong></p>
                     <p className="text-xs text-muted-foreground mt-1">Scorri verso il basso nel menu di condivisione</p>
                     <div className="mt-3 flex items-center gap-2">
                       <div className="rounded-lg bg-gray-500 p-2">
@@ -196,91 +251,98 @@ export function PwaInstallDialog() {
                 <div className="flex gap-4 items-start">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">3</span>
                   <div className="flex-1 rounded-xl bg-muted p-4">
-                    <p className="text-sm font-medium">Apri l'app e <strong>attiva le notifiche</strong></p>
-                    <p className="text-xs text-muted-foreground mt-1">Tocca l'icona AC Chiari sulla schermata Home, poi attiva le notifiche dalla campanella 🔔</p>
+                    <p className="text-sm font-medium">Apri l&apos;app e <strong>attiva le notifiche</strong></p>
+                    <p className="text-xs text-muted-foreground mt-1">Tocca l&apos;icona AC Chiari sulla schermata Home, poi attiva le notifiche dalla campanella 🔔</p>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── Android one-tap install ── */}
-          {platform === 'android' && (
-            <div>
-              {deferredPrompt ? (
-                <div className="flex gap-4 items-start">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">1</span>
-                  <div className="flex-1 rounded-xl bg-muted p-4">
-                    <p className="text-sm font-medium">Tocca <strong>"Installa"</strong> qui sotto</p>
-                    <p className="text-xs text-muted-foreground mt-1">Il browser ti chiederà conferma. L'app verrà aggiunta alla tua schermata Home.</p>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm font-semibold mb-4">Come installarla — 2 passi:</p>
-                  <div className="space-y-4">
-                    <div className="flex gap-4 items-start">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">1</span>
-                      <div className="flex-1 rounded-xl bg-muted p-4">
-                        <p className="text-sm font-medium">Tocca il menu <strong>⋮</strong> del browser</p>
-                        <p className="text-xs text-muted-foreground mt-1">I tre puntini in alto a destra di Chrome</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-4 items-start">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">2</span>
-                      <div className="flex-1 rounded-xl bg-muted p-4">
-                        <p className="text-sm font-medium">Seleziona <strong>"Aggiungi alla schermata Home"</strong></p>
-                        <div className="mt-3 flex items-center gap-2">
-                          <div className="rounded-lg bg-gray-500 p-2">
-                            <PlusSquare className="h-5 w-5 text-white" />
-                          </div>
-                          <span className="text-xs text-muted-foreground">Aggiungi alla schermata Home</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+          {/* Android: native prompt available */}
+          {platform === 'android' && deferredPrompt && !showManualFallback && (
+            <div className="flex gap-4 items-start">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">1</span>
+              <div className="flex-1 rounded-xl bg-muted p-4">
+                <p className="text-sm font-medium">Tocca <strong>&quot;Installa&quot;</strong> qui sotto</p>
+                <p className="text-xs text-muted-foreground mt-1">Il browser ti chiederà conferma. L&apos;app verrà aggiunta alla tua schermata Home.</p>
+              </div>
             </div>
           )}
 
-          {/* ── Desktop one-tap install ── */}
-          {platform === 'desktop' && (
+          {/* Android: manual fallback */}
+          {platform === 'android' && (!deferredPrompt || showManualFallback) && (
             <div>
-              {deferredPrompt ? (
+              <p className="text-sm font-semibold mb-4">Come installarla — 2 passi:</p>
+              <div className="space-y-4">
                 <div className="flex gap-4 items-start">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">1</span>
                   <div className="flex-1 rounded-xl bg-muted p-4">
-                    <p className="text-sm font-medium">Clicca <strong>"Installa"</strong> qui sotto</p>
-                    <p className="text-xs text-muted-foreground mt-1">L'app verrà installata sul tuo computer come applicazione nativa. Avrai accesso rapido dal desktop o dal menu Start.</p>
+                    <p className="text-sm font-medium">Tocca il menu <strong>⋮</strong> del browser</p>
+                    <p className="text-xs text-muted-foreground mt-1">I tre puntini in alto a destra di Chrome</p>
                   </div>
                 </div>
-              ) : (
-                <div>
-                  <p className="text-sm font-semibold mb-4">Come installarla:</p>
-                  <div className="flex gap-4 items-start">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">1</span>
-                    <div className="flex-1 rounded-xl bg-muted p-4">
-                      <p className="text-sm font-medium">Clicca sull'icona <strong>"Installa"</strong> nella barra indirizzi</p>
-                      <p className="text-xs text-muted-foreground mt-1">In Chrome/Edge trovi un'icona di download (⊕) nella barra indirizzi a destra</p>
+                <div className="flex gap-4 items-start">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">2</span>
+                  <div className="flex-1 rounded-xl bg-muted p-4">
+                    <p className="text-sm font-medium">Seleziona <strong>&quot;Aggiungi alla schermata Home&quot;</strong></p>
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className="rounded-lg bg-gray-500 p-2">
+                        <PlusSquare className="h-5 w-5 text-white" />
+                      </div>
+                      <span className="text-xs text-muted-foreground">Aggiungi alla schermata Home</span>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            </div>
+          )}
+
+          {/* Desktop: native prompt available */}
+          {platform === 'desktop' && deferredPrompt && !showManualFallback && (
+            <div className="flex gap-4 items-start">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">1</span>
+              <div className="flex-1 rounded-xl bg-muted p-4">
+                <p className="text-sm font-medium">Clicca <strong>&quot;Installa&quot;</strong> qui sotto</p>
+                <p className="text-xs text-muted-foreground mt-1">L&apos;app verrà installata sul tuo computer. Avrai accesso rapido dal desktop o dal menu Start.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Desktop: manual fallback */}
+          {platform === 'desktop' && (!deferredPrompt || showManualFallback) && (
+            <div>
+              <p className="text-sm font-semibold mb-4">Come installarla:</p>
+              <div className="flex gap-4 items-start">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">1</span>
+                <div className="flex-1 rounded-xl bg-muted p-4">
+                  <p className="text-sm font-medium">Clicca l&apos;icona <strong>&quot;Installa&quot;</strong> nella barra indirizzi</p>
+                  <p className="text-xs text-muted-foreground mt-1">In Chrome/Edge trovi un&apos;icona di download (⊕) nella barra indirizzi a destra</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div className="shrink-0 px-6 pb-10 md:pb-6 pt-4 border-t bg-background space-y-3">
-          {(platform === 'android' || platform === 'desktop') && deferredPrompt ? (
+          {(platform === 'android' || platform === 'desktop') && deferredPrompt && !showManualFallback ? (
             <button
               onClick={handleNativeInstall}
               disabled={installing}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-primary text-white py-4 font-semibold text-base shadow-lg hover:bg-primary/90 transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-primary text-white py-4 font-semibold text-base shadow-lg hover:bg-primary/90 transition-colors disabled:opacity-70"
             >
-              <Download className="h-5 w-5" />
-              {installing ? 'Installazione in corso...' : 'Installa ora'}
+              {installing ? (
+                <>
+                  <span className="h-5 w-5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  Attendere...
+                </>
+              ) : (
+                <>
+                  <Download className="h-5 w-5" />
+                  Installa ora
+                </>
+              )}
             </button>
           ) : (
             <button

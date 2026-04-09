@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFirestore } from '@/src/firebase';
 import {
   collection, collectionGroup, getDocs, addDoc, serverTimestamp,
-  deleteDoc, doc, writeBatch, arrayUnion, arrayRemove, query, where
+  deleteDoc, doc, writeBatch, arrayUnion, arrayRemove, query, where, updateDoc,
 } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,11 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, CheckCircle2, XCircle, Trash2, Download, RefreshCw, ArrowRight, AlertTriangle, UserPlus } from 'lucide-react';
+import { Upload, CheckCircle2, XCircle, Trash2, Download, RefreshCw, ArrowRight, AlertTriangle, UserPlus, Link2, Users2, Search } from 'lucide-react';
 import { useUserData } from '@/src/hooks/use-user-data';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import Papa from 'papaparse';
+import { Input } from '@/components/ui/input';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 export interface ImportedMember {
@@ -49,6 +50,22 @@ interface RealMember {
 interface MatchPair {
   placeholder: ImportedMember;
   realMember: RealMember;
+  score: number;
+}
+
+// ─── Registered user type for family linking ──────────────────────────────────
+interface RegisteredUser {
+  id: string;
+  nome: string;
+  cognome: string;
+  email: string;
+  displayName: string;
+  familyId?: string;
+}
+
+interface FamilyLinkSuggestion {
+  user: RegisteredUser;
+  suggestedHead: RegisteredUser;
   score: number;
 }
 
@@ -170,6 +187,16 @@ export default function UtentiRegistratiPage() {
   // Delete confirmation
   const [deletingPlaceholder, setDeletingPlaceholder] = useState<ImportedMember | null>(null);
 
+  // ── Family Linking state ───────────────────────────────────────────────────
+  const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
+  const [familyLinkSearch, setFamilyLinkSearch] = useState('');
+  const [linkingUser, setLinkingUser] = useState<RegisteredUser | null>(null);
+  const [selectedFamilyHeadId, setSelectedFamilyHeadId] = useState<string>('');
+  const [familyHeadSearch, setFamilyHeadSearch] = useState('');
+  const [isLinkingFamily, setIsLinkingFamily] = useState(false);
+  const [familyLinkSuccess, setFamilyLinkSuccess] = useState<string | null>(null);
+  const [ignoredFamilySuggestions, setIgnoredFamilySuggestions] = useState<Set<string>>(new Set());
+
   // ── Load data ──────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     if (!firestore) return;
@@ -203,6 +230,21 @@ export default function UtentiRegistratiPage() {
           docPath: d.ref.path,
         });
       });
+
+      // Build registered users list for family linking
+      const registered: RegisteredUser[] = usersSnap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          nome: data.nome || (data.displayName ?? '').split(' ')[0] || '',
+          cognome: data.cognome || (data.displayName ?? '').split(' ').slice(1).join(' ') || '',
+          email: data.email || '',
+          displayName: data.displayName || `${data.nome || ''} ${data.cognome || ''}`.trim(),
+          familyId: data.familyId,
+        };
+      });
+      setRegisteredUsers(registered);
+
       const membersSnap = await getDocs(collectionGroup(firestore, 'membri'));
       membersSnap.docs.forEach(d => {
         if (!real.some(r => r.id === d.id)) {
@@ -488,6 +530,87 @@ export default function UtentiRegistratiPage() {
     }
   };
 
+  // ── Family Linking helpers ────────────────────────────────────────────────
+  const familySuggestions = useMemo((): FamilyLinkSuggestion[] => {
+    if (!registeredUsers.length) return [];
+    // Only suggest for users without familyId
+    const unlinked = registeredUsers.filter(u => !u.familyId);
+    const potentialHeads = registeredUsers; // anyone can be a head
+    const suggestions: FamilyLinkSuggestion[] = [];
+    for (const user of unlinked) {
+      let best: { head: RegisteredUser; score: number } | null = null;
+      for (const head of potentialHeads) {
+        if (head.id === user.id) continue;
+        const key = `${user.id}-${head.id}`;
+        if (ignoredFamilySuggestions.has(key)) continue;
+        const nSim = stringSimilarity(user.cognome, head.cognome);
+        if (nSim < 0.75) continue; // Only suggest same surname
+        const score = Math.round(nSim * 100);
+        if (!best || score > best.score) best = { head, score };
+      }
+      if (best) suggestions.push({ user, suggestedHead: best.head, score: best.score });
+    }
+    return suggestions.sort((a, b) => b.score - a.score).slice(0, 10);
+  }, [registeredUsers, ignoredFamilySuggestions]);
+
+  const filteredUsersForLink = useMemo(() => {
+    const q = familyLinkSearch.toLowerCase();
+    return registeredUsers.filter(u =>
+      !q || u.nome.toLowerCase().includes(q) || u.cognome.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+    );
+  }, [registeredUsers, familyLinkSearch]);
+
+  const filteredFamilyHeads = useMemo(() => {
+    const q = familyHeadSearch.toLowerCase();
+    return registeredUsers.filter(u =>
+      u.id !== linkingUser?.id &&
+      (!q || u.nome.toLowerCase().includes(q) || u.cognome.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+    );
+  }, [registeredUsers, familyHeadSearch, linkingUser]);
+
+  const handleLinkFamily = async () => {
+    if (!firestore || !linkingUser || !selectedFamilyHeadId) return;
+    setIsLinkingFamily(true);
+    try {
+      await updateDoc(doc(firestore, 'users', linkingUser.id), {
+        familyId: selectedFamilyHeadId,
+      });
+      setFamilyLinkSuccess(`${linkingUser.displayName} collegato al nucleo familiare con successo.`);
+      setLinkingUser(null);
+      setSelectedFamilyHeadId('');
+      setFamilyHeadSearch('');
+      await loadData();
+      setTimeout(() => setFamilyLinkSuccess(null), 4000);
+    } catch (e) {
+      console.error(e);
+      alert('Errore durante il collegamento familiare.');
+    } finally {
+      setIsLinkingFamily(false);
+    }
+  };
+
+  const handleUnlinkFamily = async (user: RegisteredUser) => {
+    if (!firestore) return;
+    try {
+      await updateDoc(doc(firestore, 'users', user.id), { familyId: null });
+      await loadData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleConfirmSuggestion = async (suggestion: FamilyLinkSuggestion) => {
+    if (!firestore) return;
+    try {
+      await updateDoc(doc(firestore, 'users', suggestion.user.id), {
+        familyId: suggestion.suggestedHead.id,
+      });
+      await loadData();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // ── Access guard ──────────────────────────────────────────────────────────
   if (!isAdmin && !isLoading) {
     return (
@@ -523,6 +646,131 @@ export default function UtentiRegistratiPage() {
           {error}
         </div>
       )}
+
+      {familyLinkSuccess && (
+        <div className="rounded-md bg-green-50 border border-green-200 text-green-800 px-4 py-3 text-sm flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+          {familyLinkSuccess}
+        </div>
+      )}
+
+      {/* ── Sezione: Collegamento Nucleo Familiare ───────────────────────── */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <Users2 className="h-5 w-5 text-blue-500" />
+              Collegamento Nucleo Familiare
+            </CardTitle>
+            {familySuggestions.length > 0 && (
+              <Badge variant="secondary">{familySuggestions.length} suggerimenti</Badge>
+            )}
+          </div>
+          <CardDescription>
+            Collega manualmente utenti registrati allo stesso nucleo familiare impostando il loro <code>familyId</code>.
+            I suggerimenti sono basati sulla corrispondenza del cognome (match ≥ 75%).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+
+          {/* Suggestions */}
+          {!isLoading && familySuggestions.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Suggerimenti automatici</p>
+              {familySuggestions.map(s => (
+                <div key={`${s.user.id}-${s.suggestedHead.id}`} className="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="rounded-md bg-muted px-3 py-2 text-sm min-w-0">
+                      <p className="font-semibold truncate">{s.user.displayName}</p>
+                      <p className="text-xs text-muted-foreground">{s.user.email}</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-sm min-w-0">
+                      <p className="font-semibold truncate text-blue-800">{s.suggestedHead.displayName}</p>
+                      <p className="text-xs text-blue-600">{s.suggestedHead.email}</p>
+                    </div>
+                    <ScoreBadge score={s.score} />
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" onClick={() => handleConfirmSuggestion(s)}>
+                      <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                      Collega
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setIgnoredFamilySuggestions(prev => new Set([...Array.from(prev), `${s.user.id}-${s.suggestedHead.id}`]));
+                    }}>
+                      <XCircle className="mr-1.5 h-4 w-4" />
+                      Ignora
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Manual link table */}
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Collegamento manuale</p>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Cerca utente per nome, cognome o email..."
+                className="pl-9"
+                value={familyLinkSearch}
+                onChange={e => setFamilyLinkSearch(e.target.value)}
+              />
+            </div>
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Utente</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Nucleo attuale</TableHead>
+                    <TableHead className="text-right">Azioni</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading && (
+                    <TableRow><TableCell colSpan={4} className="text-center py-6">Caricamento...</TableCell></TableRow>
+                  )}
+                  {!isLoading && filteredUsersForLink.slice(0, 20).map(u => {
+                    const head = u.familyId ? registeredUsers.find(r => r.id === u.familyId) : null;
+                    return (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">{u.displayName || `${u.nome} ${u.cognome}`}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{u.email}</TableCell>
+                        <TableCell>
+                          {head ? (
+                            <Badge variant="secondary" className="text-xs">{head.displayName}</Badge>
+                          ) : u.familyId ? (
+                            <Badge variant="outline" className="text-xs text-amber-600">ID: {u.familyId.slice(0, 8)}…</Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-1 justify-end">
+                            <Button size="sm" variant="outline" onClick={() => { setLinkingUser(u); setSelectedFamilyHeadId(''); setFamilyHeadSearch(''); }}>
+                              <Link2 className="mr-1.5 h-3.5 w-3.5" />
+                              Collega
+                            </Button>
+                            {u.familyId && (
+                              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleUnlinkFamily(u)}>
+                                <XCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── Section 1: Matches ──────────────────────────────────────────── */}
       <Card>
@@ -939,6 +1187,63 @@ export default function UtentiRegistratiPage() {
             <Button variant="outline" onClick={() => setDeletingPlaceholder(null)}>Annulla</Button>
             <Button variant="destructive" onClick={() => deletingPlaceholder && handleDeletePlaceholder(deletingPlaceholder)}>
               Elimina
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Family Link Dialog */}
+      <Dialog open={!!linkingUser} onOpenChange={(o) => !o && setLinkingUser(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-blue-500" />
+              Scegli Capofamiglia
+            </DialogTitle>
+            <DialogDescription>
+              Stai collegando <strong>{linkingUser?.displayName}</strong> a un nucleo familiare.
+              Seleziona il capofamiglia (l&apos;utente la cui famiglia verrà condivisa).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Cerca capofamiglia..."
+                className="pl-9"
+                value={familyHeadSearch}
+                onChange={e => setFamilyHeadSearch(e.target.value)}
+              />
+            </div>
+            <div className="rounded-md border max-h-52 overflow-y-auto">
+              {filteredFamilyHeads.slice(0, 15).map(u => (
+                <button
+                  key={u.id}
+                  className={`w-full text-left px-4 py-3 text-sm hover:bg-muted/50 border-b last:border-b-0 transition-colors ${selectedFamilyHeadId === u.id ? 'bg-primary/10 text-primary font-semibold' : ''}`}
+                  onClick={() => setSelectedFamilyHeadId(u.id)}
+                >
+                  <p className="font-medium">{u.displayName}</p>
+                  <p className="text-xs text-muted-foreground">{u.email}</p>
+                </button>
+              ))}
+              {filteredFamilyHeads.length === 0 && (
+                <p className="text-center text-muted-foreground py-4 text-sm">Nessun utente trovato</p>
+              )}
+            </div>
+            {selectedFamilyHeadId && (
+              <div className="rounded-md bg-primary/10 border border-primary/20 px-3 py-2 text-sm">
+                <p className="text-xs text-primary/70 font-semibold mb-0.5">Capofamiglia selezionato:</p>
+                <p className="font-semibold">{registeredUsers.find(u => u.id === selectedFamilyHeadId)?.displayName}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkingUser(null)}>Annulla</Button>
+            <Button
+              disabled={!selectedFamilyHeadId || isLinkingFamily}
+              onClick={handleLinkFamily}
+            >
+              {isLinkingFamily ? 'Collegamento...' : 'Collega Nucleo'}
             </Button>
           </DialogFooter>
         </DialogContent>

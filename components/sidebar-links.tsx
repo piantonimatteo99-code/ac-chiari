@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Landmark, Building, Shield, GraduationCap, UserCog, FileCog, Group as GroupIcon, ShieldCheck, PenSquare, FlaskConical, CircleHelp, Coins, Calendar, Warehouse, Share2, Tent, Gavel } from 'lucide-react';
+import { Home, Users, Landmark, Building, Shield, GraduationCap, UserCog, FileCog, Group as GroupIcon, ShieldCheck, PenSquare, FlaskConical, CircleHelp, Coins, Calendar, Warehouse, Share2, Tent, Gavel, Bus, CookingPot } from 'lucide-react';
 import { cn, slugify } from '@/lib/utils';
 import { useUserData } from '@/src/hooks/use-user-data';
 import {
@@ -32,7 +32,12 @@ const navConfig = [
   { id: 'nucleo-familiare', href: '/nucleo-familiare', label: 'Nucleo Familiare', icon: Building, subItems: [] },
   { id: 'calendario', href: '/calendario', label: 'Calendario', icon: Calendar, subItems: [] },
   { id: 'magazzino', href: '/magazzino', label: 'Magazzino', icon: Warehouse, subItems: [] },
-  { id: 'campi', href: '/campi', label: 'Campi', icon: Tent, subItems: [] },
+  { id: 'campi', href: '/campi', label: 'Campi', icon: Tent, subItems: [
+    { id: 'campi-list', href: '/campi', label: 'Tutti i Campi' },
+    { id: 'campi-pullman', href: '/campi/pullman', label: 'Pullman' },
+    { id: 'campi-case', href: '/campi/case', label: 'Case' },
+    { id: 'campi-piatti', href: '/campi/piatti', label: 'Piatti' },
+  ] },
   { id: 'consiglio', href: '/consiglio', label: 'Consiglio', icon: Gavel, subItems: [] },
   { 
     id: 'contabilita',
@@ -122,6 +127,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     navConfig.forEach(item => {
       if (item.subItems.length > 0 && pathname.startsWith(`/${item.id}`)) init.add(item.id);
     });
+    if (pathname.startsWith('/campi')) init.add('campi');
     if (pathname.startsWith('/admin')) init.add('admin-panel');
     adminGroups.forEach(g => {
       if (g.links.some(l => pathname.startsWith(l.href))) init.add(g.title);
@@ -458,6 +464,58 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     );
   }
 
+  const renderCampi = () => {
+    const pageConfig = navConfig.find(p => p.id === 'campi')!;
+    const isVisible = getPageVisibility({ id: 'campi', href: '/campi', label: 'Campi' }).visible;
+    if (!isVisible) return null;
+
+    const isInside = pathname.startsWith('/campi');
+    const Icon = pageConfig.icon;
+    const subIcons: Record<string, React.ElementType> = {
+      '/campi': Tent,
+      '/campi/pullman': Bus,
+      '/campi/case': Home,
+      '/campi/piatti': CookingPot,
+    };
+
+    return (
+      <Accordion type="single" collapsible
+        value={openSections.has('campi') ? 'campi-panel' : ''}
+        onValueChange={val => toggleSection('campi', !!val)}
+        className="w-full"
+      >
+        <AccordionItem value="campi-panel" className="border-b-0">
+          <AccordionTrigger
+            className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground",
+              { 'bg-accent text-accent-foreground': isInside })}
+          >
+            <div className="flex items-center gap-4 pointer-events-none flex-1 min-w-0">
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="flex-1 text-left">{pageConfig.label}</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-1 pl-3 space-y-1">
+            {pageConfig.subItems.map((sub: any) => {
+              const SubIcon = subIcons[sub.href];
+              const isActive = pathname === sub.href;
+              return (
+                <Link key={sub.id} href={sub.href} onClick={onLinkClick}
+                  className={cn(
+                    "flex w-full text-left items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary",
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  )}
+                >
+                  {SubIcon && <SubIcon className="h-4 w-4 shrink-0" />}
+                  <span>{sub.label}</span>
+                </Link>
+              );
+            })}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    );
+  };
+
   const getActiveAdminGroups = () => {
     return adminGroups.filter(group => group.links.some(link => pathname.startsWith(link.href))).map(g => g.title);
   };
@@ -480,6 +538,9 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
       {navConfig.map(item => {
         if (item.id === 'progetti') {
              return <div key={item.id}>{renderProgetti()}</div>;
+        }
+        if (item.id === 'campi') {
+          return <div key={item.id}>{renderCampi()}</div>;
         }
         if (item.id === 'miei-gruppi') {
           return <div key={item.id}>{renderMieiGruppi()}</div>;

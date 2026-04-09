@@ -65,19 +65,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, skipped: true, reason: 'SMTP non configurato' });
     }
 
-    // Generate Firebase verification link
-    // Usa le actionCodeSettings per fare il redirect a /login una volta verificata (opzionale)
-    const actionCodeSettings: admin.auth.ActionCodeSettings = {
-      // URL a cui l'utente viene reindirizzato dopo che l'email è stata verificata
-      url: process.env.NEXT_PUBLIC_BASE_URL 
-        ? `${process.env.NEXT_PUBLIC_BASE_URL}/login` 
-        : 'https://azionecattolicachiari.vercel.app/login',
-      handleCodeInApp: false
-    };
+    // Generate Firebase verification link.
+    // With handleCodeInApp: false (default), Firebase's hosted page handles the oobCode
+    // and then redirects to `url` (our continueUrl). Our /auth/action page then shows
+    // a branded success message and redirects to /login.
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+
+    const actionCodeSettings: admin.auth.ActionCodeSettings | undefined = baseUrl
+      ? {
+          url: `${baseUrl}/auth/action`,
+          // handleCodeInApp: false (default) — Firebase hosted page handles the code,
+          // then redirects to our continueUrl. handleCodeInApp:true is for mobile apps only.
+        }
+      : undefined;
 
     let verificationLink = '';
     try {
-      verificationLink = await admin.auth().generateEmailVerificationLink(email, actionCodeSettings);
+      verificationLink = await admin.auth().generateEmailVerificationLink(
+        email,
+        actionCodeSettings ?? undefined
+      );
     } catch (firebaseErr: any) {
       console.error('[email] Errore generazione link Firebase:', firebaseErr.message);
       return NextResponse.json({ error: 'Impossibile generare il link di verifica' }, { status: 500 });

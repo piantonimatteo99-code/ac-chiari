@@ -409,7 +409,7 @@ export default function TransazioniDaControllarePage() {
         const batch = writeBatch(firestore);
 
         const paymentDocRef = doc(firestore, 'payments', payment.paymentId);
-        batch.update(paymentDocRef, { isVerified: true });
+        batch.update(paymentDocRef, { isVerified: true, verifiedAt: new Date() });
         
         if (payment.isCashDeposit) {
             const movimentiRef = collection(firestore, 'movimenti-contanti');
@@ -471,7 +471,7 @@ export default function TransazioniDaControllarePage() {
             const payment = verificationPayments.find(p => p.paymentId === paymentId);
             if (payment) {
                 const paymentDocRef = doc(firestore, 'payments', payment.paymentId);
-                batch.update(paymentDocRef, { isVerified: true });
+                batch.update(paymentDocRef, { isVerified: true, verifiedAt: new Date() });
 
                 if (payment.isCashDeposit) {
                      const movimentiRef = collection(firestore, 'movimenti-contanti');

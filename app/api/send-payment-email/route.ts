@@ -201,14 +201,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, skipped: true, reason: 'SMTP non configurato' });
     }
 
-    // ── Recupera email capofamiglia ───────────────────────────────────────────
+    // ── Recupera TUTTI i membri del nucleo con account registrato ────────────────
+    // Includiamo: il capofamiglia + tutti con familyId == familyHeadId
     const familyHead = await getFamilyHeadEmail(familyHeadId);
-    if (!familyHead) {
-      console.warn(`[email] Email non trovata per uid: ${familyHeadId}`);
-      return NextResponse.json({ success: true, skipped: true, reason: 'Email capofamiglia non trovata' });
+    
+    // Find all users linked to this family
+    const db = admin.firestore();
+    const linkedMembersSnap = await db.collection('users')
+      .where('familyId', '==', familyHeadId)
+      .get();
+
+    // Build recipient list: start with family head if found
+    const recipients: { email: string; displayName: string }[] = [];
+    if (familyHead) {
+      recipients.push(familyHead);
+    }
+    for (const memberDoc of linkedMembersSnap.docs) {
+      const m = memberDoc.data();
+      if (m.email && m.email !== familyHead?.email) {
+        recipients.push({
+          email: m.email,
+          displayName: m.displayName || `${m.nome || ''} ${m.cognome || ''}`.trim() || 'Membro',
+        });
+      }
     }
 
-    // ── Invia email ───────────────────────────────────────────────────────────
+    if (recipients.length === 0) {
+      console.warn(`[email] Nessun destinatario trovato per familyId: ${familyHeadId}`);
+      return NextResponse.json({ success: true, skipped: true, reason: 'Nessun destinatario trovato' });
+    }
+
+    // ── Invia email a tutti i destinatari ─────────────────────────────────────
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
@@ -216,28 +239,35 @@ export async function POST(request: NextRequest) {
       auth: { user: smtpUser, pass: smtpPassword },
     });
 
-    const htmlBody = buildEmailHtml(
-      familyHead.displayName,
-      paymentItems,
-      paymentMethod,
-      paymentId,
-      receiptUrl
-    );
-
     const subject =
       paymentMethod === 'bonifico'
         ? `✅ Pagamento confermato — ACR-${paymentId}`
         : `✅ Pagamento in contanti registrato`;
 
-    await transporter.sendMail({
-      from: `"AC Chiari" <${smtpUser}>`,
-      to: familyHead.email,
-      subject,
-      html: htmlBody,
-    });
+    const sentTo: string[] = [];
+    for (const recipient of recipients) {
+      const htmlBody = buildEmailHtml(
+        recipient.displayName,
+        paymentItems,
+        paymentMethod,
+        paymentId,
+        receiptUrl
+      );
+      try {
+        await transporter.sendMail({
+          from: `"AC Chiari" <${smtpUser}>`,
+          to: recipient.email,
+          subject,
+          html: htmlBody,
+        });
+        sentTo.push(recipient.email);
+        console.log(`[email] ✅ Inviata a ${recipient.email}`);
+      } catch (mailErr: any) {
+        console.error(`[email] Errore invio a ${recipient.email}:`, mailErr.message);
+      }
+    }
 
-    console.log(`[email] ✅ Inviata a ${familyHead.email} — ${paymentItems.length} voci`);
-    return NextResponse.json({ success: true, sentTo: familyHead.email });
+    return NextResponse.json({ success: true, sentTo, count: sentTo.length });
 
   } catch (err: any) {
     console.error('[email] Errore invio:', err.message);

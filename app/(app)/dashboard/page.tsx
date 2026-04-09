@@ -588,7 +588,7 @@ function NoticesCard() {
 export default function DashboardPage() {
   const firestore = useFirestore();
   const { user } = useUser();
-  const { userData, isLoading: isUserLoading } = useUserData();
+  const { userData, isLoading: isUserLoading, resolvedFamilyId } = useUserData();
 
   const isAdmin = useMemo(() => userData?.roles?.includes('admin') ?? false, [userData]);
   const isEducatore = useMemo(() => userData?.roles?.includes('educatore') ?? false, [userData]);
@@ -612,10 +612,11 @@ export default function DashboardPage() {
   const { data: allEvents } = useCollection<Evento>(eventsQuery);
 
   // Family members — always fetch regardless of role (an educator can also have children)
+  // Use resolvedFamilyId so linked family members see the correct nucleus
   const membriQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return collection(firestore, 'famiglie', user.uid, 'membri');
-  }, [firestore, user]);
+    if (!firestore || !resolvedFamilyId) return null;
+    return collection(firestore, 'famiglie', resolvedFamilyId, 'membri');
+  }, [firestore, resolvedFamilyId]);
   const { data: familyMembri } = useCollection<Membro>(membriQuery);
 
   // Relevant events: for educators = their groups; for genitore = all; for hybrid = union

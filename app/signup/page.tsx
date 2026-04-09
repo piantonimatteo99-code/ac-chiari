@@ -23,6 +23,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [nome, setNome] = useState('');
   const [cognome, setCognome] = useState('');
+  const [familyEmailHead, setFamilyEmailHead] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -57,10 +58,14 @@ export default function SignupPage() {
           throw new Error('Risposta API non OK, uso fallback Firebase');
         }
       } catch (emailErr) {
-        // Fallback: usa l'email di default Firebase (non brandizzata)
+        // Fallback: usa l'email di default Firebase (non brandizzata ma con redirect corretto)
         console.warn("Invio custom email fallito, uso fallback Firebase:", emailErr);
         try {
-          await sendEmailVerification(userCredential.user);
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://olicachiari.vercel.app';
+          await sendEmailVerification(userCredential.user, {
+            url: `${baseUrl}/auth/action`,
+            handleCodeInApp: true,
+          });
         } catch (fbErr) {
           console.error("Anche il fallback Firebase ha fallito:", fbErr);
         }
@@ -79,11 +84,28 @@ export default function SignupPage() {
           createdAt: serverTimestamp(),
         });
       } catch (firestoreErr) {
-        // Non bloccante: l'account è creato e l'email è inviata anche se Firestore fallisce
         console.error("Errore scrittura Firestore (non bloccante):", firestoreErr);
       }
 
-      // STEP 4: Notifica admin (non bloccante)
+      // STEP 4: Se fornita l'email del capofamiglia, invia richiesta di collegamento al nucleo
+      if (familyEmailHead.trim()) {
+        try {
+          await fetch('/api/family/request-join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requesterId: userCredential.user.uid,
+              requesterEmail: email,
+              requesterName: `${nome} ${cognome}`,
+              targetFamilyEmail: familyEmailHead.trim(),
+            }),
+          });
+        } catch (joinErr) {
+          console.warn("Errore invio richiesta famiglia (non bloccante):", joinErr);
+        }
+      }
+
+      // STEP 5: Notifica admin (non bloccante)
       try {
         await triggerNotification({
           eventType: 'nuovo_utente',
@@ -215,6 +237,26 @@ export default function SignupPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+
+              {/* Sezione nucleo familiare — opzionale */}
+              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nucleo Familiare (opzionale)</p>
+                <div className="grid gap-2">
+                  <Label htmlFor="family-email" className="text-sm">Email del capofamiglia</Label>
+                  <Input
+                    id="family-email"
+                    type="email"
+                    placeholder="capofamiglia@example.com"
+                    value={familyEmailHead}
+                    onChange={(e) => setFamilyEmailHead(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Se fai parte di una famiglia già registrata, inserisci l&apos;email del capofamiglia.
+                    Verrà inviata una richiesta di collegamento che dovrà essere approvata.
+                  </p>
+                </div>
+              </div>
+
               {error && <p className="text-destructive text-sm p-3 bg-destructive/10 border border-destructive/20 rounded-md">{error}</p>}
               <Button type="submit" className="w-full">
                 Crea un account

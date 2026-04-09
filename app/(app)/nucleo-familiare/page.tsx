@@ -1,7 +1,7 @@
 'use client';
 
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/src/firebase';
@@ -55,12 +56,12 @@ export default function NucleoFamiliarePage() {
   const [membroToDelete, setMembroToDelete] = useState<Membro | null>(null);
   const firestore = useFirestore();
   const { user } = useUser();
-  const { userData, isLoading: isUserDataLoading } = useUserData();
+  const { userData, isLoading: isUserDataLoading, resolvedFamilyId } = useUserData();
 
-  const famigliaId = user?.uid; // L'ID della famiglia è ora l'UID dell'utente
+  // Use resolvedFamilyId so that linked family members read from the correct family
+  const famigliaId = resolvedFamilyId ?? user?.uid;
   const [familyAddress, setFamilyAddress] = useState('Nessun indirizzo specificato');
 
-  // Il documento famiglia è direttamente referenziato dall'UID dell'utente
   const famigliaDocRef = useMemoFirebase(() => {
     if (!famigliaId || !firestore) return null;
     return doc(firestore, 'famiglie', famigliaId);
@@ -87,7 +88,6 @@ export default function NucleoFamiliarePage() {
     }
   }, [famigliaData, isFamigliaLoading, userData]);
 
-  // Query per ottenere i membri dalla sotto-collezione, si attiva solo quando abbiamo un famigliaId
   const membriQuery = useMemoFirebase(() => {
     if (!famigliaId || !firestore) return null;
     return collection(firestore, 'famiglie', famigliaId, 'membri');
@@ -96,7 +96,12 @@ export default function NucleoFamiliarePage() {
   const { data: membri, isLoading: isMembriLoading, error } = useCollection<Membro>(membriQuery);
   
   const isLoading = isUserDataLoading || isFamigliaLoading || isMembriLoading;
-  
+
+  // Determine if a member record corresponds to the logged-in user (to show badge)
+  const ownMemberName = useMemo(() => {
+    if (!userData) return null;
+    return `${userData.nome ?? ''} ${userData.cognome ?? ''}`.trim().toLowerCase();
+  }, [userData]);
 
   const handleEdit = (membro: Membro) => {
     setEditingMembro(membro);
@@ -182,13 +187,23 @@ export default function NucleoFamiliarePage() {
                 </TableRow>
               )}
               {!isLoading && membri && membri.length > 0 ? (
-                membri.map((membro) => (
+                membri.map((membro) => {
+                  const memberName = `${membro.nome ?? ''} ${membro.cognome ?? ''}`.trim().toLowerCase();
+                  const isOwnRecord = ownMemberName && memberName === ownMemberName;
+                  return (
                   <TableRow
                     key={membro.id}
                     className="hover:bg-muted/50 cursor-pointer"
                     onClick={() => handleEdit(membro)}
                   >
-                    <TableCell className="font-medium">{membro.nome} {membro.cognome}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {membro.nome} {membro.cognome}
+                        {isOwnRecord && (
+                          <Badge variant="secondary" className="text-[10px] h-4 px-1.5">Il mio profilo</Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{formatDate(membro.dataNascita)}</TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{familyAddress}</TableCell>
                     <TableCell onClick={e => e.stopPropagation()}>
@@ -206,7 +221,8 @@ export default function NucleoFamiliarePage() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               ) : (
                 !isLoading && (
                   <TableRow>

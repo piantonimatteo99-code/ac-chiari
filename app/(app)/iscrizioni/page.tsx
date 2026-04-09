@@ -38,6 +38,7 @@ export default function IscrizioniPage() {
     const firestore = useFirestore();
     const { user } = useUser();
     const { userData, isLoading: isUserLoading } = useUserData();
+    const resolvedFamilyId = userData?.familyId ?? user?.uid;
 
     const [paymentSelections, setPaymentSelections] = useState<Record<string, PaymentSelection>>({});
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -57,9 +58,9 @@ export default function IscrizioniPage() {
     const { data: raccolte, isLoading: isLoadingRaccolte } = useCollection<Raccolta>(raccolteQuery);
 
     const membriQuery = useMemoFirebase(() => {
-        if (!firestore || !user) return null;
-        return collection(firestore, 'famiglie', user.uid, 'membri');
-    }, [firestore, user]);
+        if (!firestore || !resolvedFamilyId) return null;
+        return collection(firestore, 'famiglie', resolvedFamilyId, 'membri');
+    }, [firestore, resolvedFamilyId]);
     const { data: membri, isLoading: isLoadingMembri } = useCollection<Membro>(membriQuery);
     
     const tariffeQuery = useMemoFirebase(() => {

@@ -37,6 +37,10 @@ function LoginForm() {
     if (successParam === 'true') {
       setInfo("Registrazione completata! Ti abbiamo inviato un'email di verifica. Controlla la tua posta prima di accedere.");
     }
+    const emailVerified = searchParams.get('email_verified');
+    if (emailVerified === 'true') {
+      setInfo('✅ Email verificata con successo! Puoi ora accedere al tuo account.');
+    }
   }, [searchParams]);
 
   useEffect(() => {

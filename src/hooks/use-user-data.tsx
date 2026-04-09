@@ -16,8 +16,11 @@ export interface UserData {
     nome?: string;
     cognome?: string;
 
+    // familyId: UID of the family head (capofamiglia).
+    // If not set, the user IS the family head (familyId == uid).
+    familyId?: string;
+
     // Address data might be here, but we now store it in the 'famiglie' collection
-    // These fields are kept for potential future use or legacy data, but are not primary.
     dataNascita?: string;
     codiceFiscale?: string;
     luogoNascita?: string;
@@ -36,7 +39,7 @@ export interface UserData {
 
 /**
  * Hook to get the current user's custom data from the 'users' collection in Firestore.
- * @returns An object containing the user data, loading state, and any errors.
+ * Also exposes `resolvedFamilyId`: the family head's UID (= user.uid if not linked to another family).
  */
 export function useUserData() {
   const { user, isUserLoading: isAuthLoading } = useUser();
@@ -51,5 +54,11 @@ export function useUserData() {
 
   const isLoading = isAuthLoading || isDataLoading;
 
-  return { userData, isLoading, error };
+  // Resolve: if familyId is set and != uid, use it; otherwise use own uid as family head
+  const resolvedFamilyId = useMemo(() => {
+    if (!user) return null;
+    return userData?.familyId ?? user.uid;
+  }, [userData, user]);
+
+  return { userData, isLoading, error, resolvedFamilyId };
 }
