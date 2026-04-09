@@ -7,6 +7,30 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "membri",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "nome", "order": "ASCENDING" },
+        { "fieldPath": "cognome", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isVerified", "order": "ASCENDING" },
+        { "fieldPath": "receiptDeleted", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "familyJoinPins",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "requesterId", "order": "ASCENDING" },
+        { "fieldPath": "used", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
