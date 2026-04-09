@@ -37,7 +37,7 @@ interface JoinFamilyDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   user: User;
-  userData: UserData;
+  userData: UserData | null;
   onSuccess: () => void;
 }
 

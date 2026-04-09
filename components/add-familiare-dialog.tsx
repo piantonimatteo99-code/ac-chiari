@@ -28,7 +28,7 @@ interface AddFamiliareDialogProps {
   onOpenChange: (isOpen: boolean) => void;
   membroToEdit?: MembroBase | null;
   user: User;
-  userData: UserData;
+  userData: UserData | null;
 }
 
 const initialMembroState: Membro = {

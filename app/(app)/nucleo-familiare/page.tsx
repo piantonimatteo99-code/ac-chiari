@@ -162,8 +162,8 @@ export default function NucleoFamiliarePage() {
         </div>
       )}
 
-      {/* Dialogs */}
-      {user && userData && (
+      {/* Dialogs — rendered as soon as user is authenticated, userData is optional (nullable) */}
+      {user && (
         <>
           <AddFamiliareDialog
             isOpen={isAddDialogOpen}

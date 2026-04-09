@@ -258,20 +258,25 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   const isLoading = isUserLoading || isLoadingPageSettings || isLoadingGroups || isLoadingEducatorRoles || isLoadingAllGroups || isLoadingAllProjects || isLoadingMembri;
 
   const getPageVisibility = useCallback((page: { id: string; href?: string; label: string; }): { visible: boolean; reason: string } => {
-    if (!userData || !user) {
-        return { visible: false, reason: 'Dati utente non ancora caricati' };
-    } 
+    // User must be authenticated
+    if (!user) {
+        return { visible: false, reason: 'Utente non autenticato' };
+    }
 
-    // These pages are ALWAYS visible to every authenticated user
-    const alwaysVisible = ['dashboard', 'nucleo-familiare'];
+    // These pages are ALWAYS visible to every authenticated user, regardless of role
+    const alwaysVisible = ['dashboard', 'nucleo-familiare', 'calendario', 'iscrizioni'];
     if (alwaysVisible.includes(page.id)) {
         return { visible: true, reason: 'Pagina sempre visibile' };
     }
+
+    // For all other pages, we need userData to evaluate roles
+    if (!userData) {
+        return { visible: false, reason: 'Dati utente non ancora caricati' };
+    } 
     
     const setting = pageSettings?.find(p => p.id === page.id || p.path === page.href);
     if (!setting) {
-        // page-settings not configured yet (admin hasn't visited Gestione Pagine)
-        // Default: visible for all authenticated users
+        // page-settings not configured yet — default to visible for all authenticated users
         return { visible: true, reason: 'Nessuna configurazione trovata — visibile di default' };
     } 
     
@@ -284,8 +289,6 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     } 
     
     const userIsEducator = userData.roles?.includes('educatore');
-    const userIsGenitore = userData.roles?.includes('genitore');
-    const userIsUtente = !userIsEducator && !isAdmin; // 'utente' semplice
 
     if (setting.requiresGroupAssignmentCheck) {
         if (userIsEducator && myGroups && myGroups.length > 0) {
@@ -295,17 +298,19 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
         }
     } 
     
-    if (setting.requiresEducatorRoleCheck && page.href) {
-        if (userIsEducator && mySpecificRoles?.some(role => role.accessiblePages.includes(page.href!))) {
+    if (setting.requiresEducatorRoleCheck) {
+        if (userIsEducator && page.href && mySpecificRoles?.some(role => role.accessiblePages.includes(page.href!))) {
             return { visible: true, reason: 'Visibile: Permesso garantito da un ruolo specifico' };
         } else {
             return { visible: false, reason: 'Nascosto: Richiede un ruolo educatore specifico' };
         }
     } 
     
+    // No special restrictions: visible to all authenticated users
     return { visible: true, reason: 'Nessun permesso speciale richiesto' };
     
   }, [pageSettings, userData, user, isAdmin, myGroups, mySpecificRoles]);
+
 
 
   if (isLoading) {
