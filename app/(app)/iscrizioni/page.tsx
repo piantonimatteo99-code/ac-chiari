@@ -10,10 +10,11 @@ import type { Membro } from '../nucleo-familiare/page';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { IscrizioneFamigliaCard, type PaymentSelection } from '@/components/iscrizione-famiglia-card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowRight } from 'lucide-react';
 import type { Tariffa } from '../tesserati/tariffe/page';
 import { PageTutorial } from '@/components/page-tutorial';
 import dynamic from 'next/dynamic';
+import { UserProfileDialog } from '@/components/user-profile-dialog';
 
 const UploadReceiptDialog = dynamic(() => 
     import('@/components/upload-receipt-dialog').then(mod => mod.UploadReceiptDialog), 
@@ -42,6 +43,7 @@ export default function IscrizioniPage() {
 
     const [paymentSelections, setPaymentSelections] = useState<Record<string, PaymentSelection>>({});
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
     
     
     const handleSelectionChange = useCallback((raccoltaId: string, selection: PaymentSelection) => {
@@ -184,6 +186,30 @@ export default function IscrizioniPage() {
 
     return (
         <div className="space-y-8 pb-32">
+
+            {/* Alert: missing profile data */}
+            {!isLoading && !userData?.codiceFiscale && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                        <AlertCircle className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div className="flex-1">
+                        <p className="font-semibold text-sm text-amber-900 dark:text-amber-100">Dati anagrafici mancanti</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                            Per poter procedere con le iscrizioni e il tesseramento devi prima inserire i tuoi dati personali.
+                        </p>
+                    </div>
+                    <Button
+                        size="sm"
+                        className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+                        onClick={() => setIsProfileOpen(true)}
+                    >
+                        Inserisci i dati
+                        <ArrowRight className="h-3 w-3 ml-1" />
+                    </Button>
+                </div>
+            )}
+
             {!isLoading && relevantRaccolte.length === 0 && (
                 <Card>
                     <CardHeader>
@@ -268,6 +294,9 @@ export default function IscrizioniPage() {
                     }
                 ]}
             />
+
+            {/* Profile dialog triggered from alert */}
+            <UserProfileDialog isOpen={isProfileOpen} onOpenChange={setIsProfileOpen} />
         </div>
     );
 }

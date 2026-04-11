@@ -19,11 +19,13 @@ import Link from 'next/link';
 import { AcChiariLogo } from './ac-logo';
 import { FeedbackDialog } from './feedback-dialog';
 import { NotificationBell } from './notification-bell';
+import { UserProfileDialog } from './user-profile-dialog';
 
 export default function Header() {
   const auth = useAuth();
   const { user } = useUser();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -89,7 +91,7 @@ export default function Header() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="gap-2">
+          <DropdownMenuItem className="gap-2" onSelect={() => setIsProfileOpen(true)}>
             <User className="h-4 w-4" />
             Profilo
           </DropdownMenuItem>
@@ -100,6 +102,9 @@ export default function Header() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Profile dialog */}
+      <UserProfileDialog isOpen={isProfileOpen} onOpenChange={setIsProfileOpen} />
     </header>
   );
 }

@@ -9,6 +9,7 @@ import { signOut } from 'firebase/auth';
 import { useAuth } from '@/src/firebase';
 import { Toaster } from '@/components/ui/toaster';
 import { PwaInstallDialog } from '@/components/pwa-install-dialog';
+import { ProfileOnboardingDialog } from '@/components/profile-onboarding-dialog';
 
 export default function AppLayout({
   children,
@@ -49,6 +50,8 @@ export default function AppLayout({
         </main>
       </div>
       <Toaster />
+      {/* Profile onboarding MUST appear before PWA install */}
+      <ProfileOnboardingDialog />
       <PwaInstallDialog />
     </div>
   );
