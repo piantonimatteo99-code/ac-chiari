@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await db.collection('users').doc(requesterId).update(userUpdatePayload);
+    // Use set+merge so the document is created if it doesn't exist yet (new users)
+    await db.collection('users').doc(requesterId).set(userUpdatePayload, { merge: true });
 
     // Mark PIN as used
     await pinDoc.ref.update({ used: true, usedAt: Timestamp.now() });
