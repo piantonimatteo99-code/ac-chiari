@@ -64,7 +64,8 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = membroToEdit != null;
-  const famigliaId = user.uid; // L'ID della famiglia è sempre l'UID dell'utente
+  // For users linked to another family via PIN, familyId ≠ user.uid
+  const famigliaId = userData?.familyId || user.uid;
 
   useEffect(() => {
     if (isOpen) {
@@ -166,9 +167,9 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
       // Usiamo set con merge per creare o aggiornare il documento famiglia
       await setDoc(famigliaDocRef, famigliaPayload, { merge: true });
 
-      // Aggiorniamo anche i dati dell'indirizzo nel profilo dell'utente
+      // Update address on user's own profile (always user.uid, not familyId)
       const userDocRef = doc(firestore, 'users', user.uid);
-      await updateDoc(userDocRef, { ...anagraficaData });
+      await setDoc(userDocRef, { ...anagraficaData }, { merge: true });
 
       if (isEditing && membroToEdit) {
         // Se stiamo modificando, aggiorniamo il documento del membro esistente

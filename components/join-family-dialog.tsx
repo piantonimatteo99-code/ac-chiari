@@ -80,8 +80,12 @@ export function JoinFamilyDialog({ isOpen, onOpenChange, user, userData, onSucce
   const [searchCognome, setSearchCognome] = useState('');
   const [foundFamily, setFoundFamily] = useState<{ familyId: string; memberName: string; notifiedCount: number } | null>(null);
 
-  // Step 3 — PIN entry
-  const [pin, setPin] = useState('');
+  // Step 3 — PIN entry (6-box OTP style)
+  const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const digitRefs = [0,1,2,3,4,5].map(() => ({ current: null as HTMLInputElement | null }));
+
+  // Keep pin string in sync with digits array
+  const pin = digits.join('');
 
   const updatePersonal = useCallback((field: keyof PersonalData, value: string | boolean) => {
     setPersonal(prev => ({ ...prev, [field]: value }));
@@ -92,7 +96,7 @@ export function JoinFamilyDialog({ isOpen, onOpenChange, user, userData, onSucce
     setError(null);
     setSuccess(false);
     setFoundFamily(null);
-    setPin('');
+    setDigits(['', '', '', '', '', '']);
     setDevPin(null);
     onOpenChange(false);
   };
@@ -189,10 +193,9 @@ export function JoinFamilyDialog({ isOpen, onOpenChange, user, userData, onSucce
   /* ── Step 2: Resend PIN ──────────────────────────────────────────────── */
   const handleResendPin = async () => {
     setFoundFamily(null);
-    setPin('');
+    setDigits(['', '', '', '', '', '']);
     setDevPin(null);
     setStep(2);
-    // Re-send automatically
     await handleSendPin();
   };
 
@@ -415,16 +418,54 @@ export function JoinFamilyDialog({ isOpen, onOpenChange, user, userData, onSucce
 
               <div className="space-y-2">
                 <Label className="text-sm">Inserisci il codice a 6 cifre</Label>
-                <Input
-                  value={pin}
-                  onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="_ _ _ _ _ _"
-                  maxLength={6}
-                  className="text-center text-3xl font-mono tracking-[0.5em] h-14"
-                  autoFocus
-                  onKeyDown={e => e.key === 'Enter' && pin.length === 6 && handleVerifyPin()}
-                  inputMode="numeric"
-                />
+                <div className="flex gap-2 justify-center">
+                  {digits.map((d, i) => (
+                    <input
+                      key={i}
+                      ref={el => { digitRefs[i].current = el; }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={d}
+                      autoFocus={i === 0}
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        if (!val) return;
+                        const newDigits = [...digits];
+                        newDigits[i] = val[val.length - 1];
+                        setDigits(newDigits);
+                        if (i < 5) digitRefs[i + 1].current?.focus();
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Backspace') {
+                          e.preventDefault();
+                          const newDigits = [...digits];
+                          if (digits[i]) {
+                            newDigits[i] = '';
+                            setDigits(newDigits);
+                          } else if (i > 0) {
+                            newDigits[i - 1] = '';
+                            setDigits(newDigits);
+                            digitRefs[i - 1].current?.focus();
+                          }
+                        } else if (e.key === 'Enter' && pin.length === 6) {
+                          handleVerifyPin();
+                        }
+                      }}
+                      onPaste={e => {
+                        e.preventDefault();
+                        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                        const newDigits = ['', '', '', '', '', ''];
+                        pasted.split('').forEach((ch, idx) => { newDigits[idx] = ch; });
+                        setDigits(newDigits);
+                        const nextEmpty = pasted.length < 6 ? pasted.length : 5;
+                        digitRefs[nextEmpty].current?.focus();
+                      }}
+                      className="w-11 h-14 text-center text-2xl font-mono font-bold border-2 rounded-lg outline-none transition-colors focus:border-primary caret-transparent"
+                      style={{ borderColor: d ? 'hsl(var(--primary))' : undefined }}
+                    />
+                  ))}
+                </div>
                 <p className="text-xs text-muted-foreground text-center">Il codice è valido per 1 ora</p>
               </div>
 
