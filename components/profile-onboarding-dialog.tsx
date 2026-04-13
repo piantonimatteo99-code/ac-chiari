@@ -52,28 +52,11 @@ export function ProfileOnboardingDialog() {
             <div className="mx-auto h-16 w-16 rounded-full bg-primary/15 flex items-center justify-center mb-4">
               <UserRound className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="text-lg font-bold">Benvenuto in AC Chiari! 👋</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Per partecipare alle attività e ricevere il tesseramento,<br />
-              completa prima i tuoi dati anagrafici.
-            </p>
-          </div>
-
-          {/* Body */}
-          <div className="px-6 py-5 space-y-3">
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              {[
-                '✅ Iscrizione alle attività e campi',
-                '✅ Tesseramento annuale',
-                '✅ Gestione pagamenti familiari',
-              ].map(item => (
-                <li key={item} className="flex items-center gap-2">{item}</li>
-              ))}
-            </ul>
+            <h2 className="text-xl font-bold mb-2">Benvenuto in AC Chiari! 👋</h2>
           </div>
 
           {/* Footer */}
-          <div className="px-6 pb-6 flex flex-col gap-2">
+          <div className="px-6 pt-5 pb-6 flex flex-col gap-2">
             <Button onClick={handleCompleta} className="w-full">
               Completa il profilo
             </Button>

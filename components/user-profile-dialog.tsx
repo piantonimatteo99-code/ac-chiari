@@ -12,6 +12,7 @@ import { Loader2, UserRound, CheckCircle2 } from 'lucide-react';
 import { useFirestore, useUser } from '@/src/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
+import { triggerNotification } from '@/lib/trigger-notification';
 
 const cap = (s: string) =>
   s.length > 0 ? s.charAt(0).toUpperCase() + s.slice(1) : '';
@@ -157,6 +158,18 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
         },
         { merge: true }
       );
+
+      // 4. If this is the first time (no CF before), notify admins/educators
+      const wasIncomplete = !userData?.codiceFiscale;
+      if (wasIncomplete) {
+        triggerNotification({
+          eventType: 'nuovo_utente',
+          title: "Nuovo Utente Registrato",
+          body: `L'utente ${form.nome} ${form.cognome} ha completato il profilo. Controlla i match in coda.`,
+          href: "/admin/gestione-utenti/utenti-registrati",
+          userId: "__admin_broadcast__"
+        });
+      }
 
       setSaved(true);
       setTimeout(() => {
