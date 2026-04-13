@@ -245,7 +245,6 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
                   onChange={e => set('codiceFiscale', e.target.value.toUpperCase())}
                   placeholder="RSSMRA80A01F205X"
                   maxLength={16}
-                  className="font-mono"
                 />
               </div>
 
