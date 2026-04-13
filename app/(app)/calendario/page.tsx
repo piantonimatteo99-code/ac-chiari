@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,11 +9,12 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, PlusCircle, CalendarDays, Loader2, Unlink, RefreshCw, ExternalLink } from 'lucide-react';
+import { ChevronDown, PlusCircle, CalendarDays, Loader2, Unlink, RefreshCw } from 'lucide-react';
 import { it } from 'date-fns/locale';
-import { useCollection, useFirestore, useMemoFirebase } from '@/src/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/src/firebase';
 import { collection } from 'firebase/firestore';
 import type { Group } from '../admin/gestione-gruppi/tutti-i-gruppi/page';
 import { AddEventDialog, type Evento } from '@/components/add-event-dialog';
@@ -26,6 +27,8 @@ import { WeeklyCalendarView } from '@/components/weekly-calendar-view';
 import { useGoogleCalendar } from '@/src/hooks/use-google-calendar';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { EventDetailDialog } from '@/components/event-detail-dialog';
+import type { Membro } from '../nucleo-familiare/page';
 
 // Extended event type that can include Google Calendar events
 type CalendarEvent = (Evento & { isGoogleCalendar?: false }) | {
@@ -84,9 +87,10 @@ function DayWithEvents({
     }, [date, isOutside, events]);
 
     const handleCellClick = (e: React.MouseEvent) => {
-        // Trigger on any click within the cell that isn't on an event button
         if (!isOutside && canAddEvents) {
             onEmptyClick(date);
+        } else if (!isOutside) {
+            onEmptyClick(date); // still select date even without add permission
         }
     };
 
@@ -95,7 +99,7 @@ function DayWithEvents({
           className={cn(
             "w-full h-full flex flex-col relative p-0 transition-colors", 
             isOutside && "opacity-30", 
-            !isOutside && "cursor-pointer hover:bg-muted/50 focus:bg-muted/50 focus:outline-none",
+            !isOutside && "cursor-pointer hover:bg-muted/50",
             canAddEvents && !isOutside && "group",
             isSelected && !isOutside && "bg-accent/50 dark:bg-accent/30"
           )}
@@ -163,9 +167,9 @@ function DayWithEvents({
                     <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-muted-foreground" />
                 )}
             </div>
-            {/* Plus hint on hover for empty cells */}
+            {/* Plus hint on hover for empty cells (desktop only, educators/admin) */}
             {canAddEvents && !isOutside && dayEvents.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="absolute inset-0 hidden md:flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 <PlusCircle className="h-5 w-5 text-muted-foreground/40" />
               </div>
             )}
@@ -174,24 +178,39 @@ function DayWithEvents({
 }
 
 type CalendarView = 'month' | 'year' | 'week';
+type FilterMode = 'tutti' | 'personale' | 'famiglia' | string; // string = specific groupId
 
 export default function CalendarioPage() {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedGroup, setSelectedGroup] = useState<string>('tutti');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<Evento | null>(null);
-  const [initialDate, setInitialDate] = useState<Date | null>(null);
-  const [view, setView] = useState<CalendarView>('month');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-
   const firestore = useFirestore();
-  const { userData } = useUserData();
+  const { user } = useUser();
+  const { userData, isLoading: isUserLoading } = useUserData();
   const googleCalendar = useGoogleCalendar();
 
   const canAddEvents = useMemo(() => {
     return userData?.roles?.includes('admin') || userData?.roles?.includes('educatore');
   }, [userData]);
 
+  // Default filter: 'tutti' for admin/educatore, 'personale' for normal users
+  const [selectedGroup, setSelectedGroup] = useState<FilterMode>('tutti');
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Evento | null>(null);
+  const [initialDate, setInitialDate] = useState<Date | null>(null);
+  const [view, setView] = useState<CalendarView>('month');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Set default filter once user data is loaded
+  useEffect(() => {
+    if (!isUserLoading && userData) {
+      if (!canAddEvents) {
+        setSelectedGroup('personale');
+      }
+    }
+  }, [isUserLoading, userData, canAddEvents]);
+
+  // Queries
   const groupsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, 'gruppi');
@@ -204,27 +223,76 @@ export default function CalendarioPage() {
   }, [firestore]);
   const { data: events } = useCollection<Evento>(eventsQuery);
 
+  // Family members query (for family filter)
+  const resolvedFamilyId = userData?.familyId ?? user?.uid;
+  const membriQuery = useMemoFirebase(() => {
+    if (!firestore || !resolvedFamilyId) return null;
+    return collection(firestore, 'famiglie', resolvedFamilyId, 'membri');
+  }, [firestore, resolvedFamilyId]);
+  const { data: membri } = useCollection<Membro>(membriQuery);
+
+  // Group IDs from family members (excluding self)
+  const familyGroupIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (userData?.groupId) ids.add(userData.groupId);
+    membri?.forEach(m => { if (m.groupId && m.id !== user?.uid) ids.add(m.groupId); });
+    return ids;
+  }, [userData, membri, user]);
+
+  // Has family members with different groups
+  const hasFamilyGroups = useMemo(() => {
+    if (!membri || membri.length === 0) return false;
+    const myGroupId = userData?.groupId;
+    return membri.some(m => m.groupId && m.groupId !== myGroupId && m.id !== user?.uid);
+  }, [membri, userData, user]);
+
+  // Filter events based on selection
   const filteredEvents = useMemo(() => {
     if (!events) return [];
+    
     if (selectedGroup === 'tutti') return events;
-    return events.filter(event => event.groupIds.includes(selectedGroup));
-  }, [events, selectedGroup]);
+    
+    if (selectedGroup === 'personale') {
+      if (!userData?.groupId) return [];
+      return events.filter(e => e.groupIds?.includes(userData.groupId!));
+    }
 
-  // Merge app events with personal Google Calendar events
+    if (selectedGroup === 'famiglia') {
+      if (familyGroupIds.size === 0) return [];
+      return events.filter(e => e.groupIds?.some(gId => familyGroupIds.has(gId)));
+    }
+
+    // Specific group ID
+    return events.filter(e => e.groupIds?.includes(selectedGroup));
+  }, [events, selectedGroup, userData, familyGroupIds]);
+
+  // Dropdown label
+  const selectedGroupLabel = useMemo(() => {
+    if (selectedGroup === 'tutti') return 'Tutti i gruppi';
+    if (selectedGroup === 'personale') return 'I miei impegni';
+    if (selectedGroup === 'famiglia') return 'Nucleo familiare';
+    return groups?.find(g => g.id === selectedGroup)?.name ?? 'Gruppo';
+  }, [selectedGroup, groups]);
+
+  // Merge app events with Google Calendar events
   const allEvents = useMemo<CalendarEvent[]>(() => {
     const appEvents: CalendarEvent[] = filteredEvents.map(e => ({ ...e, isGoogleCalendar: false as const }));
     if (!googleCalendar.isConnected) return appEvents;
-    // Show Google Calendar events only when viewing "all groups" or no group filter
     const gcalEvents = selectedGroup === 'tutti' ? googleCalendar.events : [];
     return [...appEvents, ...gcalEvents];
   }, [filteredEvents, googleCalendar.isConnected, googleCalendar.events, selectedGroup]);
 
   const handleEditEvent = (event: CalendarEvent) => {
     if (event.isGoogleCalendar) {
-      // For Google Calendar events, open a link to the event
       if ((event as any).htmlLink) {
         window.open((event as any).htmlLink, '_blank');
       }
+      return;
+    }
+    if (!canAddEvents) {
+      // Read-only users see the detail dialog
+      setDetailEvent(event);
+      setIsDetailOpen(true);
       return;
     }
     setEditingEvent(event as Evento);
@@ -240,13 +308,8 @@ export default function CalendarioPage() {
 
   const handleCellClick = useCallback((date: Date) => {
     setSelectedDate(date);
-    
-    // Su schermi piccoli, selezionare il giorno mostra gli eventi sotto, senza aprire subito il dialogo.
-    // L'utente potrà poi aggiungere eventi col bottone principale.
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      return;
-    }
-
+    // On mobile: just select the date, don't open dialog
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return;
     if (!canAddEvents) return;
     setEditingEvent(null);
     setInitialDate(date);
@@ -261,6 +324,7 @@ export default function CalendarioPage() {
     setIsDialogOpen(isOpen);
   };
 
+  // Events for selected day (mobile list)
   const selectedDayEvents = useMemo(() => {
     return allEvents.filter(event => {
       const startDate = event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any);
@@ -275,6 +339,8 @@ export default function CalendarioPage() {
     });
   }, [allEvents, selectedDate]);
 
+  const getGroupName = useCallback((id: string) => groups?.find(g => g.id === id)?.name, [groups]);
+
   return (
     <TooltipProvider>
     <div className="flex flex-col pb-4 h-[calc(100vh-6rem)] gap-4">
@@ -283,6 +349,12 @@ export default function CalendarioPage() {
         onOpenChange={handleDialogChange}
         eventToEdit={editingEvent}
         initialDate={initialDate}
+      />
+      <EventDetailDialog
+        isOpen={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        event={detailEvent as any}
+        getGroupName={getGroupName}
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
@@ -356,44 +428,56 @@ export default function CalendarioPage() {
             <span className="text-xs text-destructive">{googleCalendar.error}</span>
           )}
 
+          {/* Group/filter dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="flex-1 sm:flex-none justify-between">
-                <span className="truncate">
-                  {selectedGroup === 'tutti' ? 'Tutti i gruppi' : groups?.find(g => g.id === selectedGroup)?.name}
-                </span>
+                <span className="truncate">{selectedGroupLabel}</span>
                 <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-[calc(100vw-2rem)] sm:w-auto max-w-[300px]">
               <DropdownMenuRadioGroup value={selectedGroup} onValueChange={setSelectedGroup}>
-                <DropdownMenuRadioItem value="tutti">Tutti i gruppi</DropdownMenuRadioItem>
-                {groups?.map(group => (
-                  <DropdownMenuRadioItem key={group.id} value={group.id}>
-                    {group.name}
-                  </DropdownMenuRadioItem>
-                ))}
+                {/* Personal view - always available */}
+                <DropdownMenuRadioItem value="personale">I miei impegni</DropdownMenuRadioItem>
+                {/* Family view - only if user has family with other groups */}
+                {hasFamilyGroups && (
+                  <DropdownMenuRadioItem value="famiglia">Nucleo familiare</DropdownMenuRadioItem>
+                )}
+                {/* Admin/educatore extras */}
+                {canAddEvents && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioItem value="tutti">Tutti i gruppi</DropdownMenuRadioItem>
+                    <DropdownMenuSeparator />
+                    {groups?.map(group => (
+                      <DropdownMenuRadioItem key={group.id} value={group.id}>
+                        {group.name}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </>
+                )}
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 
-            <Select value={view} onValueChange={(value) => setView(value as CalendarView)}>
-                <SelectTrigger className="flex-1 sm:flex-none sm:w-[180px]">
-                    <SelectValue placeholder="Visualizzazione" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="month">Mese</SelectItem>
-                    <SelectItem value="week">Settimana</SelectItem>
-                    <SelectItem value="year">Anno</SelectItem>
-                    <SelectItem value="timeline" disabled>Timeline Progetti (in arrivo)</SelectItem>
-                </SelectContent>
-            </Select>
+          <Select value={view} onValueChange={(value) => setView(value as CalendarView)}>
+              <SelectTrigger className="flex-1 sm:flex-none sm:w-[180px]">
+                  <SelectValue placeholder="Visualizzazione" />
+              </SelectTrigger>
+              <SelectContent>
+                  <SelectItem value="month">Mese</SelectItem>
+                  <SelectItem value="week">Settimana</SelectItem>
+                  <SelectItem value="year">Anno</SelectItem>
+                  <SelectItem value="timeline" disabled>Timeline Progetti (in arrivo)</SelectItem>
+              </SelectContent>
+          </Select>
 
         </div>
       </div>
       
       {view === 'month' && (
-        <Card className="flex-1 flex flex-col min-h-0 overflow-auto lg:overflow-hidden">
+        <Card className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <CardContent className="p-0 flex-1 flex flex-col min-h-0">
             <Calendar
                 mode="single"
@@ -410,11 +494,11 @@ export default function CalendarioPage() {
                     head_row: 'flex w-full border-b',
                     head_cell: 'flex-1 text-muted-foreground font-normal text-sm p-2 text-center',
                     row: 'flex w-full border-b flex-1',
-                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[3rem] sm:min-h-[5rem] md:min-h-[6rem] lg:min-h-0',
+                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[3.5rem] md:min-h-[6rem] lg:min-h-0',
                     day: 'w-full h-full p-0 flex flex-col',
                     day_selected: 'bg-accent/50 text-foreground',
                     day_today: 'bg-accent text-accent-foreground',
-                    day_outside: '', // Handled by custom Day component
+                    day_outside: '',
                     day_hidden: 'invisible',
                     caption_label: "text-lg font-medium",
                     caption: "p-4 flex justify-center relative items-center shrink-0",
@@ -439,7 +523,7 @@ export default function CalendarioPage() {
       {/* Mobile Selected Day Events List */}
       {view === 'month' && (
         <div className="md:hidden flex flex-col gap-3 shrink-0 px-1 py-2">
-          <h3 className="font-semibold text-lg flex items-center justify-between">
+          <h3 className="font-semibold text-base flex items-center justify-between capitalize">
             {selectedDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
             {canAddEvents && (
               <Button size="icon" variant="ghost" onClick={handleAddNew} className="h-8 w-8">
@@ -468,10 +552,10 @@ export default function CalendarioPage() {
                     <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : 'bg-primary')} />
                     <div className="flex-1">
                       <p className="font-semibold leading-tight mb-1">{event.title}</p>
-                      <p className="text-muted-foreground text-xs line-clamp-2">
+                      <p className="text-muted-foreground text-xs">
                         {event.allDay 
                           ? 'Tutto il giorno' 
-                          : `${(event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any)).toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'})}`}
+                          : `${(event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any)).toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'})} – ${(event.endDate instanceof Date ? event.endDate : (event.endDate as any)?.toDate ? (event.endDate as any).toDate() : new Date(event.endDate as any)).toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'})}`}
                       </p>
                     </div>
                   </div>
