@@ -44,9 +44,11 @@ type CalendarEvent = (Evento & { isGoogleCalendar?: false }) | {
 function DayWithEvents({
   date,
   displayMonth,
+  events,
   onEventClick,
   onEmptyClick,
   canAddEvents,
+  isSelected,
   ...props
 }: {
   date: Date;
@@ -55,12 +57,13 @@ function DayWithEvents({
   onEventClick: (event: CalendarEvent) => void;
   onEmptyClick: (date: Date) => void;
   canAddEvents: boolean;
+  isSelected?: boolean;
 }) {
     const isOutside = date.getMonth() !== displayMonth.getMonth();
     
     const dayEvents = useMemo(() => {
         if (isOutside) return [];
-        return props.events
+        return events
             .filter(event => {
                 const startDate = event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any);
                 const endDate = event.endDate instanceof Date ? event.endDate : (event.endDate as any)?.toDate ? (event.endDate as any).toDate() : new Date(event.endDate as any);
@@ -78,7 +81,7 @@ function DayWithEvents({
                 const endB = b.endDate instanceof Date ? b.endDate : (b.endDate as any)?.toDate ? (b.endDate as any).toDate() : new Date(b.endDate as any);
                 return endB.getTime() - endA.getTime();
             });
-    }, [date, isOutside, props.events]);
+    }, [date, isOutside, events]);
 
     const handleCellClick = (e: React.MouseEvent) => {
         // Trigger on any click within the cell that isn't on an event button
@@ -89,13 +92,21 @@ function DayWithEvents({
 
     return (
         <div
-          className={cn("w-full h-full flex flex-col relative p-0", isOutside && "opacity-30", canAddEvents && !isOutside && "group cursor-pointer")}
+          className={cn(
+            "w-full h-full flex flex-col relative p-0 transition-colors", 
+            isOutside && "opacity-30", 
+            !isOutside && "cursor-pointer hover:bg-muted/50 focus:bg-muted/50 focus:outline-none",
+            canAddEvents && !isOutside && "group",
+            isSelected && !isOutside && "bg-accent/50 dark:bg-accent/30"
+          )}
           onClick={handleCellClick}
         >
-            <div className="self-end font-normal p-1 text-sm">
+            <div className={cn("self-end font-medium p-1 text-sm mr-0.5 mt-0.5 flex items-center justify-center h-6 w-6 rounded-full", isSameDay(date, new Date()) && "bg-primary text-primary-foreground")}>
               {date.getDate()}
             </div>
-            <div className="flex-1 flex flex-col overflow-hidden gap-1 pt-1">
+            
+            {/* Desktop: Event buttons */}
+            <div className="hidden md:flex flex-1 flex-col overflow-hidden gap-1 pt-0">
                 {dayEvents.map((event) => {
                     const startDate = event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any);
                     const endDate = event.endDate instanceof Date ? event.endDate : (event.endDate as any)?.toDate ? (event.endDate as any).toDate() : new Date(event.endDate as any);
@@ -122,11 +133,11 @@ function DayWithEvents({
                             key={event.id}
                             onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
                             className={cn(
-                                'text-xs font-normal block text-left px-2 py-0.5 w-full cursor-pointer',
-                                'relative w-[calc(100%+1px)]',
+                                'text-[11px] leading-tight font-medium block text-left px-1.5 py-0.5 w-full cursor-pointer',
+                                'relative w-[calc(100%+1px)] z-10',
                                 isGcal
-                                  ? 'bg-emerald-500 text-white'
-                                  : 'bg-primary text-primary-foreground',
+                                  ? 'bg-emerald-500/90 hover:bg-emerald-600 text-white'
+                                  : 'bg-primary/90 hover:bg-primary text-primary-foreground',
                                 roundingClass
                             )}
                         >
@@ -138,6 +149,19 @@ function DayWithEvents({
                         </button>
                     );
                 })}
+            </div>
+
+            {/* Mobile: Dots */}
+            <div className="flex md:hidden flex-wrap gap-0.5 px-0.5 justify-center pb-1 relative z-10 pointer-events-none mt-auto">
+                {dayEvents.slice(0, 4).map(event => (
+                    <div 
+                      key={event.id}
+                      className={cn("w-1.5 h-1.5 rounded-full shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : 'bg-primary')} 
+                    />
+                ))}
+                {dayEvents.length > 4 && (
+                    <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-muted-foreground" />
+                )}
             </div>
             {/* Plus hint on hover for empty cells */}
             {canAddEvents && !isOutside && dayEvents.length === 0 && (
@@ -158,6 +182,7 @@ export default function CalendarioPage() {
   const [editingEvent, setEditingEvent] = useState<Evento | null>(null);
   const [initialDate, setInitialDate] = useState<Date | null>(null);
   const [view, setView] = useState<CalendarView>('month');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const firestore = useFirestore();
   const { userData } = useUserData();
@@ -214,6 +239,14 @@ export default function CalendarioPage() {
   };
 
   const handleCellClick = useCallback((date: Date) => {
+    setSelectedDate(date);
+    
+    // Su schermi piccoli, selezionare il giorno mostra gli eventi sotto, senza aprire subito il dialogo.
+    // L'utente potrà poi aggiungere eventi col bottone principale.
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return;
+    }
+
     if (!canAddEvents) return;
     setEditingEvent(null);
     setInitialDate(date);
@@ -227,6 +260,20 @@ export default function CalendarioPage() {
     }
     setIsDialogOpen(isOpen);
   };
+
+  const selectedDayEvents = useMemo(() => {
+    return allEvents.filter(event => {
+      const startDate = event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any);
+      const endDate = event.endDate instanceof Date ? event.endDate : (event.endDate as any)?.toDate ? (event.endDate as any).toDate() : new Date(event.endDate as any);
+      const dayInterval = { start: startOfDay(selectedDate), end: endOfDay(selectedDate) };
+      const eventInterval = { start: startDate, end: endDate };
+      return areIntervalsOverlapping(dayInterval, eventInterval);
+    }).sort((a, b) => {
+      const startA = a.startDate instanceof Date ? a.startDate : (a.startDate as any)?.toDate ? (a.startDate as any).toDate() : new Date(a.startDate as any);
+      const startB = b.startDate instanceof Date ? b.startDate : (b.startDate as any)?.toDate ? (b.startDate as any).toDate() : new Date(b.startDate as any);
+      return startA.getTime() - startB.getTime();
+    });
+  }, [allEvents, selectedDate]);
 
   return (
     <TooltipProvider>
@@ -363,7 +410,7 @@ export default function CalendarioPage() {
                     head_row: 'flex w-full border-b',
                     head_cell: 'flex-1 text-muted-foreground font-normal text-sm p-2 text-center',
                     row: 'flex w-full border-b flex-1',
-                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[6rem] lg:min-h-0',
+                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[3rem] sm:min-h-[5rem] md:min-h-[6rem] lg:min-h-0',
                     day: 'w-full h-full p-0 flex flex-col',
                     day_selected: 'bg-accent/50 text-foreground',
                     day_today: 'bg-accent text-accent-foreground',
@@ -380,12 +427,59 @@ export default function CalendarioPage() {
                         onEventClick={handleEditEvent}
                         onEmptyClick={handleCellClick}
                         canAddEvents={canAddEvents}
+                        isSelected={isSameDay(props.date, selectedDate)}
                       />
                     )
                 }}
             />
             </CardContent>
         </Card>
+      )}
+
+      {/* Mobile Selected Day Events List */}
+      {view === 'month' && (
+        <div className="md:hidden flex flex-col gap-3 shrink-0 px-1 py-2">
+          <h3 className="font-semibold text-lg flex items-center justify-between">
+            {selectedDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+            {canAddEvents && (
+              <Button size="icon" variant="ghost" onClick={handleAddNew} className="h-8 w-8">
+                <PlusCircle className="h-5 w-5" />
+              </Button>
+            )}
+          </h3>
+          <div className="flex flex-col gap-2">
+            {selectedDayEvents.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-4 text-center border rounded-lg border-dashed">
+                Nessun impegno in questa giornata
+              </p>
+            ) : (
+              selectedDayEvents.map(event => (
+                <div 
+                  key={event.id}
+                  onClick={() => handleEditEvent(event)}
+                  className={cn(
+                    "flex flex-col p-3 rounded-xl border text-sm cursor-pointer",
+                    event.isGoogleCalendar 
+                      ? "bg-emerald-50/50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900" 
+                      : "bg-card shadow-sm hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : 'bg-primary')} />
+                    <div className="flex-1">
+                      <p className="font-semibold leading-tight mb-1">{event.title}</p>
+                      <p className="text-muted-foreground text-xs line-clamp-2">
+                        {event.allDay 
+                          ? 'Tutto il giorno' 
+                          : `${(event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any)).toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'})}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
 
       {view === 'year' && (
