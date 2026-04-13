@@ -201,14 +201,13 @@ export default function CalendarioPage() {
   const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Set default filter once user data is loaded
+  // Set default filter once loading is done — non-admin users default to 'personale'
+  // Do NOT gate on userData: new users with no Firestore doc must also be filtered
   useEffect(() => {
-    if (!isUserLoading && userData) {
-      if (!canAddEvents) {
-        setSelectedGroup('personale');
-      }
+    if (!isUserLoading && !canAddEvents) {
+      setSelectedGroup('personale');
     }
-  }, [isUserLoading, userData, canAddEvents]);
+  }, [isUserLoading, canAddEvents]);
 
   // Queries
   const groupsQuery = useMemoFirebase(() => {
@@ -343,7 +342,8 @@ export default function CalendarioPage() {
 
   return (
     <TooltipProvider>
-    <div className="flex flex-col pb-4 h-[calc(100vh-6rem)] gap-4">
+    {/* Mobile: page scrolls naturally. Desktop: fixed viewport height. */}
+    <div className="flex flex-col pb-4 gap-4 sm:h-[calc(100vh-6rem)]">
       <AddEventDialog 
         isOpen={isDialogOpen}
         onOpenChange={handleDialogChange}
@@ -477,8 +477,8 @@ export default function CalendarioPage() {
       </div>
       
       {view === 'month' && (
-        <Card className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+        <Card className="sm:flex-1 sm:flex sm:flex-col sm:min-h-0 overflow-hidden">
+            <CardContent className="p-0 sm:flex-1 sm:flex sm:flex-col sm:min-h-0">
             <Calendar
                 mode="single"
                 month={currentMonth}
@@ -486,15 +486,15 @@ export default function CalendarioPage() {
                 locale={it}
                 showOutsideDays={true}
                 fixedWeeks={true}
-                className="p-0 flex-1 flex flex-col w-full h-full"
+                className="p-0 sm:flex-1 sm:flex sm:flex-col w-full sm:h-full"
                 classNames={{
-                    months: 'flex-1 w-full flex flex-col',
-                    month: 'w-full space-y-0 flex-1 flex flex-col',
-                    table: 'w-full h-full border-collapse flex flex-col flex-1 [&_tbody]:flex-1 [&_tbody]:flex [&_tbody]:flex-col',
+                    months: 'sm:flex-1 w-full sm:flex sm:flex-col',
+                    month: 'w-full space-y-0 sm:flex-1 sm:flex sm:flex-col',
+                    table: 'w-full border-collapse flex flex-col sm:flex-1 sm:h-full [&_tbody]:sm:flex-1 [&_tbody]:flex [&_tbody]:flex-col',
                     head_row: 'flex w-full border-b',
                     head_cell: 'flex-1 text-muted-foreground font-normal text-sm p-2 text-center',
-                    row: 'flex w-full border-b flex-1',
-                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[3.5rem] md:min-h-[6rem] lg:min-h-0',
+                    row: 'flex w-full border-b sm:flex-1',
+                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[3.75rem] sm:min-h-0',
                     day: 'w-full h-full p-0 flex flex-col',
                     day_selected: 'bg-accent/50 text-foreground',
                     day_today: 'bg-accent text-accent-foreground',
