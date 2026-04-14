@@ -10,10 +10,12 @@ export function initAdminApp() {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
     
     if (serviceAccount) {
-      // Production: use service account JSON from env variable
-      // On Windows, env variables often double-escape newlines (\\n → \n literal).
+      // Production: use service account JSON from env variable.
+      // Strip surrounding single quotes if copied from .env.local (e.g. ='...')
+      const cleaned = serviceAccount.trim().replace(/^'([\s\S]*)'$/, '$1');
+      // On Windows/Vercel, env variables often double-escape newlines (\\n → \\n literal).
       // We must convert them back to actual newline characters for PEM parsing.
-      const parsed = JSON.parse(serviceAccount);
+      const parsed = JSON.parse(cleaned);
       if (parsed.private_key) {
         parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
       }
