@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
   try {
     const sa = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
     if (sa) {
-      const parsed = JSON.parse(sa);
+      const cleaned = sa.trim().replace(/^'([\s\S]*)'$/, '$1');
+      const parsed = JSON.parse(cleaned);
       report.firebase_sa_parse = {
         status: '✅ JSON valido',
         project_id: parsed.project_id,
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
     }
   } catch (e: any) {
     report.firebase_sa_parse = `❌ JSON parse ERRORE: ${e.message}`;
-    return NextResponse.json(report);
+    // non ritorniamo early — continua gli altri test
   }
 
   // 4. Prova a generare un link di verifica per un'email di test
