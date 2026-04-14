@@ -46,12 +46,19 @@ export default function SignupPage() {
       // STEP 1: Crea l'account Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-      // STEP 2: Invia subito l'email di verifica — questo NON deve essere bloccato da nient'altro
+      // STEP 2: Invia email di verifica personalizzata via API server-side.
+      // L'API crea anche il documento Firestore via Admin SDK (affidabile).
       try {
         const emailRes = await fetch('/api/send-registration-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email, displayName: `${nome} ${cognome}` })
+          body: JSON.stringify({
+            uid: userCredential.user.uid,
+            email: email,
+            nome: nome,
+            cognome: cognome,
+            displayName: `${nome} ${cognome}`,
+          })
         });
         if (!emailRes.ok) {
           throw new Error('Risposta API non OK, uso fallback Firebase');
@@ -70,7 +77,8 @@ export default function SignupPage() {
         }
       }
 
-      // STEP 3: Crea il documento utente su Firestore (non bloccante per il flusso principale)
+      // STEP 3: Crea il documento utente su Firestore come fallback (nel caso in cui
+      // l'API abbia saltato la creazione perché SMTP non è configurato).
       try {
         const userDocRef = doc(firestore, "users", userCredential.user.uid);
         await setDoc(userDocRef, {
@@ -81,7 +89,7 @@ export default function SignupPage() {
           email: email,
           roles: ["utente"],
           createdAt: serverTimestamp(),
-        });
+        }, { merge: true }); // merge:true → non sovrascrive se già creato dal server
       } catch (firestoreErr) {
         console.error("Errore scrittura Firestore (non bloccante):", firestoreErr);
       }
