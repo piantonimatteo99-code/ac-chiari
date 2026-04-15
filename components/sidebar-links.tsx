@@ -270,14 +270,14 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     if (userData.roles?.includes('educatore')) {
       if (!myGroups) return [];
       const educatorGroupIds = new Set(myGroups.map(g => g.id));
-      return activeCampi.filter(c => c.groupIds.some(gid => educatorGroupIds.has(gid)));
+      return activeCampi.filter(c => (c.groupIds || []).some(gid => educatorGroupIds.has(gid)));
     }
 
     if (userData.roles?.includes('genitore')) {
       if (userAndFamilyMembers.length === 0) return [];
       const familyGroupIds = new Set(userAndFamilyMembers.map(m => (m as any).groupId).filter(Boolean));
       if (familyGroupIds.size === 0) return [];
-      return activeCampi.filter(c => c.groupIds.some(gid => familyGroupIds.has(gid)));
+      return activeCampi.filter(c => (c.groupIds || []).some(gid => familyGroupIds.has(gid)));
     }
 
     return [];
@@ -552,13 +552,16 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
             {/* Campi dinamici (filtrati per gruppo) */}
             {campiToRender.map(campo => {
               const href = `/campi/${campo.id}`;
+              const displayName = campo.nome
+                ? campo.nome.charAt(0).toUpperCase() + campo.nome.slice(1)
+                : 'Campo senza nome';
               return (
                 <Link key={campo.id} href={href} onClick={onLinkClick}
                   className={cn(
                     'flex w-full text-left items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary',
                     pathname === href ? 'text-primary' : 'text-muted-foreground'
                   )}>
-                  {campo.nome.charAt(0).toUpperCase() + campo.nome.slice(1)}
+                  {displayName}
                 </Link>
               );
             })}

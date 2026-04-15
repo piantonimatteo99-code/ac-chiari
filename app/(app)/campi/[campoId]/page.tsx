@@ -129,7 +129,7 @@ export default function CampoDetailPage({ params }: { params: Promise<{ campoId:
   const { data: allGroups } = useCollection<Group>(allGroupsQuery);
 
   const myGroupsQuery = useMemoFirebase(() =>
-    (user && userData?.roles?.includes('educatore'))
+    (firestore && user && userData?.roles?.includes('educatore'))
       ? query(collection(firestore, 'gruppi'), where('educatorIds', 'array-contains', user.uid))
       : null,
     [firestore, user, userData]);
@@ -163,13 +163,14 @@ export default function CampoDetailPage({ params }: { params: Promise<{ campoId:
     if (!campo || !userData || !user) return false;
     if (isAdmin) return true;
     if (isEducatore) {
-      if (!myGroups) return false;
+      // still loading myGroups → can't decide yet, don't deny
+      if (isLoadingMyGroups || !myGroups) return false;
       const myGroupIds = new Set(myGroups.map(g => g.id));
-      return campo.groupIds.some(id => myGroupIds.has(id));
+      return (campo.groupIds || []).some(id => myGroupIds.has(id));
     }
-    // genitori: visible if family member in a camp group (simplified: allow if genitore + iscritto)
+    // altri ruoli: accesso negato alla pagina campo
     return false;
-  }, [campo, userData, user, isAdmin, isEducatore, myGroups]);
+  }, [campo, userData, user, isAdmin, isEducatore, myGroups, isLoadingMyGroups]);
 
   // Init state from campo data
   useEffect(() => {
@@ -229,7 +230,8 @@ export default function CampoDetailPage({ params }: { params: Promise<{ campoId:
   }, [firestore, campoId]);
 
   // ─── Loading / Auth ───────────────────────────────────────────────────────
-  if (isLoadingCampo || isUserLoading || isLoadingMyGroups) {
+  // Show loader while data is still loading (prevents flashing permission-denied)
+  if (isLoadingCampo || isUserLoading || (isEducatore && isLoadingMyGroups)) {
     return (
       <div className="flex items-center justify-center min-h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -252,7 +254,7 @@ export default function CampoDetailPage({ params }: { params: Promise<{ campoId:
     );
   }
 
-  if (!hasPermission && !isAdmin && campo) {
+  if (!hasPermission && campo) {
     return (
       <div className="space-y-4">
         <Button variant="ghost" asChild>

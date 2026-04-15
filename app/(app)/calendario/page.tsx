@@ -131,6 +131,7 @@ function DayWithEvents({
                     
                     const showTitle = isStart || date.getDay() === 1;
                     const isGcal = event.isGoogleCalendar;
+                    const isCampoEvent = !isGcal && (event as any).isCampo;
 
                     return (
                         <button
@@ -141,12 +142,14 @@ function DayWithEvents({
                                 'relative w-[calc(100%+1px)] z-10',
                                 isGcal
                                   ? 'bg-emerald-500/90 hover:bg-emerald-600 text-white'
+                                  : isCampoEvent
+                                  ? 'bg-amber-500/90 hover:bg-amber-600 text-white'
                                   : 'bg-primary/90 hover:bg-primary text-primary-foreground',
                                 roundingClass
                             )}
                         >
                             {showTitle ? (
-                                <span className="truncate block">{event.title}</span>
+                                <span className="truncate block">{isCampoEvent ? '⛺ ' : ''}{event.title}</span>
                              ) : (
                                 <span>&nbsp;</span>
                              )}
@@ -160,7 +163,12 @@ function DayWithEvents({
                 {dayEvents.slice(0, 4).map(event => (
                     <div 
                       key={event.id}
-                      className={cn("w-1.5 h-1.5 rounded-full shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : 'bg-primary')} 
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full shrink-0",
+                        event.isGoogleCalendar ? 'bg-emerald-500'
+                          : (event as any).isCampo ? 'bg-amber-500'
+                          : 'bg-primary'
+                      )} 
                     />
                 ))}
                 {dayEvents.length > 4 && (
@@ -574,19 +582,23 @@ export default function CalendarioPage() {
         <WeeklyCalendarView events={filteredEvents || []} onEventClick={handleEditEvent} />
       )}
 
-      {/* Legend */}
-      {googleCalendar.isConnected && (
-        <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
-          <div className="flex items-center gap-1.5">
-            <div className="h-2.5 w-2.5 rounded-sm bg-primary" />
-            Impegni AC Chiari
-          </div>
+      {/* Legend - always visible */}
+      <div className="flex items-center flex-wrap gap-4 text-xs text-muted-foreground shrink-0">
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-sm bg-primary" />
+          Impegni
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-2.5 w-2.5 rounded-sm bg-amber-500" />
+          ⛺ Campi
+        </div>
+        {googleCalendar.isConnected && (
           <div className="flex items-center gap-1.5">
             <div className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />
             Il tuo Google Calendar (solo tu)
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
     </TooltipProvider>
   );

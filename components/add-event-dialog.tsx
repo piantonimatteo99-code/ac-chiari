@@ -252,6 +252,17 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                     batch.update(projectDocRef, projectData);
                 }
 
+                // 3. If it's a campo event, update the linked Campo document
+                if (eventToEdit.isCampo && eventToEdit.campoId) {
+                    const campoDocRef = doc(firestore, 'campi', eventToEdit.campoId);
+                    batch.update(campoDocRef, {
+                        nome: title,
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        groupIds: selectedGroups,
+                    });
+                }
+
                 await batch.commit();
 
                 // Trigger notifica broadcast
@@ -445,7 +456,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
 
     return (
         <>
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <Dialog open={isOpen} onOpenChange={onOpenChange} modal={false}>
             <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>{isEditing ? 'Modifica Impegno' : 'Nuovo Impegno'}</DialogTitle>
