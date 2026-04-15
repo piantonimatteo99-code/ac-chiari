@@ -45,6 +45,10 @@ export interface Campo {
     endDate: any;
     groupIds: string[];
     createdAt: any;
+    status?: 'attivo' | 'archiviato';
+    driveFolderId?: string;
+    descrizione?: string;
+    note?: string;
 }
 
 export interface Evento {
@@ -276,6 +280,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         endDate: finalEndDate,
                         groupIds: selectedGroups,
                         createdAt: serverTimestamp(),
+                        status: 'attivo',
                     };
                     batch.set(campoDocRef, campoData);
 

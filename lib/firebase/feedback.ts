@@ -15,9 +15,11 @@ export interface Feedback {
   type: FeedbackType;
   description: string;
   url: string;
+  imageUrl?: string;
+  driveFileId?: string;
   status: FeedbackStatus;
   priority: FeedbackPriority;
-  createdAt: Timestamp | Date | any; // allow any for flexibility on timestamps vs dates
+  createdAt: Timestamp | Date | any;
 }
 
 const COLLECTION_NAME = 'feedbacks';
@@ -28,7 +30,9 @@ export const addFeedback = async (
   userName: string | undefined,
   type: FeedbackType,
   description: string,
-  url: string
+  url: string,
+  imageUrl?: string,
+  driveFileId?: string
 ): Promise<string> => {
   try {
     const feedbackData: Omit<Feedback, 'id'> = {
@@ -38,11 +42,12 @@ export const addFeedback = async (
       type,
       description,
       url,
+      ...(imageUrl ? { imageUrl } : {}),
+      ...(driveFileId ? { driveFileId } : {}),
       status: 'Nuovo',
       priority: 'Da valutare',
       createdAt: Timestamp.now(),
     };
-    
     const docRef = await addDoc(collection(db, COLLECTION_NAME), feedbackData);
     return docRef.id;
   } catch (error) {

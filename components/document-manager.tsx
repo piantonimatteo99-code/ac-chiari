@@ -51,6 +51,7 @@ interface DocumentManagerProps {
   driveFolderId?: string;
   canEdit: boolean;
   onFolderCreated?: (folderId: string) => void;
+  folderApiEndpoint?: string; // defaults to '/api/drive/folders'
 }
 
 const docTypeConfig = {
@@ -93,6 +94,7 @@ export default function DocumentManager({
   driveFolderId,
   canEdit,
   onFolderCreated,
+  folderApiEndpoint = '/api/drive/folders',
 }: DocumentManagerProps) {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -137,7 +139,7 @@ export default function DocumentManager({
     setIsCreatingFolder(true);
     setError(null);
     try {
-      const res = await fetch('/api/drive/folders', {
+      const res = await fetch(folderApiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, projectName }),

@@ -18,9 +18,10 @@ export interface Acquisto {
 interface AcquistiListProps {
     projectId: string;
     canEdit: boolean;
+    collectionRoot?: string; // defaults to 'progetti'
 }
 
-export function AcquistiList({ projectId, canEdit }: AcquistiListProps) {
+export function AcquistiList({ projectId, canEdit, collectionRoot = 'progetti' }: AcquistiListProps) {
     const firestore = useFirestore();
     const [newItemName, setNewItemName] = useState('');
     const [newItemCost, setNewItemCost] = useState('');
@@ -29,10 +30,10 @@ export function AcquistiList({ projectId, canEdit }: AcquistiListProps) {
     const acquistiQuery = useMemoFirebase(() => {
         if (!firestore || !projectId) return null;
         return query(
-            collection(firestore, 'progetti', projectId, 'acquisti'),
+            collection(firestore, collectionRoot, projectId, 'acquisti'),
             orderBy('createdAt', 'asc')
         );
-    }, [firestore, projectId]);
+    }, [firestore, projectId, collectionRoot]);
 
     const { data: acquisti, isLoading } = useCollection<Acquisto>(acquistiQuery);
 
@@ -52,7 +53,7 @@ export function AcquistiList({ projectId, canEdit }: AcquistiListProps) {
         setIsSaving(true);
         try {
             const cost = parseFloat(newItemCost);
-            await addDoc(collection(firestore, 'progetti', projectId, 'acquisti'), {
+            await addDoc(collection(firestore, collectionRoot, projectId, 'acquisti'), {
                 nome: newItemName.trim(),
                 costoStimato: isNaN(cost) ? null : cost,
                 completato: false,
@@ -70,7 +71,7 @@ export function AcquistiList({ projectId, canEdit }: AcquistiListProps) {
     const handleToggleComplete = async (acquisto: Acquisto) => {
         if (!firestore || !projectId || !canEdit) return;
         try {
-            await updateDoc(doc(firestore, 'progetti', projectId, 'acquisti', acquisto.id), {
+            await updateDoc(doc(firestore, collectionRoot, projectId, 'acquisti', acquisto.id), {
                 completato: !acquisto.completato
             });
         } catch (error) {
@@ -81,7 +82,7 @@ export function AcquistiList({ projectId, canEdit }: AcquistiListProps) {
     const handleDelete = async (acquistoId: string) => {
         if (!firestore || !projectId || !canEdit) return;
         try {
-            await deleteDoc(doc(firestore, 'progetti', projectId, 'acquisti', acquistoId));
+            await deleteDoc(doc(firestore, collectionRoot, projectId, 'acquisti', acquistoId));
         } catch (error) {
             console.error("Error deleting acquisto:", error);
         }

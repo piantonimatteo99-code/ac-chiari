@@ -39,11 +39,12 @@ interface DrivePhoto {
 interface PhotoManagerProps {
   projectId: string;
   projectName: string;
-  groupIds?: string[];       // For consent checking
+  groupIds?: string[];
   driveFolderId?: string;
   canEdit: boolean;
   onFolderCreated?: (folderId: string) => void;
   onPhotosChange?: (photos: DrivePhoto[]) => void;
+  folderApiEndpoint?: string; // defaults to '/api/drive/folders'
 }
 
 export default function PhotoManager({
@@ -54,6 +55,7 @@ export default function PhotoManager({
   canEdit,
   onFolderCreated,
   onPhotosChange,
+  folderApiEndpoint = '/api/drive/folders',
 }: PhotoManagerProps) {
   const [photos, setPhotos] = useState<DrivePhoto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -91,7 +93,7 @@ export default function PhotoManager({
     setIsCreatingFolder(true);
     setError(null);
     try {
-      const res = await fetch('/api/drive/folders', {
+      const res = await fetch(folderApiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, projectName }),

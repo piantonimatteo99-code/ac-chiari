@@ -53,6 +53,7 @@ interface MessagePlannerProps {
   projectStartDate?: string;
   projectEndDate?: string;
   canEdit: boolean;
+  collectionRoot?: string; // defaults to 'progetti'
 }
 
 const STATUS_CONFIG = {
@@ -83,7 +84,7 @@ function formatBubbleDate(date: any) {
   return format(d, 'EEEE d MMMM', { locale: it });
 }
 
-export default function MessagePlanner({ projectId, projectName, projectDescription, projectStartDate, projectEndDate, canEdit }: MessagePlannerProps) {
+export default function MessagePlanner({ projectId, projectName, projectDescription, projectStartDate, projectEndDate, canEdit, collectionRoot = 'progetti' }: MessagePlannerProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { userData } = useUserData();
@@ -91,7 +92,7 @@ export default function MessagePlanner({ projectId, projectName, projectDescript
   // Firestore messages subcollection
   const messagesQuery = useMemoFirebase(() => {
     if (!firestore || !projectId) return null;
-    return query(collection(firestore, 'progetti', projectId, 'messaggi'), orderBy('scheduledAt', 'asc'));
+    return query(collection(firestore, collectionRoot, projectId, 'messaggi'), orderBy('scheduledAt', 'asc'));
   }, [firestore, projectId]);
   const { data: messaggi, isLoading } = useCollection<Messaggio>(messagesQuery);
 
@@ -125,7 +126,7 @@ export default function MessagePlanner({ projectId, projectName, projectDescript
     setError(null);
     try {
       const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}:00`);
-      await addDoc(collection(firestore, 'progetti', projectId, 'messaggi'), {
+      await addDoc(collection(firestore, collectionRoot, projectId, 'messaggi'), {
         text: messageText.trim(),
         scheduledAt,
         status: 'pianificato',
@@ -143,7 +144,7 @@ export default function MessagePlanner({ projectId, projectName, projectDescript
   const handleStatusChange = async (msgId: string, status: Messaggio['status']) => {
     if (!firestore) return;
     try {
-      const ref = doc(firestore, 'progetti', projectId, 'messaggi', msgId);
+      const ref = doc(firestore, collectionRoot, projectId, 'messaggi', msgId);
       const update: any = { status };
       if (status === 'inviato') update.sentAt = serverTimestamp();
       await updateDoc(ref, update);

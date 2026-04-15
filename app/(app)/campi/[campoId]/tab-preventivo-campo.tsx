@@ -48,7 +48,7 @@ const DEFAULT_CONFIG: PreventivoConfig = {
   budgetMax: 0,
 };
 
-export default function TabPreventivooCampo({ campoId }: { campoId: string }) {
+export default function TabPreventivooCampo({ campoId, costoSpesaCalcolato }: { campoId: string; costoSpesaCalcolato?: number }) {
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -130,7 +130,9 @@ export default function TabPreventivooCampo({ campoId }: { campoId: string }) {
   }, [casaSelezionata, config.nNotti, config.costoStagione]);
 
   const totaleExtra = useMemo(() => config.costiExtra.reduce((s, e) => s + (e.importo || 0), 0), [config.costiExtra]);
-  const totaleCosti = useMemo(() => costoCasa + config.costoPullmanManuale + config.costoSpesaManuale + totaleExtra, [costoCasa, config.costoPullmanManuale, config.costoSpesaManuale, totaleExtra]);
+  // Use computed cost from menu if available, otherwise use manual override
+  const costoSpesaEffettivo = costoSpesaCalcolato !== undefined ? costoSpesaCalcolato : config.costoSpesaManuale;
+  const totaleCosti = useMemo(() => costoCasa + config.costoPullmanManuale + costoSpesaEffettivo + totaleExtra, [costoCasa, config.costoPullmanManuale, costoSpesaEffettivo, totaleExtra]);
   const totaleEntrate = useMemo(() => config.categorie.reduce((s, c) => s + c.numero * c.quotaRichiesta, 0), [config.categorie]);
   const saldo = useMemo(() => totaleEntrate - totaleCosti, [totaleEntrate, totaleCosti]);
   const costoPerPersona = useMemo(() => nTotalePersone > 0 ? totaleCosti / nTotalePersone : 0, [totaleCosti, nTotalePersone]);
@@ -229,16 +231,28 @@ export default function TabPreventivooCampo({ campoId }: { campoId: string }) {
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><ShoppingCart className="h-4 w-4" />Spesa alimentare</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <div className="space-y-1">
-                <Label>Costo totale spesa (€)</Label>
-                <Input type="number" min={0} step={0.01} value={config.costoSpesaManuale} onChange={e => update('costoSpesaManuale', parseFloat(e.target.value) || 0)} placeholder="Copia il totale dalla sezione Spesa" />
-              </div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Info className="h-3 w-3" />Puoi copiare il totale calcolato dalla scheda &quot;Spesa&quot;
-              </p>
+              {costoSpesaCalcolato !== undefined ? (
+                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                  <p className="text-sm text-green-800 dark:text-green-300 font-medium flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4" />
+                    Calcolato dal Menù: <strong>€ {costoSpesaCalcolato.toFixed(2)}</strong>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Aggiorna il menù per modificare questo valore.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <Label>Costo totale spesa (€)</Label>
+                    <Input type="number" min={0} step={0.01} value={config.costoSpesaManuale} onChange={e => update('costoSpesaManuale', parseFloat(e.target.value) || 0)} placeholder="Inserisci dalla sezione Menù" />
+                  </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Info className="h-3 w-3" />Compila il Menù per auto-calcolare questo valore.
+                  </p>
+                </>
+              )}
               <div className="flex justify-between text-sm font-medium">
                 <span>Totale spesa:</span>
-                <span className="text-primary">€ {config.costoSpesaManuale.toFixed(2)}</span>
+                <span className="text-primary">€ {costoSpesaEffettivo.toFixed(2)}</span>
               </div>
             </CardContent>
           </Card>
@@ -316,7 +330,7 @@ export default function TabPreventivooCampo({ campoId }: { campoId: string }) {
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">🏠 Alloggio</span><span>€ {costoCasa.toFixed(2)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">🚌 Trasporto</span><span>€ {config.costoPullmanManuale.toFixed(2)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">🛒 Spesa</span><span>€ {config.costoSpesaManuale.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">🛒 Spesa</span><span>€ {costoSpesaEffettivo.toFixed(2)}</span></div>
               {config.costiExtra.map((e, i) => (
                 <div key={i} className="flex justify-between"><span className="text-muted-foreground">{e.descrizione || `Extra ${i + 1}`}</span><span>€ {(e.importo || 0).toFixed(2)}</span></div>
               ))}

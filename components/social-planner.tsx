@@ -66,9 +66,10 @@ interface SocialPlannerProps {
   projectDescription?: string;
   projectStartDate?: string;
   projectEndDate?: string;
-  groupIds?: string[];         // For consent checking
+  groupIds?: string[];
   canEdit: boolean;
   availablePhotos?: DrivePhoto[];
+  collectionRoot?: string; // defaults to 'progetti'
 }
 
 const STATUS_CONFIG = {
@@ -170,13 +171,13 @@ function InstagramPostCard({
   );
 }
 
-export default function SocialPlanner({ projectId, projectName, projectDescription, projectStartDate, projectEndDate, groupIds, canEdit, availablePhotos = [] }: SocialPlannerProps) {
+export default function SocialPlanner({ projectId, projectName, projectDescription, projectStartDate, projectEndDate, groupIds, canEdit, availablePhotos = [], collectionRoot = 'progetti' }: SocialPlannerProps) {
   const firestore = useFirestore();
   const { user } = useUser();
 
   const postsQuery = useMemoFirebase(() => {
     if (!firestore || !projectId) return null;
-    return query(collection(firestore, 'progetti', projectId, 'social-posts'), orderBy('scheduledAt', 'asc'));
+    return query(collection(firestore, collectionRoot, projectId, 'social-posts'), orderBy('scheduledAt', 'asc'));
   }, [firestore, projectId]);
   const { data: posts, isLoading } = useCollection<SocialPost>(postsQuery);
 
@@ -215,7 +216,7 @@ export default function SocialPlanner({ projectId, projectName, projectDescripti
     try {
       const scheduledAt = new Date(scheduledDate + 'T12:00:00');
       const thumbUrl = selectedPhoto.thumbnailLink?.replace('=s220', '=s800') ?? '';
-      await addDoc(collection(firestore, 'progetti', projectId, 'social-posts'), {
+      await addDoc(collection(firestore, collectionRoot, projectId, 'social-posts'), {
         imageUrl: selectedPhoto.webViewLink,
         thumbnailUrl: thumbUrl,
         driveFileId: selectedPhoto.id,
@@ -237,7 +238,7 @@ export default function SocialPlanner({ projectId, projectName, projectDescripti
   const handleStatusChange = async (postId: string, status: SocialPost['status']) => {
     if (!firestore) return;
     try {
-      const ref = doc(firestore, 'progetti', projectId, 'social-posts', postId);
+      const ref = doc(firestore, collectionRoot, projectId, 'social-posts', postId);
       await updateDoc(ref, { status });
     } catch (err: any) {
       console.error(err);

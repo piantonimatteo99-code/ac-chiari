@@ -18,6 +18,7 @@ import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/pag
 import type { EducatorRole } from '@/app/(app)/admin/area-educatori/ruoli-educatori/page';
 import { useCallback, useMemo, memo, useState } from 'react';
 import type { Progetto } from '@/app/(app)/progetti/page';
+import type { Campo } from '@/components/add-event-dialog';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
 import { differenceInDays, parseISO } from 'date-fns';
 import { useNotifications } from '@/src/hooks/use-notifications';
@@ -167,6 +168,9 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   
   const allProjectsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'progetti'), orderBy('createdAt', 'desc')) : null, [firestore]);
   const { data: allProjects, isLoading: isLoadingAllProjects } = useCollection<Progetto>(allProjectsQuery);
+
+  const allCampiQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'campi'), orderBy('startDate', 'desc')) : null, [firestore]);
+  const { data: allCampi, isLoading: isLoadingAllCampi } = useCollection<Campo>(allCampiQuery);
   
   const membriQuery = useMemoFirebase(() => {
       if (!firestore || !user || !userData?.roles?.includes('genitore')) return null;
@@ -255,7 +259,31 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     return [];
   }, [allProjects, isAdmin, userData, myGroups, userAndFamilyMembers]);
   
-  const isLoading = isUserLoading || isLoadingPageSettings || isLoadingGroups || isLoadingEducatorRoles || isLoadingAllGroups || isLoadingAllProjects || isLoadingMembri;
+  const campiToRender = useMemo(() => {
+    if (!allCampi || !userData) return [];
+
+    // Always exclude archived
+    const activeCampi = allCampi.filter(c => c.status !== 'archiviato');
+
+    if (isAdmin) return activeCampi;
+
+    if (userData.roles?.includes('educatore')) {
+      if (!myGroups) return [];
+      const educatorGroupIds = new Set(myGroups.map(g => g.id));
+      return activeCampi.filter(c => c.groupIds.some(gid => educatorGroupIds.has(gid)));
+    }
+
+    if (userData.roles?.includes('genitore')) {
+      if (userAndFamilyMembers.length === 0) return [];
+      const familyGroupIds = new Set(userAndFamilyMembers.map(m => (m as any).groupId).filter(Boolean));
+      if (familyGroupIds.size === 0) return [];
+      return activeCampi.filter(c => c.groupIds.some(gid => familyGroupIds.has(gid)));
+    }
+
+    return [];
+  }, [allCampi, isAdmin, userData, myGroups, userAndFamilyMembers]);
+
+  const isLoading = isUserLoading || isLoadingPageSettings || isLoadingGroups || isLoadingEducatorRoles || isLoadingAllGroups || isLoadingAllProjects || isLoadingAllCampi || isLoadingMembri;
 
   const getPageVisibility = useCallback((page: { id: string; href?: string; label: string; }): { visible: boolean; reason: string } => {
     // User must be authenticated
@@ -486,11 +514,16 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     const isInside = pathname.startsWith('/campi');
     const Icon = pageConfig.icon;
     const subIcons: Record<string, React.ElementType> = {
-      '/campi': Tent,
+      '/campi/piatti': CookingPot,
       '/campi/pullman': Bus,
       '/campi/case': Home,
-      '/campi/piatti': CookingPot,
     };
+
+    const fixedSubItems = [
+      { id: 'campi-piatti', href: '/campi/piatti', label: 'Piatti' },
+      { id: 'campi-pullman', href: '/campi/pullman', label: 'Pullman' },
+      { id: 'campi-case', href: '/campi/case', label: 'Case' },
+    ];
 
     return (
       <Accordion type="single" collapsible
@@ -509,21 +542,52 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-1 pl-3 space-y-1">
-            {pageConfig.subItems.map((sub: any) => {
-              const SubIcon = subIcons[sub.href];
-              const isActive = pathname === sub.href;
+            {/* Link principale */}
+            <Link href="/campi" onClick={onLinkClick}
+              className={cn("flex w-full text-left items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary",
+                pathname === '/campi' ? 'text-primary' : 'text-muted-foreground')}>
+              Tutti i campi
+            </Link>
+
+            {/* Campi dinamici (filtrati per gruppo) */}
+            {campiToRender.map(campo => {
+              const href = `/campi/${campo.id}`;
               return (
-                <Link key={sub.id} href={sub.href} onClick={onLinkClick}
+                <Link key={campo.id} href={href} onClick={onLinkClick}
                   className={cn(
-                    "flex w-full text-left items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary",
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  )}
-                >
-                  {SubIcon && <SubIcon className="h-4 w-4 shrink-0" />}
-                  <span>{sub.label}</span>
+                    'flex w-full text-left items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary',
+                    pathname === href ? 'text-primary' : 'text-muted-foreground'
+                  )}>
+                  {campo.nome.charAt(0).toUpperCase() + campo.nome.slice(1)}
                 </Link>
               );
             })}
+
+            {/* Separatore e pagine fisse */}
+            <div className="border-t border-border mt-1 pt-2 space-y-1">
+              {fixedSubItems.map(sub => {
+                const SubIcon = subIcons[sub.href];
+                return (
+                  <Link key={sub.id} href={sub.href} onClick={onLinkClick}
+                    className={cn(
+                      'flex w-full text-left items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary',
+                      pathname === sub.href ? 'text-primary' : 'text-muted-foreground'
+                    )}>
+                    {SubIcon && <SubIcon className="h-4 w-4 shrink-0" />}
+                    <span>{sub.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Link Storico */}
+            <Link href="/campi/storico" onClick={onLinkClick}
+              className={cn(
+                'flex w-full text-left items-center gap-3 rounded-lg py-2 pl-3 pr-3 text-sm font-medium transition-colors hover:text-primary border-t border-border mt-1 pt-2',
+                pathname === '/campi/storico' ? 'text-primary' : 'text-muted-foreground'
+              )}>
+              Storico
+            </Link>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
