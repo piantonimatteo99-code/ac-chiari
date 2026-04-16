@@ -10,6 +10,7 @@ import { useAuth } from '@/src/firebase';
 import { Toaster } from '@/components/ui/toaster';
 import { PwaInstallDialog } from '@/components/pwa-install-dialog';
 import { ProfileOnboardingDialog } from '@/components/profile-onboarding-dialog';
+import { AiAssistant } from '@/components/ai-assistant';
 
 export default function AppLayout({
   children,
@@ -53,6 +54,8 @@ export default function AppLayout({
       {/* Profile onboarding MUST appear before PWA install */}
       <ProfileOnboardingDialog />
       <PwaInstallDialog />
+      {/* AI Assistant — floating chat bubble */}
+      <AiAssistant />
     </div>
   );
 }

@@ -24,6 +24,10 @@ const COLLECTIONS_TO_WIPE = [
   'generate',
   'ruoli-educatori',
   'page-settings',
+  'campi',
+  'familyJoinPins',
+  'familyJoinRequests',
+  'calendarSubscriptions',
 ];
 
 // Sub-collections to wipe under every user doc (incluso admin)
@@ -116,8 +120,20 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Cancella il documento utente solo se non è l'admin protetto
-      if (userDoc.id !== protectedUid) {
+      // Per l'admin protetto: rimuovi familyId e svuota la sotto-collez `private`
+      if (userDoc.id === protectedUid) {
+        // Rimuovi eventuale familyId residuo
+        await userDoc.ref.update({ familyId: admin.firestore.FieldValue.delete() }).catch(() => {});
+        // Svuota tokens google-calendar nella sotto-collezione private
+        const privateSnap = await userDoc.ref.collection('private').get();
+        if (!privateSnap.empty) {
+          const batch = db.batch();
+          privateSnap.docs.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+          subCollectionsDeleted += privateSnap.size;
+        }
+      } else {
+        // Cancella il documento utente
         await userDoc.ref.delete();
         firestoreUsersDeleted++;
       }
@@ -166,6 +182,19 @@ export async function POST(req: NextRequest) {
       } catch (e: any) {
         console.warn(`[reset] Could not wipe orphaned ${sub}:`, e.message);
       }
+    }
+
+    // ── 7b. Sotto-collezioni orfane di campi (dati) ───────────────────────────
+    try {
+      const datiSnap = await db.collectionGroup('dati').get();
+      if (!datiSnap.empty) {
+        const batch = db.batch();
+        datiSnap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        results['campi/dati'] = datiSnap.size;
+      }
+    } catch (e: any) {
+      console.warn('[reset] Could not wipe campi/dati:', e.message);
     }
 
     // ── 7. Orphaned partecipanti di presenze ──────────────────────────────────

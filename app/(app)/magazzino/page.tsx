@@ -298,7 +298,7 @@ function TabAlimenti() {
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Aggiungi Alimento</Button>
+            <Button size="sm" data-assistant="add-alimento-btn"><Plus className="h-4 w-4 mr-1" /> Aggiungi Alimento</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>

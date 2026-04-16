@@ -390,9 +390,9 @@ export default function GestionePaginePage() {
           </div>
           <CardDescription>
             Elimina <strong>tutti i dati inseriti</strong> durante i test: gruppi, eventi, raccolte, spese, notifiche,
-            magazzino, presenze, movimenti contanti, ecc.<br />
+            magazzino, presenze, movimenti contanti, campi, ecc.<br />
             Vengono eliminati anche <strong>tutti gli utenti registrati</strong> (Firebase Auth + profili) e i loro
-            <strong> nuclei familiari</strong>, ad eccezione dell'account admin
+            <strong> nuclei familiari</strong> — incluso il nucleo dell'account admin
             (<code className="text-xs bg-muted px-1 py-0.5 rounded">piantonimatteo.99@gmail.com</code>).<br />
             La <strong>configurazione</strong> del sistema (Drive, notifiche) viene conservata.
             Questa operazione è <strong className="text-destructive">irreversibile</strong>.
@@ -442,7 +442,7 @@ export default function GestionePaginePage() {
               )}
             </Button>
             <span className="text-xs text-muted-foreground">
-              Gli utenti registrati e la configurazione rimarranno intatti.
+              Tutti gli utenti e i nuclei familiari verranno eliminati. Viene conservato solo l'account admin e la configurazione.
             </span>
           </div>
         </CardContent>
@@ -459,9 +459,10 @@ export default function GestionePaginePage() {
             </DialogTitle>
             <DialogDescription className="pt-2">
               Stai per eliminare <strong>tutti i dati di test</strong> presenti nel database:
-              gruppi, eventi, raccolte, spese, pagamenti, notifiche, presenze, magazzino e altro ancora.
+              gruppi, eventi, raccolte, spese, pagamenti, notifiche, presenze, magazzino, campi e altro ancora.
               <br /><br />
-              Gli account utente e la configurazione del sistema <strong>non verranno toccati</strong>.
+              Verranno eliminati anche <strong>tutti gli account utente</strong> e i loro nuclei familiari
+              (incluso il nucleo dell'admin). La configurazione del sistema verrà conservata.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

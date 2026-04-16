@@ -137,6 +137,7 @@ export default function NucleoFamiliarePage() {
               onClick={() => setIsJoinDialogOpen(true)}
               disabled={!user}
               className="flex items-center gap-2"
+              data-assistant="join-family-btn"
             >
               <LogIn className="h-4 w-4" />
               <span className="hidden sm:inline">Unisciti a una Famiglia</span>
@@ -144,7 +145,7 @@ export default function NucleoFamiliarePage() {
             </Button>
           )}
 
-          <Button onClick={handleAddNew} disabled={!user}>
+          <Button onClick={handleAddNew} disabled={!user} data-assistant="add-familiare-btn">
             <PlusCircle className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Aggiungi Membro</span>
             <span className="sm:hidden">Aggiungi</span>

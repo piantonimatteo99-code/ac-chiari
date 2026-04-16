@@ -203,6 +203,7 @@ export default function IscrizioniPage() {
                         size="sm"
                         className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white shrink-0"
                         onClick={() => setIsProfileOpen(true)}
+                        data-assistant="complete-profile-btn"
                     >
                         Inserisci i dati
                         <ArrowRight className="h-3 w-3 ml-1" />

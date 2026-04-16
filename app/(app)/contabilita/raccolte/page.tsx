@@ -41,7 +41,7 @@ export default function RaccoltePage() {
             <h2 className="text-xl font-semibold">Raccolte attive</h2>
             <p className="text-muted-foreground">Elenco di tutte le raccolte fondi in corso o pianificate.</p>
         </div>
-        <Button onClick={handleAddNew}>
+        <Button onClick={handleAddNew} data-assistant="add-raccolta-btn">
           <PlusCircle className="mr-2 h-4 w-4" />
           Aggiungi Raccolta
         </Button>

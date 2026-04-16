@@ -666,7 +666,7 @@ export default function ContoPage() {
                     <h2 className="text-xl font-semibold">Conto Generale</h2>
                     <p className="text-muted-foreground">Riepilogo di tutti i movimenti finanziari.</p>
                 </div>
-                 <Button onClick={() => setIsDialogOpen(true)}>
+                 <Button onClick={() => setIsDialogOpen(true)} data-assistant="add-movimento-btn">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Aggiungi Movimento
                 </Button>

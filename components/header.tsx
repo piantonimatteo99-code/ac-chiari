@@ -68,15 +68,19 @@ export default function Header() {
       <div className="flex-1" />
 
       {/* Notifiche */}
-      <NotificationBell />
+      <span data-assistant="notification-bell">
+        <NotificationBell />
+      </span>
 
       {/* Pulsante Segnalazioni / Feedback */}
-      <FeedbackDialog />
+      <span data-assistant="feedback-btn">
+        <FeedbackDialog />
+      </span>
 
       {/* Menu utente */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="secondary" size="icon" className="rounded-full shadow-sm">
+          <Button data-assistant="user-menu-btn" variant="secondary" size="icon" className="rounded-full shadow-sm">
             <CircleUser className="h-5 w-5" />
             <span className="sr-only">Menu utente</span>
           </Button>

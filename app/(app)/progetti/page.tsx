@@ -170,7 +170,7 @@ export default function ProgettiPage() {
                     <p className="text-sm font-medium text-muted-foreground">Progetti archiviati</p>
                     <p className="text-xs text-muted-foreground/70">Consulta i progetti conclusi e lo storico delle attività</p>
                 </div>
-                <Button variant="outline" asChild>
+                <Button variant="outline" asChild data-assistant="storico-progetti-btn">
                     <Link href="/progetti/storico">
                         <Archive className="mr-2 h-4 w-4" />
                         Storico Progetti

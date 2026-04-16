@@ -65,7 +65,7 @@ export default function SpesePage() {
               Qui puoi registrare e gestire tutte le uscite.
             </p>
          </div>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
+        <Button onClick={() => setIsAddDialogOpen(true)} data-assistant="add-spesa-btn">
           <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Spesa
         </Button>
       </div>

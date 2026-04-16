@@ -372,7 +372,7 @@ export default function CalendarioPage() {
         <h1 className="text-2xl font-bold">Calendario</h1>
         <div className="flex flex-wrap items-center gap-2">
           {canAddEvents && (
-            <Button onClick={handleAddNew} className="w-full sm:w-auto">
+            <Button onClick={handleAddNew} className="w-full sm:w-auto" data-assistant="add-event-btn">
               <PlusCircle className="mr-2 h-4 w-4" />
               Aggiungi Impegno
             </Button>
@@ -456,6 +456,7 @@ export default function CalendarioPage() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
+                  data-assistant="connect-gcal-btn"
                   variant="outline"
                   size="sm"
                   onClick={() => googleCalendar.connect()}
