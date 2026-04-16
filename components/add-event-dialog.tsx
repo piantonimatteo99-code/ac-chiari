@@ -456,7 +456,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
 
     return (
         <>
-        <Dialog open={isOpen} onOpenChange={onOpenChange} modal={false}>
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>{isEditing ? 'Modifica Impegno' : 'Nuovo Impegno'}</DialogTitle>

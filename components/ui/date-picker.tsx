@@ -6,23 +6,47 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { it } from 'date-fns/locale';
 
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface DatePickerProps {
     date: Date | undefined;
     setDate: (date: Date | undefined) => void;
-    disabled?: any; // kept for API compatibility, not used with native input
+    disabled?: any; // kept for API compatibility
 }
 
 /**
- * DatePicker using native <input type="date">.
- * Works perfectly on mobile (opens OS date picker) and desktop.
- * Avoids the Popover-inside-Dialog focus-trap issue on iOS/Android.
+ * DatePicker using the native browser date picker via showPicker() API.
+ * - Shows a styled button with the Italian-formatted date.
+ * - On click: calls input.showPicker() which opens the native date picker
+ *   on ALL devices (desktop Chrome/Firefox/Safari + iOS/Android).
+ * - No Popover = no Dialog focus-trap conflicts.
  */
 export function DatePicker({ date, setDate, disabled }: DatePickerProps) {
-  // Convert Date → "yyyy-MM-dd" string for the input value
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // Convert Date → "yyyy-MM-dd" string for the hidden input value
   const inputValue = date instanceof Date && isValid(date)
     ? format(date, 'yyyy-MM-dd')
     : '';
+
+  // Display label in Italian long format
+  const displayLabel = date instanceof Date && isValid(date)
+    ? format(date, 'PPP', { locale: it })
+    : 'Scegli una data';
+
+  const handleButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const input = inputRef.current;
+    if (!input) return;
+    try {
+      // showPicker() is the programmatic API to open the native date picker.
+      // Supported: Chrome 99+, Firefox 101+, Safari 16+
+      (input as any).showPicker?.();
+    } catch {
+      // Fallback: direct click (works on most browsers)
+      input.click();
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -30,39 +54,38 @@ export function DatePicker({ date, setDate, disabled }: DatePickerProps) {
       setDate(undefined);
       return;
     }
-    // parse "yyyy-MM-dd" → Date (local midnight)
+    // parse "yyyy-MM-dd" → local midnight Date
     const parsed = parse(val, 'yyyy-MM-dd', new Date());
     if (isValid(parsed)) {
       setDate(parsed);
     }
   };
 
-  // Display label in Italian format
-  const displayLabel = date instanceof Date && isValid(date)
-    ? format(date, 'PPP', { locale: it })
-    : 'Scegli una data';
-
   return (
     <div className="relative w-full">
-      {/* Visible styled button */}
-      <div
+      {/* Styled button — shows Italian formatted date */}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleButtonClick}
         className={cn(
-          'flex items-center gap-2 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors',
-          'text-foreground cursor-pointer hover:border-ring focus-within:ring-1 focus-within:ring-ring',
+          'w-full justify-start text-left font-normal',
           !date && 'text-muted-foreground'
         )}
       >
-        <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="flex-1 truncate">{displayLabel}</span>
-      </div>
+        <CalendarIcon className="mr-2 h-4 w-4" />
+        {displayLabel}
+      </Button>
 
-      {/* Native date input overlaid, invisible but fully interactive */}
+      {/* Hidden native date input — receives value and change events */}
       <input
+        ref={inputRef}
         type="date"
         value={inputValue}
         onChange={handleChange}
-        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        style={{ colorScheme: 'normal' }}
+        tabIndex={-1}
+        aria-hidden="true"
+        className="sr-only"
       />
     </div>
   );
