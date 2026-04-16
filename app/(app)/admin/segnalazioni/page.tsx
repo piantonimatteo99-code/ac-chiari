@@ -281,7 +281,7 @@ export default function SegnalazioniAdminPage() {
           </TabsList>
 
           <TabsContent value="attive">
-            <FeedbackTable items={activeFeedbacks} showPriority />
+            <FeedbackTable items={activeFeedbacks} showPriority={false} />
           </TabsContent>
 
           <TabsContent value="archivio">

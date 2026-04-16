@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Bell, BellRing, BellOff, Check, CheckCheck, X, ExternalLink, Settings, RotateCcw } from 'lucide-react';
+import { Bell, BellRing, BellOff, Check, CheckCheck, X, ExternalLink, Settings, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -118,7 +118,7 @@ function NotificaItem({ n, onRead, onDelete }: { n: Notifica; onRead: (id: strin
 type TabType = 'notifiche' | 'preferenze';
 
 export function NotificationBell() {
-  const { notifiche, unreadCount, markAsRead, markAllAsRead, deleteNotifica } = useNotifications();
+  const { notifiche, unreadCount, markAsRead, markAllAsRead, deleteNotifica, deleteAllNotifiche } = useNotifications();
   const { isEnabled, setPreference, resetToDefaults, isLoading: isPrefLoading } = useUserNotifPreferences();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabType>('notifiche');
@@ -267,6 +267,16 @@ export function NotificationBell() {
               {unreadCount > 0 && tab === 'notifiche' && (
                 <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={markAllAsRead}>
                   <CheckCheck className="h-3 w-3" /> Tutte lette
+                </Button>
+              )}
+              {notifiche.length > 0 && tab === 'notifiche' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={deleteAllNotifiche}
+                >
+                  <Trash2 className="h-3 w-3" /> Elimina tutte
                 </Button>
               )}
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(false)}>

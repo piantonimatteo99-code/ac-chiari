@@ -108,7 +108,7 @@ const adminGroups = [
     icon: CircleHelp,
     links: [
       { href: '/admin/segnalazioni', label: 'Gestione Feedback / Problemi' },
-      { href: '/admin/test-notifiche', label: '🧪 Test Notifiche' },
+      { href: '/admin/test-notifiche', label: 'Test Notifiche' },
     ],
   },
 ];

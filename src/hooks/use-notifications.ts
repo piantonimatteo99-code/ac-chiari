@@ -105,6 +105,21 @@ export function useNotifications() {
     await deleteDoc(doc(firestore, 'notifiche', id));
   };
 
-  return { notifiche, unreadCount, isLoading, markAsRead, markAllAsRead, deleteNotifica };
+  const deleteAllNotifiche = async () => {
+    if (!firestore || !user || !notifiche.length) return;
+    const batch = writeBatch(firestore);
+    notifiche.forEach(n => {
+      if (n.userId === user.uid) {
+        // Personal notifications: delete
+        batch.delete(doc(firestore, 'notifiche', n.id));
+      } else if (!n.letta) {
+        // Broadcast notifications: just mark as read (shared doc, can't delete)
+        batch.update(doc(firestore, 'notifiche', n.id), { letta: true });
+      }
+    });
+    await batch.commit();
+  };
+
+  return { notifiche, unreadCount, isLoading, markAsRead, markAllAsRead, deleteNotifica, deleteAllNotifiche };
 }
 
