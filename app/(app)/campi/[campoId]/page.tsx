@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useFirestore, useMemoFirebase, useDoc, useUser, useCollection } from '@/src/firebase';
 import { doc, collection, query, where, updateDoc, writeBatch, getDocs } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import {
   ArrowLeft, CalendarDays, GraduationCap, BookOpen, Sun, Tent, Loader2,
   Archive, ArchiveRestore, Users, ClipboardList, UtensilsCrossed, ShoppingCart,
@@ -94,8 +95,8 @@ const ALL_TABS: { id: TabId; label: string; icon: React.ElementType; onlyEdit?: 
 ];
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export default function CampoDetailPage({ params }: { params: Promise<{ campoId: string }> }) {
-  const { campoId } = use(params);
+export default function CampoDetailPage() {
+  const { campoId } = useParams<{ campoId: string }>();
   const firestore = useFirestore();
   const { user } = useUser();
   const { userData, isLoading: isUserLoading } = useUserData();

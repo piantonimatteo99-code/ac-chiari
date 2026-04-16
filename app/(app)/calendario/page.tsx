@@ -212,10 +212,11 @@ export default function CalendarioPage() {
   // Set default filter once loading is done — non-admin users default to 'personale'
   // Do NOT gate on userData: new users with no Firestore doc must also be filtered
   useEffect(() => {
-    if (!isUserLoading && !canAddEvents) {
+    if (isUserLoading || !userData) return; // wait for full userData load
+    if (!canAddEvents) {
       setSelectedGroup('personale');
     }
-  }, [isUserLoading, canAddEvents]);
+  }, [isUserLoading, canAddEvents, userData]);
 
   // Queries
   const groupsQuery = useMemoFirebase(() => {

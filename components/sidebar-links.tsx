@@ -150,7 +150,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   const { data: pageSettings, isLoading: isLoadingPageSettings } = useCollection<PagePermission>(pageSettingsQuery);
 
   const myGroupsQuery = useMemoFirebase(() =>
-    (user && userData?.roles?.includes('educatore'))
+    (firestore && user && userData?.roles?.includes('educatore'))
       ? query(collection(firestore, 'gruppi'), where('educatorIds', 'array-contains', user.uid))
       : null,
     [firestore, user, userData]);
