@@ -110,8 +110,8 @@ function DayWithEvents({
               {date.getDate()}
             </div>
             
-            {/* Desktop: Event buttons */}
-            <div className="hidden md:flex flex-1 flex-col overflow-hidden gap-1 pt-0">
+            {/* Desktop (≥1024px): Event bars */}
+            <div className="hidden lg:flex flex-1 flex-col overflow-hidden gap-1 pt-0">
                 {dayEvents.map((event) => {
                     const startDate = event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any);
                     const endDate = event.endDate instanceof Date ? event.endDate : (event.endDate as any)?.toDate ? (event.endDate as any).toDate() : new Date(event.endDate as any);
@@ -159,8 +159,8 @@ function DayWithEvents({
                 })}
             </div>
 
-            {/* Mobile: Dots */}
-            <div className="flex md:hidden flex-wrap gap-0.5 px-0.5 justify-center pb-1 relative z-10 pointer-events-none mt-auto">
+            {/* Below 1024px: Dots */}
+            <div className="flex lg:hidden flex-wrap gap-0.5 px-0.5 justify-center pb-1 relative z-10 pointer-events-none mt-auto">
                 {dayEvents.slice(0, 4).map(event => (
                     <div 
                       key={event.id}
@@ -178,7 +178,7 @@ function DayWithEvents({
             </div>
             {/* Plus hint on hover for empty cells (desktop only, educators/admin) */}
             {canAddEvents && !isOutside && dayEvents.length === 0 && (
-              <div className="absolute inset-0 hidden md:flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="absolute inset-0 hidden lg:flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 <PlusCircle className="h-5 w-5 text-muted-foreground/40" />
               </div>
             )}
