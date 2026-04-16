@@ -12,7 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, PlusCircle, CalendarDays, Loader2, Unlink, RefreshCw } from 'lucide-react';
+import { ChevronDown, PlusCircle, CalendarDays, Loader2, Unlink, RefreshCw, Settings2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { it } from 'date-fns/locale';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/src/firebase';
 import { collection } from 'firebase/firestore';
@@ -208,6 +209,7 @@ export default function CalendarioPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [showSyncSettings, setShowSyncSettings] = useState(false);
 
   // Set default filter once loading is done — non-admin users default to 'personale'
   // Do NOT gate on userData: new users with no Firestore doc must also be filtered
@@ -376,45 +378,79 @@ export default function CalendarioPage() {
             </Button>
           )}
 
-          {/* Google Calendar Sync Button */}
+          {/* Google Calendar section */}
           {googleCalendar.isConnected === null ? (
             <Button variant="outline" disabled size="sm">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Caricamento...
             </Button>
           ) : googleCalendar.isConnected ? (
-            <div className="flex items-center gap-1">
-              <Badge variant="outline" className="border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950 gap-1.5 py-1 px-2">
-                <CalendarDays className="h-3.5 w-3.5" />
-                <span className="text-xs">Google Calendar</span>
-              </Badge>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => googleCalendar.loadEvents()}
-                    disabled={googleCalendar.isLoadingEvents}
-                  >
-                    <RefreshCw className={cn("h-3.5 w-3.5", googleCalendar.isLoadingEvents && "animate-spin")} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Aggiorna eventi Google Calendar</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => googleCalendar.disconnect()}
-                  >
-                    <Unlink className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Disconnetti Google Calendar</TooltipContent>
-              </Tooltip>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1">
+                <Badge variant="outline" className="border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950 gap-1.5 py-1 px-2">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  <span className="text-xs">Google Calendar</span>
+                </Badge>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8"
+                      onClick={() => setShowSyncSettings(v => !v)}>
+                      <Settings2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Impostazioni sincronizzazione</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8"
+                      onClick={() => googleCalendar.loadEvents()}
+                      disabled={googleCalendar.isLoadingEvents}>
+                      <RefreshCw className={cn("h-3.5 w-3.5", googleCalendar.isLoadingEvents && "animate-spin")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Aggiorna eventi Google Calendar</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => googleCalendar.disconnect()}>
+                      <Unlink className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Disconnetti Google Calendar</TooltipContent>
+                </Tooltip>
+              </div>
+
+              {/* Sync settings panel */}
+              {showSyncSettings && (
+                <div className="border rounded-lg p-3 bg-card shadow-sm w-full sm:w-64 text-sm">
+                  <p className="font-medium mb-2">Gruppi da sincronizzare</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Gli eventi di questi gruppi appariranno automaticamente nel tuo Google Calendar.
+                  </p>
+                  {googleCalendar.isLoadingSyncSettings ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {groups?.map(group => (
+                        <div key={group.id} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`sync-${group.id}`}
+                            checked={googleCalendar.syncGroupIds.includes(group.id)}
+                            onCheckedChange={(checked) => {
+                              const next = checked
+                                ? [...googleCalendar.syncGroupIds, group.id]
+                                : googleCalendar.syncGroupIds.filter(id => id !== group.id);
+                              googleCalendar.updateSyncGroups(next);
+                            }}
+                          />
+                          <label htmlFor={`sync-${group.id}`} className="cursor-pointer">{group.name}</label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <Tooltip>

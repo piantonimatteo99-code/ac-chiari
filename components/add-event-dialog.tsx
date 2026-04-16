@@ -118,7 +118,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     
-    const { isConnected, pushEvent } = useGoogleCalendar();
+    const { isConnected, broadcastEvent } = useGoogleCalendar();
     const [pushToGcal, setPushToGcal] = useState(false);
     
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -396,14 +396,16 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                     });
                 }
 
+                // Fire-and-forget sync: push to creator + all subscribed users
                 if (pushToGcal) {
-                    await pushEvent({
+                    broadcastEvent({
                         title,
                         description: description || notes,
                         startDate: finalStartDate,
                         endDate: finalEndDate,
-                        allDay
-                    });
+                        allDay,
+                        groupIds: selectedGroups,
+                    }).catch(console.error);
                 }
             }
 
@@ -527,7 +529,10 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         {!isEditing && isConnected && (
                             <div className="flex items-center space-x-2 mt-2">
                                 <Checkbox id="push-gcal" checked={pushToGcal} onCheckedChange={(c) => setPushToGcal(!!c)} />
-                                <Label htmlFor="push-gcal" className="font-normal">Aggiungi anche al mio <b>Google Calendar</b> (privato)</Label>
+                                <Label htmlFor="push-gcal" className="font-normal text-sm">
+                                    Sincronizza con <b>Google Calendar</b>
+                                    <span className="text-muted-foreground ml-1">(tu + iscritti ai gruppi)</span>
+                                </Label>
                             </div>
                         )}
 

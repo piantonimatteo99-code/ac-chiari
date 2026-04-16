@@ -59,6 +59,15 @@ export async function GET(request: NextRequest) {
       connected: true,
     }, { merge: true });
 
+    // Mirror connection status to top-level collection for broadcast queries
+    // Preserve existing syncGroupIds if present
+    const existingSub = await db.collection('calendarSubscriptions').doc(userId).get();
+    await db.collection('calendarSubscriptions').doc(userId).set({
+      uid: userId,
+      connected: true,
+      syncGroupIds: existingSub.exists ? (existingSub.data()?.syncGroupIds ?? []) : [],
+    }, { merge: true });
+
     return NextResponse.redirect(new URL('/calendario?calendar_connected=true', request.url));
   } catch (err: any) {
     console.error('Calendar OAuth callback error:', err);

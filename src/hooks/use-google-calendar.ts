@@ -18,8 +18,10 @@ export function useGoogleCalendar() {
   const [events, setEvents] = useState<GoogleCalendarEvent[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncGroupIds, setSyncGroupIds] = useState<string[]>([]);
+  const [isLoadingSyncSettings, setIsLoadingSyncSettings] = useState(false);
 
-  // Check connection status on mount
+  // ── Status ─────────────────────────────────────────────────────────────────
   const checkStatus = useCallback(async () => {
     if (!user) return;
     try {
@@ -33,18 +35,15 @@ export function useGoogleCalendar() {
     }
   }, [user]);
 
-  useEffect(() => {
-    checkStatus();
-  }, [checkStatus]);
+  useEffect(() => { checkStatus(); }, [checkStatus]);
 
-  // Check for connection success/error from URL params after OAuth redirect
+  // Check for OAuth redirect result
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     if (params.get('calendar_connected') === 'true') {
       setIsConnected(true);
       loadEvents();
-      // Clean the URL
       window.history.replaceState({}, '', window.location.pathname);
     }
     if (params.get('calendar_error')) {
@@ -54,25 +53,31 @@ export function useGoogleCalendar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Connect to Google Calendar
+  // ── Connect / Disconnect ───────────────────────────────────────────────────
   const connect = useCallback(() => {
     if (!user) return;
     window.location.href = `/api/calendar/auth?userId=${user.uid}`;
   }, [user]);
 
-  // Disconnect
   const disconnect = useCallback(async () => {
     if (!user) return;
     try {
       await fetch(`/api/calendar/events?userId=${user.uid}`, { method: 'DELETE' });
+      // Also update calendarSubscriptions
+      await fetch('/api/calendar/sync-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid, syncGroupIds: [], connected: false }),
+      });
       setIsConnected(false);
       setEvents([]);
+      setSyncGroupIds([]);
     } catch (err: any) {
       setError(err.message);
     }
   }, [user]);
 
-  // Load events from Google Calendar
+  // ── Events ────────────────────────────────────────────────────────────────
   const loadEvents = useCallback(async () => {
     if (!user) return;
     setIsLoadingEvents(true);
@@ -90,12 +95,10 @@ export function useGoogleCalendar() {
   }, [user]);
 
   useEffect(() => {
-    if (isConnected) {
-      loadEvents();
-    }
+    if (isConnected) { loadEvents(); }
   }, [isConnected, loadEvents]);
 
-  // Push a single event to Google Calendar
+  // ── Push to current user only (kept for backwards compat) ─────────────────
   const pushEvent = useCallback(
     async (event: {
       title: string;
@@ -129,7 +132,86 @@ export function useGoogleCalendar() {
     [user, isConnected]
   );
 
-  // Convert a Google Calendar event to a calendar-compatible format
+  // ── Broadcast to ALL subscribed users ─────────────────────────────────────
+  /**
+   * Pushes an event to:
+   * 1. The current user's Google Calendar (if connected).
+   * 2. All other users who have at least one of groupIds in their syncGroupIds.
+   */
+  const broadcastEvent = useCallback(
+    async (event: {
+      title: string;
+      description?: string;
+      startDate: Date | string;
+      endDate: Date | string;
+      allDay: boolean;
+      groupIds: string[];
+    }): Promise<void> => {
+      if (!user) return;
+      const startISO = new Date(event.startDate).toISOString();
+      const endISO = new Date(event.endDate).toISOString();
+
+      // 1. Push to creator's own calendar if connected
+      if (isConnected) {
+        await pushEvent({ ...event, startDate: startISO, endDate: endISO }).catch(console.error);
+      }
+
+      // 2. Broadcast to all other subscribed users
+      fetch('/api/calendar/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupIds: event.groupIds,
+          title: event.title,
+          description: event.description,
+          startDate: startISO,
+          endDate: endISO,
+          allDay: event.allDay,
+          creatorUserId: user.uid, // excluded from broadcast (already pushed above)
+        }),
+      }).catch(console.error); // fire-and-forget, don't block the UI
+    },
+    [user, isConnected, pushEvent]
+  );
+
+  // ── Sync settings (which groups' events sync to user's GCal) ──────────────
+  const loadSyncSettings = useCallback(async () => {
+    if (!user) return;
+    setIsLoadingSyncSettings(true);
+    try {
+      const res = await fetch(`/api/calendar/sync-settings?userId=${user.uid}`);
+      const data = await res.json();
+      setSyncGroupIds(data.syncGroupIds ?? []);
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingSyncSettings(false);
+    }
+  }, [user]);
+
+  // Load sync settings when connected
+  useEffect(() => {
+    if (isConnected && user) { loadSyncSettings(); }
+  }, [isConnected, user, loadSyncSettings]);
+
+  const updateSyncGroups = useCallback(
+    async (newGroupIds: string[]) => {
+      if (!user) return;
+      setSyncGroupIds(newGroupIds); // optimistic
+      try {
+        await fetch('/api/calendar/sync-settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.uid, syncGroupIds: newGroupIds }),
+        });
+      } catch (err: any) {
+        setError(`Errore salvataggio preferenze: ${err.message}`);
+      }
+    },
+    [user]
+  );
+
+  // ── Convert Google events for the calendar ────────────────────────────────
   const googleEventsAsCalendar = events.map((ev) => {
     const isAllDay = !!ev.start.date;
     const startDate = isAllDay
@@ -160,5 +242,9 @@ export function useGoogleCalendar() {
     disconnect,
     loadEvents,
     pushEvent,
+    broadcastEvent,
+    syncGroupIds,
+    isLoadingSyncSettings,
+    updateSyncGroups,
   };
 }
