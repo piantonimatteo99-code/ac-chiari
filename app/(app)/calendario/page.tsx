@@ -354,7 +354,7 @@ export default function CalendarioPage() {
   return (
     <TooltipProvider>
     {/* Mobile: page scrolls naturally. Desktop: fixed viewport height. */}
-    <div className="flex flex-col pb-4 gap-4 sm:h-[calc(100vh-6rem)]">
+    <div className="flex flex-col pb-4 gap-4 lg:h-[calc(100vh-6rem)]">
       <AddEventDialog 
         isOpen={isDialogOpen}
         onOpenChange={handleDialogChange}
@@ -385,7 +385,7 @@ export default function CalendarioPage() {
               Caricamento...
             </Button>
           ) : googleCalendar.isConnected ? (
-            <div className="flex flex-col gap-2">
+            <div className="relative">
               <div className="flex items-center gap-1">
                 <Badge variant="outline" className="border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950 gap-1.5 py-1 px-2">
                   <CalendarDays className="h-3.5 w-3.5" />
@@ -421,12 +421,12 @@ export default function CalendarioPage() {
                 </Tooltip>
               </div>
 
-              {/* Sync settings panel */}
+              {/* Sync settings — floating dropdown, does not affect layout flow */}
               {showSyncSettings && (
-                <div className="border rounded-lg p-3 bg-card shadow-sm w-full sm:w-64 text-sm">
+                <div className="absolute right-0 top-full mt-1 z-[200] border rounded-lg p-3 bg-popover shadow-md w-64 text-sm">
                   <p className="font-medium mb-2">Gruppi da sincronizzare</p>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Gli eventi di questi gruppi appariranno automaticamente nel tuo Google Calendar.
+                    Gli eventi di questi gruppi appariranno nel tuo Google Calendar.
                   </p>
                   {googleCalendar.isLoadingSyncSettings ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -522,8 +522,8 @@ export default function CalendarioPage() {
       </div>
       
       {view === 'month' && (
-        <Card className="sm:flex-1 sm:flex sm:flex-col sm:min-h-0 overflow-hidden">
-            <CardContent className="p-0 sm:flex-1 sm:flex sm:flex-col sm:min-h-0">
+        <Card className="lg:flex-1 lg:flex lg:flex-col lg:min-h-0 overflow-hidden">
+            <CardContent className="p-0 lg:flex-1 lg:flex lg:flex-col lg:min-h-0">
             <Calendar
                 mode="single"
                 month={currentMonth}
@@ -531,15 +531,15 @@ export default function CalendarioPage() {
                 locale={it}
                 showOutsideDays={true}
                 fixedWeeks={true}
-                className="p-0 sm:flex-1 sm:flex sm:flex-col w-full sm:h-full"
+                className="p-0 lg:flex-1 lg:flex lg:flex-col w-full lg:h-full"
                 classNames={{
-                    months: 'sm:flex-1 w-full sm:flex sm:flex-col',
-                    month: 'w-full space-y-0 sm:flex-1 sm:flex sm:flex-col',
-                    table: 'w-full border-collapse flex flex-col sm:flex-1 sm:h-full [&_tbody]:sm:flex-1 [&_tbody]:flex [&_tbody]:flex-col',
+                    months: 'lg:flex-1 w-full lg:flex lg:flex-col',
+                    month: 'w-full space-y-0 lg:flex-1 lg:flex lg:flex-col',
+                    table: 'w-full border-collapse flex flex-col lg:flex-1 lg:h-full [&_tbody]:lg:flex-1 [&_tbody]:flex [&_tbody]:flex-col',
                     head_row: 'flex w-full border-b',
                     head_cell: 'flex-1 text-muted-foreground font-normal text-sm p-2 text-center',
-                    row: 'flex w-full border-b sm:flex-1',
-                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[3.75rem] sm:min-h-0',
+                    row: 'flex w-full border-b lg:flex-1',
+                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[3.75rem] lg:min-h-0',
                     day: 'w-full h-full p-0 flex flex-col',
                     day_selected: 'bg-accent/50 text-foreground',
                     day_today: 'bg-accent text-accent-foreground',
@@ -567,7 +567,7 @@ export default function CalendarioPage() {
 
       {/* Mobile Selected Day Events List */}
       {view === 'month' && (
-        <div className="md:hidden flex flex-col gap-3 shrink-0 px-1 py-2">
+        <div className="lg:hidden flex flex-col gap-3 shrink-0 px-1 py-2">
           <h3 className="font-semibold text-base flex items-center justify-between capitalize">
             {selectedDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
             {canAddEvents && (
