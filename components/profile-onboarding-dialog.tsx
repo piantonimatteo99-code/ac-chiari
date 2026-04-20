@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { UserRound, Smartphone, Monitor, Share, X, CheckCircle2, Loader2 } from 'lucide-react';
+import { UserRound, Smartphone, Monitor, Share, CheckCircle2, Loader2 } from 'lucide-react';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { UserProfileDialog } from './user-profile-dialog';
 
@@ -212,23 +212,21 @@ export function PostOnboardingDialog({ forceShow = false, onClose }: PostOnboard
   };
 
   const handleCompleta = () => {
-    dismiss();
+    // Salva il flag e chiudi il dialog principale,
+    // ma NON chiamare onClose: il componente deve restare montato
+    // finché UserProfileDialog è aperto
+    localStorage.setItem(STORAGE_KEY, '1');
+    setShow(false);
     setOpenProfile(true);
   };
 
   return (
     <>
       <Dialog open={show} onOpenChange={(open) => { if (!open) dismiss(); }}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden gap-0">
+        {/* [&>button]:hidden nasconde il close button built-in di shadcn (già gestito da onOpenChange) */}
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden gap-0 [&>button]:hidden">
           {/* Gradient header */}
-          <div className="relative bg-gradient-to-br from-primary/10 to-primary/5 px-6 pt-8 pb-6 text-center">
-            <button
-              onClick={dismiss}
-              className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-muted/60 text-muted-foreground transition-colors"
-              aria-label="Chiudi"
-            >
-              <X className="h-4 w-4" />
-            </button>
+          <div className="bg-gradient-to-br from-primary/10 to-primary/5 px-6 pt-8 pb-6 text-center">
             <div className="mx-auto h-16 w-16 rounded-full bg-primary/15 flex items-center justify-center mb-4">
               <UserRound className="h-8 w-8 text-primary" />
             </div>
@@ -253,10 +251,14 @@ export function PostOnboardingDialog({ forceShow = false, onClose }: PostOnboard
         </DialogContent>
       </Dialog>
 
-      {/* Profile dialog */}
+      {/* Profile dialog — resta montato finché l'utente non lo chiude,
+          solo ALLORA segnaliamo onClose al genitore (layout) */}
       <UserProfileDialog
         isOpen={openProfile}
-        onOpenChange={setOpenProfile}
+        onOpenChange={(open) => {
+          setOpenProfile(open);
+          if (!open) onClose?.();
+        }}
         onSaved={() => localStorage.setItem(STORAGE_KEY, '1')}
       />
     </>

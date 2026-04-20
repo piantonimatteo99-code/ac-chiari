@@ -619,9 +619,10 @@ export default function DashboardPage() {
   }, [firestore, resolvedFamilyId]);
   const { data: familyMembri } = useCollection<Membro>(membriQuery);
 
-  // Relevant events: for educators = their groups; for genitore = all; for hybrid = union
+  // Relevant events: for educators/admin = their groups + family; for genitore = family groups only
   const relevantEvents = useMemo(() => {
     if (!allEvents) return [];
+
     if ((isEducatore || isAdmin) && myGroups && myGroups.length > 0) {
       const gids = new Set(myGroups.map(g => g.id));
       // Start with educator's group events
@@ -636,8 +637,14 @@ export default function DashboardPage() {
       }
       return educatorEvents;
     }
-    return allEvents;
-  }, [allEvents, myGroups, isEducatore, isAdmin, familyMembri]);
+
+    // Genitore / utente base: mostra solo eventi dei propri gruppi e del nucleo familiare
+    const userGroupIds = new Set<string>();
+    if (userData?.groupId) userGroupIds.add(userData.groupId);
+    (familyMembri ?? []).forEach(m => { if (m.groupId) userGroupIds.add(m.groupId); });
+    if (userGroupIds.size === 0) return [];
+    return allEvents.filter(e => e.groupIds?.some(gid => userGroupIds.has(gid)));
+  }, [allEvents, myGroups, isEducatore, isAdmin, familyMembri, userData]);
 
   // Raccolte (payments)
   const raccoltaQuery = useMemoFirebase(() => {

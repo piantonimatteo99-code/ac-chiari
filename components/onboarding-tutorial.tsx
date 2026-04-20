@@ -261,22 +261,10 @@ export function OnboardingTutorial({ onComplete }: OnboardingTutorialProps) {
         },
         {
           id: 'hamburger',
-          message: '☰ Per navigare tra le sezioni, apri il menù toccando il pulsante in alto a sinistra. Toccalo ora!',
+          message: '☰ Per navigare tra le sezioni, tocca il pulsante in alto a sinistra. Toccalo ora per vedere le sezioni disponibili!',
           position: 'bottom-left',
           highlight: 'button.sm\\:hidden',
           waitForClick: 'button.sm\\:hidden',
-        },
-        {
-          id: 'sidebar-open',
-          message: '📋 Perfetto! Qui trovi tutte le sezioni dell\'app: puoi aggiungere familiari, confermare la partecipazione agli eventi e caricare i bonifici per le attività.',
-          position: 'bottom-right',
-          highlight: 'div[data-radix-popper-content-wrapper], [role="dialog"]',
-        },
-        {
-          id: 'close-sidebar',
-          message: '👆 Chiudi il menù premendo fuori o sull\'icona ✕ per continuare.',
-          position: 'center',
-          waitForClick: 'button[aria-label="Close"], button[data-radix-collection-item]',
         },
         {
           id: 'assistant',
@@ -293,20 +281,18 @@ export function OnboardingTutorial({ onComplete }: OnboardingTutorialProps) {
         },
         {
           id: 'dashboard',
-          message: '🏠 Questa è la Dashboard: il tuo punto di partenza. Qui trovi un riepilogo delle attività dell\'associazione.',
+          message: '🏠 Questa è la Dashboard: il tuo punto di partenza. Qui trovi un riepilogo di tutte le attività dell\'associazione.',
           position: 'center',
         },
         {
           id: 'sidebar',
-          message: '📋 Sulla sinistra trovi la sidebar con tutte le sezioni: puoi aggiungere familiari, vedere gli eventi, confermare le presenze e caricare i bonifici.',
+          message: '📋 Sulla sinistra trovi la sidebar con tutte le sezioni: aggiungi familiari, vedi gli eventi, conferma le presenze e carica i bonifici.',
           position: 'center',
-          highlight: 'aside',
         },
         {
           id: 'assistant',
           message: '🤖 Hai bisogno di aiuto? L\'assistente in basso a destra è sempre disponibile! Cliccalo per chiedergli qualsiasi cosa sull\'app.',
-          position: 'top-center',
-          highlight: '#ai-assistant-fab',
+          position: 'center',
         },
       ];
 
