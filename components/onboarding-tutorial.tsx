@@ -8,7 +8,7 @@ const STORAGE_KEY = 'onboarding-tutorial-v2';
 
 // ── Tipi ──────────────────────────────────────────────────────────────────────
 
-type TooltipPosition = 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'bottom-center';
+type TooltipPosition = 'center' | 'top-center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'bottom-center';
 
 interface TutorialStep {
   id: string;
@@ -46,10 +46,15 @@ interface TooltipProps {
 }
 
 function TutorialTooltip({ message, position, step, total, onNext, onSkip, highlightRect, waitingForClick }: TooltipProps) {
-  const isCenter = position === 'center';
 
   const getPositionStyle = (): React.CSSProperties => {
-    if (isCenter || !highlightRect) {
+    const TOOLTIP_H = 160; // altezza stimata tooltip in px
+    const margin = 16;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // Centro schermo (no highlight, oppure forza centro)
+    if (position === 'center' || !highlightRect) {
       return {
         position: 'fixed',
         left: '50%',
@@ -60,11 +65,20 @@ function TutorialTooltip({ message, position, step, total, onNext, onSkip, highl
       };
     }
 
-    const margin = 16;
-    const vw = window.innerWidth;
+    // Top-center: usato quando l'elemento è in basso (es. FAB) — tooltip in cima
+    if (position === 'top-center') {
+      return {
+        position: 'fixed',
+        top: 24,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        maxWidth: 'min(340px, calc(100vw - 32px))',
+        zIndex: 10001,
+      };
+    }
 
     if (position === 'bottom-center' || position === 'bottom-left' || position === 'bottom-right') {
-      const top = Math.min(highlightRect.bottom + margin, window.innerHeight - 180);
+      const top = Math.min(highlightRect.bottom + margin, vh - TOOLTIP_H - margin);
       const left = position === 'bottom-right'
         ? Math.min(highlightRect.right - 10, vw - 356)
         : position === 'bottom-left'
@@ -80,7 +94,10 @@ function TutorialTooltip({ message, position, step, total, onNext, onSkip, highl
     }
 
     if (position === 'top-right' || position === 'top-left') {
-      const top = Math.max(highlightRect.top - 130, 8);
+      // Se l'elemento è così in basso che il tooltip sovrapporrebbe lo spotlight,
+      // saliamo fino a garantire che stia SOPRA l'elemento evidenziato
+      const idealTop = highlightRect.top - TOOLTIP_H - margin;
+      const top = Math.max(idealTop, 8);
       const left = position === 'top-right'
         ? Math.min(highlightRect.right - 10, vw - 356)
         : Math.max(highlightRect.left - 10, 8);
@@ -264,7 +281,7 @@ export function OnboardingTutorial({ onComplete }: OnboardingTutorialProps) {
         {
           id: 'assistant',
           message: '🤖 In caso di dubbi, c\'è sempre il nostro assistente! Tocca l\'avatar in basso a destra per chiedergli aiuto su qualsiasi cosa.',
-          position: 'top-right',
+          position: 'top-center',
           highlight: '#ai-assistant-fab',
         },
       ]
@@ -288,7 +305,7 @@ export function OnboardingTutorial({ onComplete }: OnboardingTutorialProps) {
         {
           id: 'assistant',
           message: '🤖 Hai bisogno di aiuto? L\'assistente in basso a destra è sempre disponibile! Cliccalo per chiedergli qualsiasi cosa sull\'app.',
-          position: 'top-right',
+          position: 'top-center',
           highlight: '#ai-assistant-fab',
         },
       ];
