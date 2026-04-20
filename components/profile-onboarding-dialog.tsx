@@ -170,16 +170,19 @@ function InstallButton({ onDone }: { onDone: () => void }) {
     );
   }
 
-  // ── Desktop senza prompt (fallback: icona nella barra indirizzi) ──────────
+  // ── Desktop senza prompt (fallback: pulsante "Apri nell'app") ────────────
   return (
     <div className="rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 p-4 text-sm">
-      <p className="font-semibold mb-1 flex items-center gap-2">
+      <p className="font-semibold mb-2 flex items-center gap-2">
         <Monitor className="h-4 w-4" /> Installa su PC / Mac
       </p>
-      <p className="text-muted-foreground text-xs leading-relaxed">
-        Clicca l&apos;icona <strong>⊕ Installa</strong> nella barra degli indirizzi di Chrome o Edge
-        per aggiungere l&apos;app al desktop.
+      <p className="text-muted-foreground text-xs leading-relaxed mb-2">
+        Clicca il pulsante nella barra degli indirizzi di Chrome o Edge:
       </p>
+      <span className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-xs font-semibold px-2.5 py-1 rounded-md shadow-sm">
+        <Monitor className="h-3.5 w-3.5" />
+        Apri nell&apos;app
+      </span>
     </div>
   );
 }

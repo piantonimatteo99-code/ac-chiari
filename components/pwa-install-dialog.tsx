@@ -194,8 +194,8 @@ export function PwaInstallDialog({ forceShow = false, onDismiss }: PwaInstallDia
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
+        {/* Content — pb-36 garantisce spazio sufficiente perché il footer non copra il contenuto su mobile */}
+        <div className="flex-1 overflow-y-auto px-6 pb-36 md:pb-6 space-y-6">
 
           {/* Benefits */}
           <div className="rounded-2xl bg-primary/5 border border-primary/10 p-5">
@@ -325,8 +325,15 @@ export function PwaInstallDialog({ forceShow = false, onDismiss }: PwaInstallDia
               <div className="flex gap-4 items-start">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white text-sm font-bold shadow">1</span>
                 <div className="flex-1 rounded-xl bg-muted p-4">
-                  <p className="text-sm font-medium">Clicca l&apos;icona <strong>&quot;Installa&quot;</strong> nella barra indirizzi</p>
-                  <p className="text-xs text-muted-foreground mt-1">In Chrome/Edge trovi un&apos;icona di download (⊕) nella barra indirizzi a destra</p>
+                  <p className="text-sm font-medium">
+                    Clicca il pulsante{' '}
+                    <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-md">
+                      <Monitor className="h-3 w-3" />
+                      Apri nell&apos;app
+                    </span>{' '}
+                    nella barra degli indirizzi
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">Lo trovi a destra nella barra indirizzi di Chrome o Edge</p>
                 </div>
               </div>
             </div>
