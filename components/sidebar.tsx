@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Settings } from 'lucide-react';
+
 import SidebarLinks from './sidebar-links';
 import { AcChiariLogo } from './ac-logo';
 
@@ -30,18 +30,7 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Footer */}
-      <div className="flex-shrink-0 border-t border-sidebar-border">
-        <div className="flex flex-col px-3 py-3">
-          <Link
-            href="/admin/configurazione/gestione-pagine"
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-sidebar-muted transition-all duration-200 hover:bg-sidebar-hover hover:text-sidebar-fg"
-          >
-            <Settings className="h-4 w-4" />
-            <span>Impostazioni</span>
-          </Link>
-        </div>
-      </div>
+
     </aside>
   );
 }

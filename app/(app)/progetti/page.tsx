@@ -12,7 +12,7 @@ import { useUserData, type UserData } from '@/src/hooks/use-user-data';
 import { useMemo } from 'react';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
-import { PageTutorial } from '@/components/page-tutorial';
+
 export interface Progetto {
     id: string;
     name: string;
@@ -178,26 +178,7 @@ export default function ProgettiPage() {
                 </Button>
             </div>
 
-            <PageTutorial
-                pageId="progetti"
-                steps={[
-                    {
-                        icon: '🧪',
-                        title: 'I tuoi Progetti',
-                        description: 'Qui trovi i laboratori, i percorsi e le iniziative a cui puoi partecipare.',
-                    },
-                    {
-                        icon: '🔍',
-                        title: 'Esplora i dettagli',
-                        description: 'Clicca su un progetto per vederne i dettagli, i posti disponibili e per confermare la tua partecipazione.',
-                    },
-                    {
-                        icon: '🕰️',
-                        title: 'Progetti Conclusi',
-                        description: 'Premendo "Storico Progetti" in fondo alla pagina, puoi rivedere le iniziative passate a cui hai preso parte.',
-                    }
-                ]}
-            />
+
         </>
     );
 }

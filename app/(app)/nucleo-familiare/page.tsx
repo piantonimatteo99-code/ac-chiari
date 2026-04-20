@@ -20,7 +20,7 @@ import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@
 import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { ConfirmationDialog } from '@/components/confirmation-dialog';
-import { PageTutorial } from '@/components/page-tutorial';
+
 
 export interface Membro {
   id: string;
@@ -303,26 +303,7 @@ export default function NucleoFamiliarePage() {
         </p>
       )}
 
-      <PageTutorial
-        pageId="nucleo-familiare"
-        steps={[
-          {
-            icon: '👨‍👩‍👧‍👦',
-            title: 'Il tuo Nucleo Familiare',
-            description: 'Gestisci la tua famiglia. Puoi aggiungere membri o unirti a un nucleo esistente.',
-          },
-          {
-            icon: '➕',
-            title: 'Aggiungi un membro',
-            description: 'Premi "Aggiungi Membro" per inserire un nuovo membro con i suoi dati anagrafici.',
-          },
-          {
-            icon: '🔗',
-            title: 'Unisciti a una famiglia',
-            description: 'Se un tuo familiare è già registrato, premi "Unisciti a una Famiglia", cerca il suo nome e inserisci il codice che riceverà via email.',
-          },
-        ]}
-      />
+
     </div>
   );
 }

@@ -14,6 +14,7 @@ import { UploadCloud, X, File as FileIcon, Loader2, Pencil, AlertCircle, Refresh
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useStorage, useFirestore } from '@/src/firebase';
+import { getAuth } from 'firebase/auth';
 import { ref, uploadBytes, deleteObject, getDownloadURL } from "firebase/storage";
 import { collection, doc, writeBatch, arrayUnion, serverTimestamp, getDocs, query, where, runTransaction, addDoc, onSnapshot, getDoc, collectionGroup, deleteField } from 'firebase/firestore';
 import { Label } from '@/components/ui/label';
@@ -641,22 +642,27 @@ const handleConfirm = async () => {
         await batch.commit();
 
         // Invio email al capofamiglia (fire-and-forget – non blocca il flusso)
-        fetch('/api/send-payment-email', {
+        getAuth().currentUser?.getIdToken().then(idToken => {
+          fetch('/api/send-payment-email', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`,
+            },
             body: JSON.stringify({
-                familyHeadId: user.uid,
-                paymentItems: paymentItems.map(item => ({
-                    memberName: item.memberName,
-                    raccoltaNome: item.raccoltaNome,
-                    phase: item.phase,
-                    amount: item.amount,
-                })),
-                paymentId: paymentId,
-                receiptUrl: finalReceiptUrl,
-                paymentMethod: 'bonifico',
+              familyHeadId: user.uid,
+              paymentItems: paymentItems.map(item => ({
+                memberName: item.memberName,
+                raccoltaNome: item.raccoltaNome,
+                phase: item.phase,
+                amount: item.amount,
+              })),
+              paymentId: paymentId,
+              receiptUrl: finalReceiptUrl,
+              paymentMethod: 'bonifico',
             }),
-        }).catch(e => console.warn('Errore invio email pagamento:', e));
+          }).catch(e => console.warn('Errore invio email pagamento:', e));
+        }).catch(e => console.warn('Token non disponibile per email pagamento:', e));
 
         clearCachedPaymentId();
 

@@ -18,6 +18,13 @@ declare global {
 
 const STORAGE_KEY = 'pwa-install-dismissed-v1';
 
+interface PwaInstallDialogProps {
+  /** Se true, mostra la dialog subito ignorando il localStorage */
+  forceShow?: boolean;
+  /** Callback chiamato quando la dialog viene chiusa */
+  onDismiss?: () => void;
+}
+
 function detectPlatform(): Platform {
   if (typeof navigator === 'undefined') return null;
   const ua = navigator.userAgent;
@@ -33,7 +40,7 @@ function detectPlatform(): Platform {
   return 'desktop';
 }
 
-export function PwaInstallDialog() {
+export function PwaInstallDialog({ forceShow = false, onDismiss }: PwaInstallDialogProps = {}) {
   const [platform, setPlatform] = useState<Platform>(null);
   const [show, setShow] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -43,15 +50,16 @@ export function PwaInstallDialog() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const dismissed = localStorage.getItem(STORAGE_KEY);
+    // Se forzato, mostra subito indipendentemente da localStorage
+    const dismissed = !forceShow && localStorage.getItem(STORAGE_KEY);
     if (dismissed) return;
 
-    const detected = detectPlatform();
+    const detected = detectPlatform() ?? (forceShow ? 'ios' : null);
     if (!detected) return;
     setPlatform(detected);
 
-    if (detected === 'ios') {
-      const t = setTimeout(() => setShow(true), 1500);
+    if (detected === 'ios' || forceShow) {
+      const t = setTimeout(() => setShow(true), 200);
       return () => clearTimeout(t);
     }
 
@@ -109,6 +117,7 @@ export function PwaInstallDialog() {
     setShow(false);
     setInstallError(null);
     setShowManualFallback(false);
+    onDismiss?.();
   };
 
   const handleNativeInstall = async () => {

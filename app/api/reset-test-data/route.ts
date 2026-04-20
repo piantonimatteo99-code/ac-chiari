@@ -62,9 +62,29 @@ export async function POST(req: NextRequest) {
     const auth = admin.auth();
 
     // ── 0. Security ───────────────────────────────────────────────────────────
-    const authHeader = req.headers.get('x-reset-secret');
+    // Accetta DUE percorsi di autenticazione (uno dei due deve passare):
+    // A) x-reset-secret: segreto fisso per script/CI
+    // B) x-admin-token: Firebase ID token con ruolo admin (usato dal pulsante UI)
+    const secretHeader = req.headers.get('x-reset-secret');
     const expectedSecret = process.env.RESET_SECRET;
-    if (expectedSecret && authHeader !== expectedSecret) {
+    const secretOk = !!expectedSecret && secretHeader === expectedSecret;
+
+    let tokenOk = false;
+    const adminTokenHeader = req.headers.get('x-admin-token');
+    if (!secretOk && adminTokenHeader) {
+      try {
+        const decoded = await auth.verifyIdToken(adminTokenHeader);
+        const callerDoc = await db.collection('users').doc(decoded.uid).get();
+        const roles: string[] = callerDoc.exists && Array.isArray(callerDoc.data()?.roles)
+          ? callerDoc.data()!.roles
+          : [];
+        tokenOk = roles.includes('admin');
+      } catch {
+        // Token non valido — tokenOk rimane false
+      }
+    }
+
+    if (!secretOk && !tokenOk) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

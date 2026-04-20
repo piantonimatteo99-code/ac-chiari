@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
+import { getAuth } from 'firebase/auth';
+import { useUserData } from '@/src/hooks/use-user-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -154,6 +156,8 @@ const SITE_MAP: SiteMapNode[] = [
 
 export default function GestionePaginePage() {
   const firestore = useFirestore();
+  const { userData, isLoading: isUserLoading } = useUserData();
+  const isAdmin = userData?.roles?.includes('admin') ?? false;
 
   // ── Reset test data ──────────────────────────────────────────────────────
   const [showResetConfirm1, setShowResetConfirm1] = useState(false);
@@ -166,7 +170,13 @@ export default function GestionePaginePage() {
     setIsResetting(true);
     setResetResult(null);
     try {
-      const res = await fetch('/api/reset-test-data', { method: 'POST' });
+      const currentUser = getAuth().currentUser;
+      if (!currentUser) throw new Error('Utente non autenticato');
+      const idToken = await currentUser.getIdToken();
+      const res = await fetch('/api/reset-test-data', {
+        method: 'POST',
+        headers: { 'x-admin-token': idToken },
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore sconosciuto');
       setResetResult({ success: true, deleted: data.deleted });
@@ -232,6 +242,18 @@ export default function GestionePaginePage() {
   };
 
   const isSpecialPage = (id: string) => id === 'miei-gruppi';
+
+  // \u2500\u2500 Guard: solo admin \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  if (!isUserLoading && !isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
+        <Shield className="h-12 w-12 text-muted-foreground" />
+        <h2 className="text-xl font-semibold">Accesso negato</h2>
+        <p className="text-muted-foreground">Questa pagina \u00e8 riservata agli amministratori.</p>
+      </div>
+    );
+  }
+
 
   const renderSiteMapNode = (node: SiteMapNode, depth = 0): React.ReactNode => {
     const Icon = node.icon;

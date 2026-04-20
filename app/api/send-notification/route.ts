@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb, adminMessaging } from '@/lib/firebase-admin';
+import { adminDb, adminMessaging, initAdminApp } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import webpush from 'web-push';
+import * as admin from 'firebase-admin';
 
 webpush.setVapidDetails(
   process.env.WEBPUSH_SUBJECT!,
@@ -35,10 +36,44 @@ function userNotifRoles(roles: string[]): NotifRole[] {
 
 export async function POST(req: NextRequest) {
   try {
+    initAdminApp();
+
+    // ── 0. Autenticazione ──────────────────────────────────────────────────
+    const authorizationHeader = req.headers.get('authorization');
+    const idToken = authorizationHeader?.startsWith('Bearer ')
+      ? authorizationHeader.slice(7)
+      : null;
+
+    if (!idToken) {
+      return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+    }
+
+    let callerUid: string;
+    let callerRoles: string[] = [];
+    try {
+      const decoded = await admin.auth().verifyIdToken(idToken);
+      callerUid = decoded.uid;
+      // Recupera i ruoli dal documento utente
+      const callerDoc = await adminDb.collection('users').doc(callerUid).get();
+      if (callerDoc.exists) {
+        callerRoles = Array.isArray(callerDoc.data()?.roles) ? callerDoc.data()!.roles : [];
+      }
+    } catch {
+      return NextResponse.json({ error: 'Token non valido o scaduto' }, { status: 401 });
+    }
+
     const { userId, title, body, type, href, eventType } = await req.json();
 
     if (!userId || !title || !body || !type) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Le modalità broadcast sono riservate agli admin
+    if (
+      (userId === '__broadcast__' || userId === '__admin_broadcast__') &&
+      !callerRoles.includes('admin')
+    ) {
+      return NextResponse.json({ error: 'Permessi insufficienti' }, { status: 403 });
     }
 
     // ── 1. Read per-role config if eventType is provided ──────────────────

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/sidebar';
 import Header from '@/components/header';
@@ -9,8 +9,9 @@ import { signOut } from 'firebase/auth';
 import { useAuth } from '@/src/firebase';
 import { Toaster } from '@/components/ui/toaster';
 import { PwaInstallDialog } from '@/components/pwa-install-dialog';
-import { ProfileOnboardingDialog } from '@/components/profile-onboarding-dialog';
+import { ProfileOnboardingDialog, PostOnboardingDialog } from '@/components/profile-onboarding-dialog';
 import { AiAssistant } from '@/components/ai-assistant';
+import { OnboardingTutorial, useOnboardingTutorial } from '@/components/onboarding-tutorial';
 
 export default function AppLayout({
   children,
@@ -20,6 +21,10 @@ export default function AppLayout({
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const auth = useAuth();
+
+  // Tutorial onboarding
+  const { shouldShow: showTutorial, markDone: markTutorialDone } = useOnboardingTutorial();
+  const [showPostDialog, setShowPostDialog] = useState(false);
 
   useEffect(() => {
     if (isUserLoading) return;
@@ -51,9 +56,31 @@ export default function AppLayout({
         </main>
       </div>
       <Toaster />
-      {/* Profile onboarding MUST appear before PWA install */}
-      <ProfileOnboardingDialog />
-      <PwaInstallDialog />
+
+      {/* Tutorial interattivo — mostrato solo ai nuovi utenti, PRIMA di tutto */}
+      {showTutorial && (
+        <OnboardingTutorial
+          onComplete={() => {
+            markTutorialDone();
+            setShowPostDialog(true);
+          }}
+        />
+      )}
+
+      {/* Dialog post-tutorial: aggiungi dati / installa app */}
+      {showPostDialog && (
+        <PostOnboardingDialog
+          forceShow
+          onClose={() => setShowPostDialog(false)}
+        />
+      )}
+
+      {/* Dialog per utenti già registrati senza profilo completo (senza tutorial) */}
+      {!showTutorial && !showPostDialog && <ProfileOnboardingDialog />}
+
+      {/* PWA install auto (per chi non ha visto il tutorial) */}
+      {!showTutorial && <PwaInstallDialog />}
+
       {/* AI Assistant — floating chat bubble */}
       <AiAssistant />
     </div>

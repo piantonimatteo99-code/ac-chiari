@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { getAuth } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -139,9 +140,16 @@ export default function TestNotificationsPage() {
     const key = n.eventType;
     setResults(prev => ({ ...prev, [key]: 'loading' }));
     try {
+      const currentUser = getAuth().currentUser;
+      if (!currentUser) throw new Error('Utente non autenticato');
+      const idToken = await currentUser.getIdToken();
+
       const res = await fetch('/api/send-notification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           userId: n.userId ?? '__broadcast__',
           title: n.title,

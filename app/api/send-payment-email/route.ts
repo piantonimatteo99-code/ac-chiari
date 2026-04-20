@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
-import { initAdminApp } from '@/lib/firebase-admin';
+import { initAdminApp, adminDb } from '@/lib/firebase-admin';
 
 // ─── Tipi ─────────────────────────────────────────────────────────────────────
 
@@ -184,6 +184,22 @@ function buildEmailHtml(
 export async function POST(request: NextRequest) {
   try {
     initAdminApp();
+
+    // ── 0. Autenticazione ──────────────────────────────────────────────────
+    // Richiesto: qualsiasi utente autenticato (genitore, educatore o admin).
+    // Blocca chiamate esterne non autenticate.
+    const authorization = request.headers.get('authorization');
+    const idToken = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null;
+
+    if (!idToken) {
+      return NextResponse.json({ error: 'Non autenticato' }, { status: 401 });
+    }
+
+    try {
+      await admin.auth().verifyIdToken(idToken);
+    } catch {
+      return NextResponse.json({ error: 'Token non valido o scaduto' }, { status: 401 });
+    }
 
     const body: EmailPayload = await request.json();
     const { familyHeadId, paymentItems, paymentId, receiptUrl, paymentMethod } = body;

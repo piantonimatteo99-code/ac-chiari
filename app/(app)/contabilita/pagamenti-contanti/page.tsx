@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useCallback } from 'react';
+import { getAuth } from 'firebase/auth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -305,20 +306,25 @@ export default function PagamentiContantiPage() {
                 const memberName = member ? `${member.nome} ${member.cognome}` : memberId;
                 const phaseLabel = phase === 'caparra' ? 'Caparra' : 'Saldo';
 
-                fetch('/api/send-payment-email', {
+                getAuth().currentUser?.getIdToken().then(idToken => {
+                  fetch('/api/send-payment-email', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${idToken}`,
+                    },
                     body: JSON.stringify({
-                        familyHeadId,
-                        paymentItems: [{
-                            memberName,
-                            raccoltaNome: raccolta.nome,
-                            phase: phaseLabel,
-                            amount: String(importo),
-                        }],
-                        paymentMethod: 'contanti',
+                      familyHeadId,
+                      paymentItems: [{
+                        memberName,
+                        raccoltaNome: raccolta.nome,
+                        phase: phaseLabel,
+                        amount: String(importo),
+                      }],
+                      paymentMethod: 'contanti',
                     }),
-                }).catch(e => console.warn('Errore invio email pagamento:', e));
+                  }).catch(e => console.warn('Errore invio email pagamento:', e));
+                }).catch(e => console.warn('Token non disponibile per email pagamento:', e));
 
                 triggerNotification({
                     eventType: 'pagamento_ricevuto',
@@ -554,20 +560,25 @@ export default function PagamentiContantiPage() {
                                                             const member = allMembers.find(m => m.id === memberId);
                                                             const familyHeadId = member?.familyId || memberId;
                                                             const memberName = member ? `${member.nome} ${member.cognome}` : memberId;
-                                                            fetch('/api/send-payment-email', {
+                                                            getAuth().currentUser?.getIdToken().then(idToken => {
+                                                              fetch('/api/send-payment-email', {
                                                                 method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json' },
+                                                                headers: {
+                                                                  'Content-Type': 'application/json',
+                                                                  'Authorization': `Bearer ${idToken}`,
+                                                                },
                                                                 body: JSON.stringify({
-                                                                    familyHeadId,
-                                                                    paymentItems: [{
-                                                                        memberName,
-                                                                        raccoltaNome: raccolta.nome,
-                                                                        phase: 'Tesseramento',
-                                                                        amount: String(fee),
-                                                                    }],
-                                                                    paymentMethod: 'contanti',
+                                                                  familyHeadId,
+                                                                  paymentItems: [{
+                                                                    memberName,
+                                                                    raccoltaNome: raccolta.nome,
+                                                                    phase: 'Tesseramento',
+                                                                    amount: String(fee),
+                                                                  }],
+                                                                  paymentMethod: 'contanti',
                                                                 }),
-                                                            }).catch(e => console.warn('Errore invio email pagamento:', e));
+                                                              }).catch(e => console.warn('Errore invio email pagamento:', e));
+                                                            }).catch(e => console.warn('Token non disponibile per email pagamento:', e));
 
                                                             triggerNotification({
                                                                 eventType: 'pagamento_ricevuto',
