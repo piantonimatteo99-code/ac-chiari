@@ -494,7 +494,10 @@ export default function PagamentiContantiPage() {
                                                     if (a.familyId !== b.familyId) {
                                                         return (a.familyId || '').localeCompare(b.familyId || '');
                                                     }
-                                                    return new Date(b.dataNascita!).getTime() - new Date(a.dataNascita!).getTime();
+                                                    const dateA = a.dataNascita ? new Date(a.dataNascita).getTime() : 0;
+                                                    const dateB = b.dataNascita ? new Date(b.dataNascita).getTime() : 0;
+                                                    if (isNaN(dateA) || isNaN(dateB)) return 0;
+                                                    return dateB - dateA;
                                                 });
                                                 const membersByFamilyForFee = allMembersSorted.reduce((acc, member) => {
                                                     const familyId = member.familyId || member.id;
@@ -513,9 +516,9 @@ export default function PagamentiContantiPage() {
                                                     const tariffa = getTariffaForMember(member, tariffe || []);
                                                     if (!tariffa) return { ...member, fee: 0 };
                                                     let fee: number;
-                                                    if (numMembers <= 1) { fee = tariffa.quotaIntera; }
-                                                    else if (numMembers <= 3) { fee = tariffa.quotaScontata; }
-                                                    else { if (memberIndexInFamily >= 3) { fee = tariffa.gratuita; } else { fee = tariffa.quotaScontata; } }
+                                                    if (numMembers <= 1) { fee = tariffa.quotaIntera ?? 0; }
+                                                    else if (numMembers <= 3) { fee = tariffa.quotaScontata ?? 0; }
+                                                    else { if (memberIndexInFamily >= 3) { fee = tariffa.gratuita ?? 0; } else { fee = tariffa.quotaScontata ?? 0; } }
                                                     
                                                     if (typeof fee !== 'number') {
                                                         fee = 0;
@@ -607,12 +610,12 @@ export default function PagamentiContantiPage() {
                                                                         <TableCell>
                                                                             {isPaid ? (
                                                                                 <div className="flex items-center gap-2 text-green-600 font-medium">
-                                                                                    <CheckCircle2 className="h-5 w-5" /> €{(member.fee || 0).toFixed(2)}
+                                                                                    <CheckCircle2 className="h-5 w-5" /> €{(typeof member.fee === 'number' ? member.fee : 0).toFixed(2)}
                                                                                 </div>
                                                                             ) : (
                                                                                 <div className="flex items-center gap-2">
-                                                                                    <Checkbox checked={isPaid} onCheckedChange={(checked) => handleTesseramentoPaymentToggle(member.id, !!checked, member.fee)} disabled={isProcessingTesseramento} />
-                                                                                    <span>€{(member.fee || 0).toFixed(2)}</span>
+                                                                                    <Checkbox checked={isPaid} onCheckedChange={(checked) => handleTesseramentoPaymentToggle(member.id, !!checked, typeof member.fee === 'number' ? member.fee : 0)} disabled={isProcessingTesseramento} />
+                                                                                    <span>€{(typeof member.fee === 'number' ? member.fee : 0).toFixed(2)}</span>
                                                                                 </div>
                                                                             )}
                                                                         </TableCell>
