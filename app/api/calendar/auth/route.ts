@@ -39,7 +39,9 @@ export async function GET(request: NextRequest) {
   authUrl.searchParams.set('response_type', 'code');
   authUrl.searchParams.set('scope', CALENDAR_SCOPES);
   authUrl.searchParams.set('access_type', 'offline');
-  authUrl.searchParams.set('prompt', 'consent');
+  // 'select_account' shows account picker but avoids forcing consent on every login.
+  // Google will prompt for consent automatically when needed (first time or scope changes).
+  authUrl.searchParams.set('prompt', 'select_account');
   // Pass userId in state so the callback can retrieve it
   authUrl.searchParams.set('state', userId);
 
