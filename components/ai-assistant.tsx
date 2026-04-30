@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { X, Send, Loader2, ChevronDown } from 'lucide-react';
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { RobotAvatar } from '@/components/robot-avatar';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -221,15 +221,13 @@ export function AiAssistant() {
           onClick={handleOpen}
           className={cn(
             'fixed bottom-6 right-6 z-50',
-            'w-16 h-16 rounded-full overflow-hidden',
-            'bg-white',
-            'shadow-lg shadow-blue-500/30 ring-2 ring-blue-400/60',
-            'flex items-center justify-center',
+            'bg-transparent border-0 p-0 outline-none cursor-pointer',
             'hover:scale-110 active:scale-95 transition-transform duration-200',
+            'drop-shadow-lg',
             hasBounced && 'ai-fab-bounce'
           )}
         >
-          <Image src="/assistant-walle.png" alt="Assistente" width={64} height={64} className="w-full h-full object-cover animate-robot-idle" />
+          <RobotAvatar size={72} animated />
         </button>
       )}
 
@@ -251,12 +249,10 @@ export function AiAssistant() {
         >
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shrink-0">
-            <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-white/30 shrink-0">
-              <Image src="/assistant-walle.png" alt="Sam" width={36} height={36} className="w-full h-full object-cover animate-robot-idle" />
-            </div>
+            <RobotAvatar size={40} animated className="shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-none">Assistente AC Chiari</p>
-              <p className="text-[11px] text-blue-100 mt-0.5">Pronto ad aiutarti 🤓</p>
+              <p className="text-[11px] text-blue-100 mt-0.5">Pronto ad aiutarti 🤖</p>
             </div>
             <button
               onClick={() => { setOpen(false); removeHighlight(); }}
@@ -278,8 +274,8 @@ export function AiAssistant() {
                 )}
               >
                 {msg.role === 'assistant' && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ring-1 ring-blue-200 mt-0.5">
-                    <Image src="/assistant-walle.png" alt="Sam" width={32} height={32} className="w-full h-full object-cover" />
+                  <div className="flex-shrink-0 mt-0.5">
+                    <RobotAvatar size={32} animated={false} />
                   </div>
                 )}
                 <div
@@ -308,8 +304,8 @@ export function AiAssistant() {
 
             {loading && (
               <div className="flex gap-2 justify-start">
-                <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-blue-200 mt-0.5 shrink-0">
-                  <Image src="/assistant-walle.png" alt="Sam" width={32} height={32} className="w-full h-full object-cover" />
+                <div className="flex-shrink-0 mt-0.5">
+                  <RobotAvatar size={32} animated={false} />
                 </div>
                 <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-3 py-2.5 shadow-sm flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce [animation-delay:0ms]" />
