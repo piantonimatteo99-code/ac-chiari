@@ -10,7 +10,7 @@ export default function PrivacyPage() {
     <main className="min-h-screen bg-white text-gray-800 px-6 py-12 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-2 text-blue-800">Privacy Policy</h1>
       <p className="text-sm text-gray-500 mb-8">
-        Ultimo aggiornamento: 30 aprile 2025
+        Ultimo aggiornamento: 1 maggio 2025
       </p>
 
       <section className="mb-8">
@@ -33,6 +33,13 @@ export default function PrivacyPage() {
           <li>Indirizzo email (usato per autenticazione e comunicazioni interne)</li>
           <li>Dati di contabilità interni all'associazione (quote, pagamenti)</li>
           <li>Accesso al Google Calendar personale (solo se l'utente lo autorizza esplicitamente)</li>
+          <li>
+            <strong>Dati estratti da ricevute di pagamento</strong>: quando l'utente carica
+            l'immagine di una ricevuta bancaria, il sistema analizza automaticamente il documento
+            tramite intelligenza artificiale per estrarre: nome del pagante, importo, data,
+            beneficiario e IBAN. Questi dati sono trattati esclusivamente per verificare
+            la correttezza del pagamento.
+          </li>
         </ul>
       </section>
 
@@ -44,10 +51,60 @@ export default function PrivacyPage() {
           <li>Gestire la contabilità interna (entrate, uscite, quote annuali)</li>
           <li>Inviare notifiche e comunicazioni interne all'associazione</li>
           <li>
+            <strong>Verifica ricevute di pagamento tramite AI</strong>: l'immagine caricata viene
+            temporaneamente elaborata da un sistema di intelligenza artificiale (Google Gemini tramite
+            Firebase Extensions) al solo scopo di estrarre i dati del bonifico e verificarne
+            la correttezza. L'immagine originale viene eliminata da Firebase Storage non appena
+            archiviata su Google Drive. I dati estratti non vengono utilizzati per addestrare
+            modelli AI.
+          </li>
+          <li>
             <strong>Sincronizzazione con Google Calendar</strong>: con il consenso esplicito dell'utente,
             l'app accede al Google Calendar per aggiungere automaticamente gli eventi dell'associazione
             (riunioni, attività, scadenze). I token di accesso sono salvati in modo sicuro e non vengono
             mai condivisi con terze parti. L'utente può revocare l'accesso in qualsiasi momento.
+          </li>
+        </ul>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold mb-3 text-blue-700">3b. Analisi AI delle ricevute — dettagli tecnici</h2>
+        <p className="mb-3">
+          Quando un utente carica un'immagine di ricevuta bancaria, il sistema adotta le seguenti
+          misure per proteggere i dati:
+        </p>
+        <ul className="list-disc list-inside space-y-1 text-gray-700">
+          <li>
+            <strong>Accesso limitato</strong>: l'immagine è accessibile solo all'utente autenticato
+            che l'ha caricata, tramite percorso privato su Firebase Storage
+            (<code>receipts/{`{uid}`}/...</code>).
+          </li>
+          <li>
+            <strong>Elaborazione temporanea</strong>: l'immagine viene passata all'AI solo per
+            il tempo necessario all'analisi; al termine viene eliminata da Firebase Storage.
+          </li>
+          <li>
+            <strong>Dati estratti minimi</strong>: l'AI estrae solo i campi strettamente necessari
+            alla verifica del pagamento (importo, nome, IBAN, causale, data). Nessun altro dato
+            presente nella ricevuta viene conservato.
+          </li>
+          <li>
+            <strong>No training AI</strong>: i dati trasmessi a Google Gemini tramite Firebase
+            Extensions non vengono utilizzati da Google per addestrare modelli AI, in conformità
+            con i{" "}
+            <a
+              href="https://firebase.google.com/support/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline"
+            >
+              termini di privacy di Firebase
+            </a>
+            .
+          </li>
+          <li>
+            <strong>Archiviazione finale</strong>: la ricevuta viene salvata su Google Drive
+            dell'associazione, accessibile solo agli amministratori autorizzati.
           </li>
         </ul>
       </section>

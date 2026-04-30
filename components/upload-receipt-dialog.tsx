@@ -16,7 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useStorage, useFirestore } from '@/src/firebase';
 import { getAuth } from 'firebase/auth';
 import { ref, uploadBytes, deleteObject, getDownloadURL } from "firebase/storage";
-import { collection, doc, writeBatch, arrayUnion, serverTimestamp, getDocs, query, where, runTransaction, addDoc, onSnapshot, getDoc, collectionGroup, deleteField } from 'firebase/firestore';
+import { collection, doc, writeBatch, arrayUnion, serverTimestamp, getDocs, query, where, runTransaction, addDoc, onSnapshot, getDoc, collectionGroup, deleteField, deleteDoc } from 'firebase/firestore';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -483,6 +483,8 @@ export function UploadReceiptDialog({
           setFileError(`L'analisi AI è fallita: ${data.status.error || 'Errore sconosciuto.'}`);
           setIsLoading(false);
           unsubscribe();
+          // 🔒 Elimina il doc 'generate' (contiene il percorso sensibile dell'immagine)
+          deleteDoc(docRef).catch(e => console.warn('Cleanup generate doc failed:', e));
           return;
         }
         const output = data?.output || data?.response;
@@ -495,6 +497,8 @@ export function UploadReceiptDialog({
           } finally {
             setIsLoading(false);
             unsubscribe();
+            // 🔒 Elimina il doc 'generate' ora che il risultato è stato letto
+            deleteDoc(docRef).catch(e => console.warn('Cleanup generate doc failed:', e));
           }
         }
       });
