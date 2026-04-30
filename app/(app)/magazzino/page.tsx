@@ -26,12 +26,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ShelfSelector, MiniShelf, type ShelfPosition } from '@/components/shelf-selector';
+import { ShelfSelector, MiniShelf, ShelfMap, type ShelfPosition, type ShelfItem } from '@/components/shelf-selector';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import {
   Plus, Trash2, AlertTriangle, ChevronUp, ChevronDown, Package,
-  BookOpenCheck, Layers, Search, CheckCircle2
+  BookOpenCheck, Layers, Search, CheckCircle2, LayoutGrid
 } from 'lucide-react';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { cn } from '@/lib/utils';
@@ -129,10 +129,13 @@ function TabAlimenti() {
   const [showCatSuggestions, setShowCatSuggestions] = useState(false);
 
   // Visualizzazione
-  const [vista, setVista] = useState<'categoria' | 'prodotto'>('prodotto');
+  const [vista, setVista] = useState<'categoria' | 'prodotto' | 'scaffale'>('prodotto');
   const [sortKey, setSortKey] = useState<keyof ProdottoAlimento>('nome');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filterText, setFilterText] = useState('');
+
+  // Dialog dettaglio cella scaffale
+  const [cellDialog, setCellDialog] = useState<{ items: ShelfItem[]; ripiano: number; colonna: number } | null>(null);
 
   const handleNomeChange = async (val: string) => {
     setNome(val);
@@ -292,6 +295,12 @@ function TabAlimenti() {
               onClick={() => setVista('categoria')} className="rounded-none text-xs"
             >
               Per categoria
+            </Button>
+            <Button
+              size="sm" variant={vista === 'scaffale' ? 'default' : 'ghost'}
+              onClick={() => setVista('scaffale')} className="rounded-none text-xs gap-1"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" /> Scaffale
             </Button>
           </div>
         </div>
@@ -585,6 +594,98 @@ function TabAlimenti() {
           })}
         </Accordion>
       )}
+
+      {/* Vista scaffale */}
+      {vista === 'scaffale' && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              Mappa Scaffale
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {prodotti.length === 0 ? (
+              <p className="text-center text-muted-foreground py-10">Nessun prodotto inserito</p>
+            ) : (
+              <ShelfMap
+                items={prodotti as ShelfItem[]}
+                giorniAllerta={GIORNI_ALLERTA}
+                onCellClick={(items, ripiano, colonna) =>
+                  setCellDialog({ items, ripiano, colonna })
+                }
+              />
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dialog dettaglio cella */}
+      <Dialog open={!!cellDialog} onOpenChange={open => !open && setCellDialog(null)}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LayoutGrid className="h-4 w-4" />
+              Ripiano {cellDialog?.ripiano} · Sezione {cellDialog?.colonna}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {cellDialog?.items.map(p => {
+              const giorni = giorniScadenza(p.dataScadenza);
+              return (
+                <div key={p.id} className={cn(
+                  'rounded-lg border p-3 space-y-1',
+                  giorni < 0 ? 'border-destructive/50 bg-destructive/5' :
+                  giorni <= GIORNI_ALLERTA ? 'border-amber-300 bg-amber-50 dark:bg-amber-950/20' : ''
+                )}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-sm">{p.nome}</p>
+                      <p className="text-xs text-muted-foreground">{p.categoria} · x{p.quantita}</p>
+                    </div>
+                    {badgeScadenza(giorni)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Scadenza: <span className="font-medium text-foreground">{formatData(p.dataScadenza)}</span>
+                  </p>
+                  {isEducatore && (
+                    <div className="pt-1">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="outline" className="text-xs gap-1 h-7">
+                            <CheckCircle2 className="h-3 w-3" /> Segna utilizzato
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Conferma utilizzo</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Il prodotto <strong>"{p.nome}"</strong> verrà rimosso dall'elenco.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annulla</AlertDialogCancel>
+                            <AlertDialogAction onClick={async () => {
+                              await handleDelete(p.id, p.nome);
+                              setCellDialog(prev => {
+                                if (!prev) return null;
+                                const remaining = prev.items.filter(i => i.id !== p.id);
+                                return remaining.length === 0 ? null : { ...prev, items: remaining };
+                              });
+                            }}>
+                              Conferma
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
