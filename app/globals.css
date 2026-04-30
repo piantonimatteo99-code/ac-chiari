@@ -93,6 +93,11 @@
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Emoji font fallback — next/font carica solo subset 'latin' quindi
+       le emoji devono essere rese dai font di sistema */
+    font-family: var(--font-sans), ui-sans-serif, system-ui,
+      'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+      'Noto Color Emoji', sans-serif;
     
     /* Hide scrollbar for a cleaner app-like experience */
     scrollbar-width: none; /* Firefox */

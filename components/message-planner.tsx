@@ -63,7 +63,10 @@ const STATUS_CONFIG = {
 };
 
 function buildWaLink(text: string) {
-  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  // Normalize to NFC: emoji con variation selectors (es. 🗓️ = U+1F5D3 + U+FE0F)
+  // possono apparire come ◆ in alcune versioni di WhatsApp se non normalizzati
+  const normalized = text.normalize('NFC');
+  return `https://wa.me/?text=${encodeURIComponent(normalized)}`;
 }
 
 function formatScheduledDate(date: any) {

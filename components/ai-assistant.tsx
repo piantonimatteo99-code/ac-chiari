@@ -229,7 +229,7 @@ export function AiAssistant() {
             hasBounced && 'ai-fab-bounce'
           )}
         >
-          <Image src="/assistant-avatar.png" alt="Assistente" width={64} height={64} className="w-full h-full object-cover" />
+          <Image src="/assistant-walle.png" alt="Assistente" width={64} height={64} className="w-full h-full object-cover animate-robot-idle" />
         </button>
       )}
 
@@ -252,7 +252,7 @@ export function AiAssistant() {
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shrink-0">
             <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-white/30 shrink-0">
-              <Image src="/assistant-avatar.png" alt="Sam" width={36} height={36} className="w-full h-full object-cover" />
+              <Image src="/assistant-walle.png" alt="Sam" width={36} height={36} className="w-full h-full object-cover animate-robot-idle" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-none">Assistente AC Chiari</p>
@@ -279,7 +279,7 @@ export function AiAssistant() {
               >
                 {msg.role === 'assistant' && (
                   <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ring-1 ring-blue-200 mt-0.5">
-                    <Image src="/assistant-avatar.png" alt="Sam" width={32} height={32} className="w-full h-full object-cover" />
+                    <Image src="/assistant-walle.png" alt="Sam" width={32} height={32} className="w-full h-full object-cover" />
                   </div>
                 )}
                 <div
@@ -309,7 +309,7 @@ export function AiAssistant() {
             {loading && (
               <div className="flex gap-2 justify-start">
                 <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-blue-200 mt-0.5 shrink-0">
-                  <Image src="/assistant-avatar.png" alt="Sam" width={32} height={32} className="w-full h-full object-cover" />
+                  <Image src="/assistant-walle.png" alt="Sam" width={32} height={32} className="w-full h-full object-cover" />
                 </div>
                 <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-3 py-2.5 shadow-sm flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce [animation-delay:0ms]" />
