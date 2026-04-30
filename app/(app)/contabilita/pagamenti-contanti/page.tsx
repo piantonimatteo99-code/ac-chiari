@@ -176,7 +176,7 @@ export default function PagamentiContantiPage() {
         
         // Admins
         usersData.forEach(u => {
-            if(u.roles.includes('admin')) {
+            if(Array.isArray(u.roles) && u.roles.includes('admin')) {
                 accountingUserIds.add(u.id);
             }
         });
@@ -185,7 +185,7 @@ export default function PagamentiContantiPage() {
         const accountingPageSetting = pageSettings.find(p => p.id === 'contabilita-conto');
         if(accountingPageSetting?.requiresEducatorRoleCheck) {
             accountingRoles?.forEach(role => {
-                role.assignedEducators.forEach((id: string) => accountingUserIds.add(id));
+                (role.assignedEducators || []).forEach((id: string) => accountingUserIds.add(id));
             });
         }
         
