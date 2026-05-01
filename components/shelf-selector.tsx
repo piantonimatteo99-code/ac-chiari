@@ -28,14 +28,15 @@ export const LABELS = [1, 2, 3, 4, 5];
 // 4 montanti a ~3%, ~34%, ~65%, ~97% larghezza
 // Contenuto verticale: 5% top → 95% bottom = 90%, diviso in 6 unità (R1-R4=1u, R5=2u)
 const BAY_DEFS = [
-  { left: 4.5,  width: 30.5 }, // Sez 1 (sinistra)
-  { left: 35.0, width: 29.5 }, // Sez 2 (centro)
-  { left: 65.5, width: 30.5 }, // Sez 3 (destra)
+  { left: 4.5,  width: 28.0 }, // Sez 1 (sinistra)
+  { left: 35.5, width: 28.0 }, // Sez 2 (centro)
+  { left: 66.5, width: 28.0 }, // Sez 3 (destra)
 ];
-const TOP_PAD = 9.5;  // % → sotto il bordo inferiore del pianale superiore (~7.5%+2% spessore)
-const UNIT_H  = 12.0; // % → spazio UTILE tra i pianali (14.2% - 2.2% spessore pianale)
-// Inizio cella = sotto la barra, fine cella = sopra la barra successiva
-// R1-R4=12%, R5=24% → bottom edge: 9.5+4*12+24 = 81.5%... poi lascia la bottom bar
+
+// Modello geometrico esatto dell'immagine
+const BAR_TOP_0 = 6.2;      // % dall'alto per la cima del primo pianale
+const UNIT_STEP = 14.8;     // % di distanza tra la cima di due pianali consecutivi
+const BAR_THICKNESS = 2.5;  // % spessore del pianale orizzontale
 
 function colGeometry(_numCols: number, colIdx: number) {
   const bay = BAY_DEFS[colIdx] ?? BAY_DEFS[0];
@@ -45,17 +46,20 @@ function colGeometry(_numCols: number, colIdx: number) {
 function cellGeometry(ripiano: number, colonna: number) {
   if (colonna <= 2) {
     if (ripiano <= 4) {
-      const top = TOP_PAD + (ripiano - 1) * UNIT_H;
-      return { top: `${top.toFixed(2)}%`, height: `${UNIT_H.toFixed(2)}%` };
+      const top = BAR_TOP_0 + (ripiano - 1) * UNIT_STEP + BAR_THICKNESS;
+      const height = UNIT_STEP - BAR_THICKNESS;
+      return { top: `${top.toFixed(2)}%`, height: `${height.toFixed(2)}%` };
     } else {
       // R5 = doppio
-      const top = TOP_PAD + 4 * UNIT_H;
-      return { top: `${top.toFixed(2)}%`, height: `${(2 * UNIT_H).toFixed(2)}%` };
+      const top = BAR_TOP_0 + 4 * UNIT_STEP + BAR_THICKNESS;
+      const height = 2 * UNIT_STEP - BAR_THICKNESS;
+      return { top: `${top.toFixed(2)}%`, height: `${height.toFixed(2)}%` };
     }
   } else {
     // Colonna 3: 3 ripiani, ognuno = 2 unità
-    const top = TOP_PAD + (ripiano - 1) * 2 * UNIT_H;
-    return { top: `${top.toFixed(2)}%`, height: `${(2 * UNIT_H).toFixed(2)}%` };
+    const top = BAR_TOP_0 + (ripiano - 1) * 2 * UNIT_STEP + BAR_THICKNESS;
+    const height = 2 * UNIT_STEP - BAR_THICKNESS;
+    return { top: `${top.toFixed(2)}%`, height: `${height.toFixed(2)}%` };
   }
 }
 
