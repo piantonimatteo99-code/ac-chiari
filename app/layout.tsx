@@ -24,6 +24,9 @@ export const metadata: Metadata = {
   title: "AC Chiari — Azione Cattolica",
   description: "Gestionale interno per l'associazione Azione Cattolica di Chiari. Gestione iscrizioni, contabilità, gruppi e calendario.",
   manifest: "/manifest.json",
+  verification: {
+    google: "RLDx_7oK20JRYrUZcA096fJTFwuGwLKKGRD9_guHMcM",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
