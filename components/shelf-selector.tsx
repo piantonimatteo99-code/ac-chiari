@@ -30,9 +30,9 @@ export function getUprightCol(colonna: number, type: 'left' | 'right', hasLabel:
 // ─── Costanti layout realistico ───────────────────────────────────────────────
 const UPW = 18;       // larghezza montante px
 const PLANK = 14;     // altezza pianale px
-const ROW_H = 88;     // altezza cella px
-const NUM_ROWS = 5;
-const TOTAL_H = PLANK * (NUM_ROWS + 1) + ROW_H * NUM_ROWS; // height totale px
+const ROW_H = 68;     // altezza base di un ripiano standard (px)
+const TOTAL_UNITS = 6; // L'altezza totale è divisa in 6 unità logiche
+const TOTAL_H = PLANK * (TOTAL_UNITS + 1) + ROW_H * TOTAL_UNITS; // height totale px
 
 // Gradient montante metallico con fori
 const uprightBg = (side: 'left' | 'right') =>
@@ -59,18 +59,24 @@ function colGeometry(numCols: number, colIdx: number /* 0-based */) {
 // ─── Helper: dato ripiano (1-based) e colonna, ritorna top e height in px
 function cellGeometry(ripiano: number, colonna: number) {
   if (colonna <= 2) {
-    const top = PLANK + (ripiano - 1) * (ROW_H + PLANK);
-    return { top, height: ROW_H };
+    if (ripiano <= 4) {
+      const top = PLANK + (ripiano - 1) * (ROW_H + PLANK);
+      return { top, height: ROW_H };
+    } else {
+      // Ripiano 5 (ultimo) è doppio
+      const top = PLANK + 4 * (ROW_H + PLANK);
+      return { top, height: ROW_H * 2 + PLANK };
+    }
+  } else {
+    // Colonna 3: 3 ripiani, tutti di altezza doppia per allinearsi
+    const top = PLANK + (ripiano - 1) * 2 * (ROW_H + PLANK);
+    return { top, height: ROW_H * 2 + PLANK };
   }
-  // Colonna 3 speciale
-  if (ripiano === 1) return { top: PLANK, height: ROW_H * 2 + PLANK };
-  if (ripiano === 2) return { top: PLANK + 2 * (ROW_H + PLANK), height: ROW_H * 2 + PLANK };
-  return { top: PLANK + 4 * (ROW_H + PLANK), height: ROW_H };
 }
 
 // ─── Sub-component: struttura scaffale (frame + pianali) ─────────────────────
-function ShelfFrame({ numRows = NUM_ROWS }: { numRows?: number }) {
-  const planks = Array.from({ length: numRows + 1 }, (_, i) => i);
+function ShelfFrame() {
+  const partialWidth = `calc(2 * ((100% - ${4 * UPW}px) / 3 + ${UPW}px) + ${UPW}px)`;
   return (
     <>
       {/* Montanti verticali - uno per ogni bordo sezione */}
@@ -85,14 +91,27 @@ function ShelfFrame({ numRows = NUM_ROWS }: { numRows?: number }) {
           <div key={`post-${i}`} className="absolute top-0 bottom-0 z-20" style={{ left: leftCalc, width: UPW, background: uprightBg(side) }} />
         );
       })}
-      {/* Pianali orizzontali */}
-      {planks.map(i => {
+      
+      {/* Pianali a larghezza intera (0, 2, 4, 6) */}
+      {[0, 2, 4, 6].map(i => {
         const topPx = i * (ROW_H + PLANK);
         return (
           <div
-            key={`plank-${i}`}
+            key={`plank-full-${i}`}
             className="absolute left-0 right-0 z-10"
             style={{ top: topPx, height: PLANK, background: plankBg, boxShadow: plankShadow }}
+          />
+        );
+      })}
+
+      {/* Pianali parziali (solo colonne 1 e 2) (1, 3) */}
+      {[1, 3].map(i => {
+        const topPx = i * (ROW_H + PLANK);
+        return (
+          <div
+            key={`plank-partial-${i}`}
+            className="absolute left-0 z-10"
+            style={{ top: topPx, height: PLANK, background: plankBg, boxShadow: plankShadow, width: partialWidth }}
           />
         );
       })}
@@ -119,11 +138,15 @@ export function ShelfSelector({ value, onChange, disabled }: ShelfSelectorProps)
           {/* Scaffale */}
           <div className="flex gap-1">
             {/* Label ripiani */}
-            <div className="flex flex-col" style={{ width: 28 }}>
-              {LABELS.map(r => (
-                <div key={r} className="flex items-center justify-center text-[10px] font-medium text-muted-foreground"
-                  style={{ height: ROW_H, marginTop: r === 1 ? PLANK : PLANK }}>R{r}</div>
-              ))}
+            <div className="flex flex-col relative" style={{ width: 28 }}>
+              {LABELS.map(r => {
+                const isDouble = r === 5;
+                const topPx = PLANK + (r - 1) * (ROW_H + PLANK);
+                return (
+                  <div key={r} className="absolute w-full flex items-center justify-center text-[10px] font-medium text-muted-foreground"
+                    style={{ top: topPx, height: isDouble ? ROW_H * 2 + PLANK : ROW_H }}>R{r}</div>
+                );
+              })}
             </div>
             {/* Frame scaffale */}
             <div className="relative flex-1 rounded-sm overflow-hidden" style={{ height: TOTAL_H, background: '#f0ede8' }}>
@@ -175,8 +198,10 @@ interface MiniShelfProps { posizione: ShelfPosition | null | undefined; }
 export function MiniShelf({ posizione }: MiniShelfProps) {
   if (!posizione) return null;
   const { ripiano: targetR, colonna: targetC } = posizione;
-  const MUW = 4; const MPLANK = 3; const MROW = 10; const MCOLS = COLONNE;
-  const MH = MPLANK * (NUM_ROWS + 1) + MROW * NUM_ROWS;
+  const MUW = 4; const MPLANK = 3; const MROW = 8; const MCOLS = COLONNE;
+  const MTOTAL_UNITS = 6;
+  const MH = MPLANK * (MTOTAL_UNITS + 1) + MROW * MTOTAL_UNITS;
+  const partialWidth = 2 * (22 + MUW) + MUW;
   return (
     <div className="relative inline-block flex-shrink-0 rounded overflow-hidden" title={`Ripiano ${targetR}, Sez. ${targetC}`}
       style={{ height: MH, width: MCOLS * 22 + (MCOLS + 1) * MUW }}>
@@ -185,21 +210,34 @@ export function MiniShelf({ posizione }: MiniShelfProps) {
       {Array.from({ length: MCOLS + 1 }, (_, i) => (
         <div key={i} className="absolute top-0 bottom-0 bg-zinc-400" style={{ left: i * (22 + MUW), width: MUW }} />
       ))}
-      {/* mini pianali */}
-      {Array.from({ length: NUM_ROWS + 1 }, (_, i) => (
-        <div key={i} className="absolute left-0 right-0 bg-zinc-300" style={{ top: i * (MROW + MPLANK), height: MPLANK }} />
+      
+      {/* mini pianali full */}
+      {[0, 2, 4, 6].map(i => (
+        <div key={`m-plank-f-${i}`} className="absolute left-0 right-0 bg-zinc-300" style={{ top: i * (MROW + MPLANK), height: MPLANK }} />
       ))}
+      {/* mini pianali partial */}
+      {[1, 3].map(i => (
+        <div key={`m-plank-p-${i}`} className="absolute left-0 bg-zinc-300" style={{ top: i * (MROW + MPLANK), height: MPLANK, width: partialWidth }} />
+      ))}
+
       {/* cella evidenziata */}
       {CELL_DEFS.map(def => {
         const sel = def.ripiano === targetR && def.colonna === targetC;
-        const { top, height } = cellGeometry(def.ripiano, def.colonna);
-        // scale down
-        const scaleTop = Math.round(top * MH / TOTAL_H);
-        const scaleH = Math.round(height * MH / TOTAL_H);
+        if (!sel) return null;
+        let topU = 0; let heightU = 0;
+        if (def.colonna <= 2) {
+          if (def.ripiano <= 4) { topU = def.ripiano - 1; heightU = 1; }
+          else { topU = 4; heightU = 2; }
+        } else {
+          topU = (def.ripiano - 1) * 2; heightU = 2;
+        }
+        const top = MPLANK + topU * (MROW + MPLANK);
+        const height = heightU * MROW + (heightU - 1) * MPLANK;
         const colIdx = def.colonna - 1;
+        
         return (
-          <div key={`${def.ripiano}-${def.colonna}`} className={cn('absolute', sel ? 'bg-primary/60' : 'bg-transparent')}
-            style={{ top: scaleTop, height: scaleH, left: MUW + colIdx * (22 + MUW), width: 22 }} />
+          <div key={`${def.ripiano}-${def.colonna}`} className="absolute bg-primary/60"
+            style={{ top, height, left: MUW + colIdx * (22 + MUW), width: 22 }} />
         );
       })}
     </div>
@@ -265,13 +303,17 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
           </div>
           <div className="flex gap-1.5">
             {/* Label ripiani */}
-            <div className="flex flex-col flex-shrink-0" style={{ width: 28 }}>
-              {LABELS.map(r => (
-                <div key={r} className="flex items-center justify-center"
-                  style={{ height: ROW_H, marginTop: r === 1 ? PLANK : PLANK }}>
-                  <span className="text-[11px] font-bold text-muted-foreground bg-muted rounded px-1 py-0.5">R{r}</span>
-                </div>
-              ))}
+            <div className="flex flex-col flex-shrink-0 relative" style={{ width: 28 }}>
+              {LABELS.map(r => {
+                const isDouble = r === 5;
+                const topPx = PLANK + (r - 1) * (ROW_H + PLANK);
+                return (
+                  <div key={r} className="absolute w-full flex items-center justify-center"
+                    style={{ top: topPx, height: isDouble ? ROW_H * 2 + PLANK : ROW_H }}>
+                    <span className="text-[11px] font-bold text-muted-foreground bg-muted rounded px-1 py-0.5">R{r}</span>
+                  </div>
+                );
+              })}
             </div>
             {/* Frame scaffale grande */}
             <div
