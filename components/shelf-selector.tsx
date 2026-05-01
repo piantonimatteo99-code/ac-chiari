@@ -25,19 +25,16 @@ CELL_DEFS.push({ colonna: 3, ripiano: 3, isLast: true });
 export const LABELS = [1, 2, 3, 4, 5];
 
 // ─── Geometria calibrata sull'immagine reale scaffale-bg.png ─────────────────
-// Uprights a ~3%, ~33%, ~65%, ~97% della larghezza
-// Contenuto verticale: da ~5% a ~92% (87% totale, diviso in 6 unità logiche)
-// Unità 1-4 = 1 slot normale, unità 5-6 = slot doppio (ripiano basso)
-
+// 4 montanti a ~3%, ~34%, ~65%, ~97% larghezza
+// Contenuto verticale: 5% top → 95% bottom = 90%, diviso in 6 unità (R1-R4=1u, R5=2u)
 const BAY_DEFS = [
-  { left: 3.0, width: 29.5 },  // Bay 1 (sinistra)
-  { left: 34.5, width: 29.5 }, // Bay 2 (centro)
-  { left: 66.0, width: 30.5 }, // Bay 3 (destra)
+  { left: 4.0,  width: 27.5 }, // Sez 1 (sinistra)
+  { left: 35.0, width: 27.5 }, // Sez 2 (centro)
+  { left: 66.5, width: 28.5 }, // Sez 3 (destra)
 ];
-
-const TOP_PAD = 5;   // % dall'alto dove inizia il primo ripiano
-const BOT_PAD = 8;   // % dal basso dove finisce l'ultimo ripiano
-const UNIT_H = (100 - TOP_PAD - BOT_PAD) / 6; // altezza 1 unità logica in %
+const TOP_PAD = 6;               // % dall'alto del primo spazio utile
+const UNIT_H  = 14.5;            // % altezza di 1 unità logica
+// R1-R4 = 1 unità, R5 = 2 unità  → 6 unità = 87%, bottom edge a 6+87=93%
 
 function colGeometry(_numCols: number, colIdx: number) {
   const bay = BAY_DEFS[colIdx] ?? BAY_DEFS[0];
@@ -46,19 +43,34 @@ function colGeometry(_numCols: number, colIdx: number) {
 
 function cellGeometry(ripiano: number, colonna: number) {
   if (colonna <= 2) {
-    // 5 ripiani: R1-R4 = 1 unità, R5 = 2 unità
     if (ripiano <= 4) {
       const top = TOP_PAD + (ripiano - 1) * UNIT_H;
-      return { top: `${top}%`, height: `${UNIT_H}%` };
+      return { top: `${top.toFixed(2)}%`, height: `${UNIT_H.toFixed(2)}%` };
     } else {
+      // R5 = doppio
       const top = TOP_PAD + 4 * UNIT_H;
-      return { top: `${top}%`, height: `${2 * UNIT_H}%` };
+      return { top: `${top.toFixed(2)}%`, height: `${(2 * UNIT_H).toFixed(2)}%` };
     }
   } else {
-    // Colonna 3: 3 ripiani, ognuno = 2 unità logiche
+    // Colonna 3: 3 ripiani, ognuno = 2 unità
     const top = TOP_PAD + (ripiano - 1) * 2 * UNIT_H;
-    return { top: `${top}%`, height: `${2 * UNIT_H}%` };
+    return { top: `${top.toFixed(2)}%`, height: `${(2 * UNIT_H).toFixed(2)}%` };
   }
+}
+
+// Sfondo scaffale (immagine) con filtro per sfondo bianco
+function ShelfBg() {
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none"
+      style={{
+        backgroundImage: 'url(/scaffale-bg.png)',
+        backgroundSize: '100% 100%',
+        // Desatura e schiarisce il colore panna → bianco, senza toccare i div figli
+        filter: 'saturate(0.05) brightness(1.18)',
+      }}
+    />
+  );
 }
 
 // ─── ShelfSelector (form interattivo) ────────────────────────────────────────
@@ -90,10 +102,11 @@ export function ShelfSelector({ value, onChange, disabled }: ShelfSelectorProps)
                 );
               })}
             </div>
-            {/* Frame scaffale (immagine generata) */}
+            {/* Frame scaffale (immagine) */}
             <div className="relative flex-1 rounded-sm overflow-hidden" 
-                 style={{ height: '480px', backgroundImage: 'url(/scaffale-bg.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}>
-              {/* Celle cliccabili (invisibili ma interattive) */}
+                 style={{ height: '480px' }}>
+              <ShelfBg />
+              {/* Celle cliccabili */}
               {CELL_DEFS.map(def => {
                 const selected = isSelected(def.ripiano, def.colonna);
                 const { top, height } = cellGeometry(def.ripiano, def.colonna);
@@ -228,9 +241,10 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
             {/* Frame scaffale grande (immagine) */}
             <div
               className="relative flex-1 rounded overflow-hidden shadow-lg border border-black/10"
-              style={{ height: '600px', backgroundImage: 'url(/scaffale-bg.png)', backgroundSize: '100% 100%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+              style={{ height: '600px' }}
             >
-              {/* Celle interattive sovrapposte */}
+              <ShelfBg />
+              {/* Celle interattive */}
               {CELL_DEFS.map(def => {
                 const cellItems = gridMap[`${def.ripiano}-${def.colonna}`] ?? [];
                 const status = cellStatus(cellItems, giorniAllerta);
