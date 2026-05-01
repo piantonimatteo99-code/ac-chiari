@@ -28,13 +28,14 @@ export const LABELS = [1, 2, 3, 4, 5];
 // 4 montanti a ~3%, ~34%, ~65%, ~97% larghezza
 // Contenuto verticale: 5% top → 95% bottom = 90%, diviso in 6 unità (R1-R4=1u, R5=2u)
 const BAY_DEFS = [
-  { left: 4.0,  width: 29.0 }, // Sez 1 (sinistra)
-  { left: 34.5, width: 29.0 }, // Sez 2 (centro)
-  { left: 65.5, width: 30.0 }, // Sez 3 (destra)
+  { left: 4.5,  width: 30.5 }, // Sez 1 (sinistra)
+  { left: 35.0, width: 29.5 }, // Sez 2 (centro)
+  { left: 65.5, width: 30.5 }, // Sez 3 (destra)
 ];
-const TOP_PAD = 7.5;  // % dall'alto del primo spazio utile
-const UNIT_H  = 12.5; // % altezza di 1 unità logica
-// R1-R4=1u, R5=2u → 6u=75%, bottom edge a 7.5+75=82.5%
+const TOP_PAD = 9.5;  // % → sotto il bordo inferiore del pianale superiore (~7.5%+2% spessore)
+const UNIT_H  = 12.0; // % → spazio UTILE tra i pianali (14.2% - 2.2% spessore pianale)
+// Inizio cella = sotto la barra, fine cella = sopra la barra successiva
+// R1-R4=12%, R5=24% → bottom edge: 9.5+4*12+24 = 81.5%... poi lascia la bottom bar
 
 function colGeometry(_numCols: number, colIdx: number) {
   const bay = BAY_DEFS[colIdx] ?? BAY_DEFS[0];
