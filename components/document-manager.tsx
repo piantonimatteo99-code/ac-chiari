@@ -277,7 +277,7 @@ export default function DocumentManager({
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <FolderOpen className="h-5 w-5 text-muted-foreground" />
@@ -287,7 +287,7 @@ export default function DocumentManager({
                 Documenti sincronizzati con la cartella Drive del progetto. Cliccando su un documento si aprirà in una nuova scheda.
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
