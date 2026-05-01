@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFirestore } from '@/src/firebase';
 import {
-  collection, collectionGroup, getDocs, addDoc, serverTimestamp,
-  deleteDoc, doc, writeBatch, arrayUnion, arrayRemove, query, where, updateDoc,
+  collection, collectionGroup, getDocs, getDoc, addDoc, serverTimestamp,
+  deleteDoc, doc, writeBatch, arrayUnion, arrayRemove, query, where, updateDoc, setDoc,
 } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,12 @@ export interface ImportedMember {
   codiceFiscale?: string;
   luogoNascita?: string;
   gruppo?: string;
+  // Indirizzo del nucleo familiare — usato per raggruppare i fantasmi
+  via?: string;
+  numeroCivico?: string;
+  citta?: string;
+  provincia?: string;
+  cap?: string;
   isImported: boolean;
   importedAt?: any;
   matchedWith?: string | null;
@@ -340,11 +346,18 @@ export default function UtentiRegistratiPage() {
         const codiceFiscale = (row['Codice Fiscale'] ?? row['codiceFiscale'] ?? '').trim().toUpperCase();
         const luogoNascita = (row['Luogo Nascita'] ?? row['luogoNascita'] ?? '').trim();
         const gruppo = (row['Gruppo'] ?? row['gruppo'] ?? '').trim();
+        // Campi indirizzo nucleo familiare
+        const via = (row['Via'] ?? row['via'] ?? '').trim();
+        const numeroCivico = (row['Numero Civico'] ?? row['numeroCivico'] ?? '').trim();
+        const citta = (row['Città'] ?? row['Citta'] ?? row['citta'] ?? '').trim();
+        const provincia = (row['Provincia'] ?? row['provincia'] ?? '').trim().toUpperCase();
+        const cap = (row['CAP'] ?? row['cap'] ?? '').trim();
         if (!nome || !cognome) continue;
         const newRef = doc(collection(firestore, 'imported-members'));
         
         batch.set(newRef, {
           nome, cognome, dataNascita, codiceFiscale, luogoNascita, gruppo,
+          via, numeroCivico, citta, provincia, cap,
           isImported: true,
           importedAt: serverTimestamp(),
           matchedWith: null,
@@ -375,9 +388,10 @@ export default function UtentiRegistratiPage() {
   // ── Download template CSV ─────────────────────────────────────────────────
   const downloadTemplate = () => {
     const csv = [
-      'Nome,Cognome,Data Nascita,Codice Fiscale,Luogo Nascita,Gruppo',
-      'Mario,Rossi,2015-04-12,RSSMRA15D12C618A,Chiari,Fanciulli A',
-      'Giulia,Bianchi,2016-09-23,,Brescia,Fanciulle B',
+      'Nome,Cognome,Data Nascita,Codice Fiscale,Luogo Nascita,Gruppo,Via,Numero Civico,Città,Provincia,CAP',
+      'Mario,Rossi,2015-04-12,RSSMRA15D12C618A,Chiari,Fanciulli A,Via Roma,10,Chiari,BS,25032',
+      'Giulia,Rossi,2016-09-23,,Chiari,Fanciulle B,Via Roma,10,Chiari,BS,25032',
+      'Luca,Bianchi,2014-03-08,,Brescia,Ragazzi A,Via Mazzini,5,Brescia,BS,25121',
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -492,7 +506,33 @@ export default function UtentiRegistratiPage() {
          }
       });
 
-      // --- 4. Delete placeholder ---
+      // --- 4. Propagazione indirizzo al nucleo familiare (se assente) ---
+      // Se il placeholder aveva un indirizzo e la famiglia del membro reale
+      // non ha ancora una città registrata, lo copiamo automaticamente.
+      // In questo modo il nucleo diventa identificabile per lo sconto al tesseramento.
+      const { via, numeroCivico, citta, provincia, cap } = pair.placeholder;
+      if (citta) {
+        try {
+          const familyDocRef = doc(firestore, 'famiglie', pair.realMember.id);
+          const familySnap = await getDoc(familyDocRef);
+          const existingCitta = familySnap.exists() ? familySnap.data()?.citta : null;
+          if (!existingCitta) {
+            // setDoc con merge: crea il documento se non esiste, aggiorna solo i campi mancanti
+            await setDoc(familyDocRef, {
+              via: via || '',
+              numeroCivico: numeroCivico || '',
+              citta,
+              provincia: provincia || '',
+              cap: cap || '',
+            }, { merge: true });
+          }
+        } catch {
+          // Se il membro è un sub-doc (famiglie/*/membri) e non un utente diretto,
+          // l'operazione potrebbe fallire: in tal caso lo ignoriamo silenziosamente.
+        }
+      }
+
+      // --- 5. Delete placeholder ---
       batch.delete(doc(firestore, 'imported-members', pair.placeholder.id));
 
       await batch.commit();
@@ -901,6 +941,7 @@ export default function UtentiRegistratiPage() {
                 <TableHead>Luogo</TableHead>
                 <TableHead>Cod. Fiscale</TableHead>
                 <TableHead>Gruppo</TableHead>
+                <TableHead>Nucleo (Città)</TableHead>
                 <TableHead>Importato il</TableHead>
                 <TableHead><span className="sr-only">Azioni</span></TableHead>
               </TableRow>
@@ -927,6 +968,16 @@ export default function UtentiRegistratiPage() {
                   <TableCell className="font-mono text-xs text-muted-foreground">{m.codiceFiscale || '—'}</TableCell>
                   <TableCell>
                     {m.gruppo ? <Badge variant="secondary">{m.gruppo}</Badge> : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {m.citta ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="font-medium">{m.citta}</span>
+                        {m.via && <span className="text-muted-foreground">· {m.via} {m.numeroCivico}</span>}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     {m.importedAt?.toDate?.()
@@ -969,8 +1020,11 @@ export default function UtentiRegistratiPage() {
           <DialogHeader>
             <DialogTitle>Importa Ragazzi da CSV</DialogTitle>
             <DialogDescription>
-              Carica un file CSV con i dati dei ragazzi esistenti. Le colonne devono essere:
-              <strong> Nome, Cognome, Data Nascita, Codice Fiscale, Luogo Nascita, Gruppo</strong>
+              Carica un file CSV con i dati dei ragazzi esistenti. Le colonne obbligatorie sono:
+              <strong> Nome, Cognome</strong>. Colonne opzionali:
+              <strong> Data Nascita, Codice Fiscale, Luogo Nascita, Gruppo, Via, Numero Civico, Città, Provincia, CAP</strong>.
+              Le colonne <strong>Città e Via</strong> permettono di identificare automaticamente il nucleo familiare
+              e applicare lo sconto al tesseramento.
             </DialogDescription>
           </DialogHeader>
 
@@ -1014,6 +1068,8 @@ export default function UtentiRegistratiPage() {
                       <TableHead>Cod. Fiscale</TableHead>
                       <TableHead>Luogo</TableHead>
                       <TableHead>Gruppo</TableHead>
+                      <TableHead>Città</TableHead>
+                      <TableHead>Via</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1025,11 +1081,13 @@ export default function UtentiRegistratiPage() {
                         <TableCell className="font-mono text-xs">{row['Codice Fiscale'] ?? row['codiceFiscale'] ?? '—'}</TableCell>
                         <TableCell>{row['Luogo Nascita'] ?? row['luogoNascita'] ?? '—'}</TableCell>
                         <TableCell>{row['Gruppo'] ?? row['gruppo'] ?? '—'}</TableCell>
+                        <TableCell className="text-xs">{row['Città'] ?? row['Citta'] ?? row['citta'] ?? '—'}</TableCell>
+                        <TableCell className="text-xs">{row['Via'] ?? row['via'] ?? '—'}{row['Numero Civico'] ?? row['numeroCivico'] ? ` ${row['Numero Civico'] ?? row['numeroCivico']}` : ''}</TableCell>
                       </TableRow>
                     ))}
                     {csvPreview.length > 20 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground text-xs">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground text-xs">
                           … e altri {csvPreview.length - 20} elementi
                         </TableCell>
                       </TableRow>

@@ -62,7 +62,7 @@ export function EditTransactionDialog({ isOpen, onOpenChange, payment, onSave }:
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { originalAnalysisData } = payment.paymentDetails;
+  const originalAnalysisData = (payment.paymentDetails as any).originalAnalysisData;
 
   useEffect(() => {
     if (isOpen) {
