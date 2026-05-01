@@ -39,9 +39,11 @@ export async function GET(request: NextRequest) {
   authUrl.searchParams.set('response_type', 'code');
   authUrl.searchParams.set('scope', CALENDAR_SCOPES);
   authUrl.searchParams.set('access_type', 'offline');
-  // 'select_account' shows account picker but avoids forcing consent on every login.
-  // Google will prompt for consent automatically when needed (first time or scope changes).
-  authUrl.searchParams.set('prompt', 'select_account');
+  // 'consent' is required to always receive a refresh_token from Google.
+  // Without it, subsequent authorizations won't return a refresh_token,
+  // causing silent failures. The "unverified app" warning is resolved by
+  // the Google verification process, not by this parameter.
+  authUrl.searchParams.set('prompt', 'consent');
   // Pass userId in state so the callback can retrieve it
   authUrl.searchParams.set('state', userId);
 
