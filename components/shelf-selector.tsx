@@ -28,15 +28,25 @@ export const LABELS = [1, 2, 3, 4, 5];
 // 4 montanti a ~3%, ~34%, ~65%, ~97% larghezza
 // Contenuto verticale: 5% top → 95% bottom = 90%, diviso in 6 unità (R1-R4=1u, R5=2u)
 const BAY_DEFS = [
-  { left: 4.5,  width: 28.0 }, // Sez 1 (sinistra)
-  { left: 35.5, width: 28.0 }, // Sez 2 (centro)
-  { left: 66.5, width: 28.0 }, // Sez 3 (destra)
+  { left: 4.5,  width: 25.0 }, // Sez 1 (misurata reale: 3.9% - 30.0%)
+  { left: 33.5, width: 28.0 }, // Sez 2 (misurata reale: 32.6% - 62.5%)
+  { left: 65.5, width: 30.0 }, // Sez 3 (misurata reale: 64.7% - 96.1%)
 ];
 
-// Modello geometrico esatto dell'immagine
-const BAR_TOP_0 = 6.2;      // % dall'alto per la cima del primo pianale
-const UNIT_STEP = 14.8;     // % di distanza tra la cima di due pianali consecutivi
-const BAR_THICKNESS = 2.5;  // % spessore del pianale orizzontale
+// Coordinate Y esatte estratte pixel per pixel dall'immagine
+const ROW_SPACES_LEFT = [
+  { top: 9.5, height: 12.5 },  // R1
+  { top: 23.5, height: 12.1 }, // R2
+  { top: 37.5, height: 12.1 }, // R3
+  { top: 51.6, height: 12.1 }, // R4
+  { top: 65.6, height: 25.0 }, // R5
+];
+
+const ROW_SPACES_RIGHT = [
+  { top: 9.5, height: 26.1 },  // R1 (Colonna 3)
+  { top: 37.5, height: 26.2 }, // R2 (Colonna 3)
+  { top: 65.6, height: 25.0 }, // R3 (Colonna 3)
+];
 
 function colGeometry(_numCols: number, colIdx: number) {
   const bay = BAY_DEFS[colIdx] ?? BAY_DEFS[0];
@@ -45,21 +55,12 @@ function colGeometry(_numCols: number, colIdx: number) {
 
 function cellGeometry(ripiano: number, colonna: number) {
   if (colonna <= 2) {
-    if (ripiano <= 4) {
-      const top = BAR_TOP_0 + (ripiano - 1) * UNIT_STEP + BAR_THICKNESS;
-      const height = UNIT_STEP - BAR_THICKNESS;
-      return { top: `${top.toFixed(2)}%`, height: `${height.toFixed(2)}%` };
-    } else {
-      // R5 = doppio
-      const top = BAR_TOP_0 + 4 * UNIT_STEP + BAR_THICKNESS;
-      const height = 2 * UNIT_STEP - BAR_THICKNESS;
-      return { top: `${top.toFixed(2)}%`, height: `${height.toFixed(2)}%` };
-    }
+    const space = ROW_SPACES_LEFT[ripiano - 1] ?? ROW_SPACES_LEFT[0];
+    return { top: `${space.top}%`, height: `${space.height}%` };
   } else {
-    // Colonna 3: 3 ripiani, ognuno = 2 unità
-    const top = BAR_TOP_0 + (ripiano - 1) * 2 * UNIT_STEP + BAR_THICKNESS;
-    const height = 2 * UNIT_STEP - BAR_THICKNESS;
-    return { top: `${top.toFixed(2)}%`, height: `${height.toFixed(2)}%` };
+    // Colonna 3 ha solo 3 ripiani
+    const space = ROW_SPACES_RIGHT[ripiano - 1] ?? ROW_SPACES_RIGHT[0];
+    return { top: `${space.top}%`, height: `${space.height}%` };
   }
 }
 
