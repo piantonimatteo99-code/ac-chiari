@@ -28,13 +28,13 @@ export const LABELS = [1, 2, 3, 4, 5];
 // 4 montanti a ~3%, ~34%, ~65%, ~97% larghezza
 // Contenuto verticale: 5% top → 95% bottom = 90%, diviso in 6 unità (R1-R4=1u, R5=2u)
 const BAY_DEFS = [
-  { left: 5.5,  width: 26.0 }, // Sez 1 (sinistra)
-  { left: 36.5, width: 26.0 }, // Sez 2 (centro)
-  { left: 68.0, width: 27.0 }, // Sez 3 (destra)
+  { left: 4.0,  width: 29.0 }, // Sez 1 (sinistra)
+  { left: 34.5, width: 29.0 }, // Sez 2 (centro)
+  { left: 65.5, width: 30.0 }, // Sez 3 (destra)
 ];
-const TOP_PAD = 8;    // % dall'alto del primo spazio utile (sotto il pianale superiore)
-const UNIT_H  = 14.0; // % altezza di 1 unità logica
-// R1-R4 = 1u, R5 = 2u → 6u = 84%, bottom edge a 8+84=92%
+const TOP_PAD = 7.5;  // % dall'alto del primo spazio utile
+const UNIT_H  = 12.5; // % altezza di 1 unità logica
+// R1-R4=1u, R5=2u → 6u=75%, bottom edge a 7.5+75=82.5%
 
 function colGeometry(_numCols: number, colIdx: number) {
   const bay = BAY_DEFS[colIdx] ?? BAY_DEFS[0];
@@ -104,7 +104,7 @@ export function ShelfSelector({ value, onChange, disabled }: ShelfSelectorProps)
             </div>
             {/* Frame scaffale (immagine) */}
             <div className="relative flex-1 rounded-sm overflow-hidden" 
-                 style={{ height: '480px' }}>
+                 style={{ height: '400px' }}>
               <ShelfBg />
               {/* Celle cliccabili */}
               {CELL_DEFS.map(def => {
@@ -241,7 +241,7 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
             {/* Frame scaffale grande (immagine) */}
             <div
               className="relative flex-1 rounded overflow-hidden shadow-lg border border-black/10"
-              style={{ height: '600px' }}
+              style={{ height: '500px' }}
             >
               <ShelfBg />
               {/* Celle interattive */}
