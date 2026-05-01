@@ -24,44 +24,33 @@ CELL_DEFS.push({ colonna: 3, ripiano: 3, isLast: true });
 
 export const LABELS = [1, 2, 3, 4, 5];
 
-// ─── Geometria calibrata sull'immagine reale scaffale-bg.png ─────────────────
-// 4 montanti a ~3%, ~34%, ~65%, ~97% larghezza
-// Contenuto verticale: 5% top → 95% bottom = 90%, diviso in 6 unità (R1-R4=1u, R5=2u)
-const BAY_DEFS = [
-  { left: 4.5,  width: 25.0 }, // Sez 1 (misurata reale: 3.9% - 30.0%)
-  { left: 33.5, width: 28.0 }, // Sez 2 (misurata reale: 32.6% - 62.5%)
-  { left: 65.5, width: 30.0 }, // Sez 3 (misurata reale: 64.7% - 96.1%)
-];
+// ─── Configurazione Geometrica Esatta (Ogni cella è indipendente) ────────────
+type CellGeometry = { top: string, left: string, width: string, height: string };
 
-// Coordinate Y esatte estratte pixel per pixel dall'immagine
-const ROW_SPACES_LEFT = [
-  { top: 9.5, height: 12.5 },  // R1
-  { top: 23.5, height: 12.1 }, // R2
-  { top: 37.5, height: 12.1 }, // R3
-  { top: 51.6, height: 12.1 }, // R4
-  { top: 65.6, height: 25.0 }, // R5
-];
+export const EXACT_CELLS: Record<string, CellGeometry> = {
+  // Modulo Sinistro (Colonna 1) - 5 ripiani
+  "1-1": { top: "0%", left: "2.3%", width: "29.6%", height: "18.9%" },
+  "2-1": { top: "18.9%", left: "2.3%", width: "29.6%", height: "18.4%" },
+  "3-1": { top: "37.3%", left: "2.3%", width: "29.6%", height: "18.5%" },
+  "4-1": { top: "55.8%", left: "2.3%", width: "29.6%", height: "18.4%" },
+  "5-1": { top: "74.2%", left: "2.3%", width: "29.6%", height: "25.8%" },
 
-const ROW_SPACES_RIGHT = [
-  { top: 9.5, height: 26.1 },  // R1 (Colonna 3)
-  { top: 37.5, height: 26.2 }, // R2 (Colonna 3)
-  { top: 65.6, height: 25.0 }, // R3 (Colonna 3)
-];
+  // Modulo Centrale (Colonna 2) - 5 ripiani
+  "1-2": { top: "0%", left: "31.9%", width: "29.6%", height: "18.9%" },
+  "2-2": { top: "18.9%", left: "31.9%", width: "29.6%", height: "18.4%" },
+  "3-2": { top: "37.3%", left: "31.9%", width: "29.6%", height: "18.5%" },
+  "4-2": { top: "55.8%", left: "31.9%", width: "29.6%", height: "18.4%" },
+  "5-2": { top: "74.2%", left: "31.9%", width: "29.6%", height: "25.8%" },
 
-function colGeometry(_numCols: number, colIdx: number) {
-  const bay = BAY_DEFS[colIdx] ?? BAY_DEFS[0];
-  return { left: `${bay.left}%`, width: `${bay.width}%` };
-}
+  // Modulo Destro (Colonna 3) - 3 ripiani
+  "1-3": { top: "0%", left: "61.5%", width: "29.7%", height: "31.8%" },
+  "2-3": { top: "31.8%", left: "61.5%", width: "29.7%", height: "31.8%" },
+  "3-3": { top: "63.6%", left: "61.5%", width: "29.7%", height: "36.4%" },
+};
 
-function cellGeometry(ripiano: number, colonna: number) {
-  if (colonna <= 2) {
-    const space = ROW_SPACES_LEFT[ripiano - 1] ?? ROW_SPACES_LEFT[0];
-    return { top: `${space.top}%`, height: `${space.height}%` };
-  } else {
-    // Colonna 3 ha solo 3 ripiani
-    const space = ROW_SPACES_RIGHT[ripiano - 1] ?? ROW_SPACES_RIGHT[0];
-    return { top: `${space.top}%`, height: `${space.height}%` };
-  }
+function getExactGeometry(ripiano: number, colonna: number): CellGeometry {
+  const key = `${ripiano}-${colonna}`;
+  return EXACT_CELLS[key] || { top: "0%", left: "0%", width: "10%", height: "10%" };
 }
 
 // Sfondo scaffale (immagine) con filtro per sfondo bianco
@@ -100,8 +89,7 @@ export function ShelfSelector({ value, onChange, disabled }: ShelfSelectorProps)
             {/* Label ripiani */}
             <div className="flex flex-col relative" style={{ width: 28 }}>
               {LABELS.map(r => {
-                const isDouble = r === 5;
-                const { top, height } = cellGeometry(r, 1);
+                const { top, height } = getExactGeometry(r, 1);
                 return (
                   <div key={r} className="absolute w-full flex items-center justify-center text-[10px] font-medium text-muted-foreground"
                     style={{ top, height }}>R{r}</div>
@@ -115,8 +103,7 @@ export function ShelfSelector({ value, onChange, disabled }: ShelfSelectorProps)
               {/* Celle cliccabili */}
               {CELL_DEFS.map(def => {
                 const selected = isSelected(def.ripiano, def.colonna);
-                const { top, height } = cellGeometry(def.ripiano, def.colonna);
-                const { left, width } = colGeometry(COLONNE, def.colonna - 1);
+                const { top, left, width, height } = getExactGeometry(def.ripiano, def.colonna);
                 return (
                   <button
                     key={`${def.ripiano}-${def.colonna}`}
@@ -162,8 +149,7 @@ export function MiniShelf({ posizione }: MiniShelfProps) {
         const sel = def.ripiano === targetR && def.colonna === targetC;
         if (!sel) return null;
         
-        const { top, height } = cellGeometry(def.ripiano, def.colonna);
-        const { left, width } = colGeometry(3, def.colonna - 1);
+        const { top, height, left, width } = getExactGeometry(def.ripiano, def.colonna);
         
         return (
           <div key={`${def.ripiano}-${def.colonna}`} className="absolute bg-primary/60 border border-primary/50"
@@ -235,7 +221,7 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
             {/* Label ripiani */}
             <div className="flex flex-col flex-shrink-0 relative" style={{ width: 28 }}>
               {LABELS.map(r => {
-                const { top, height } = cellGeometry(r, 1);
+                const { top, height } = getExactGeometry(r, 1);
                 return (
                   <div key={r} className="absolute w-full flex items-center justify-center"
                     style={{ top, height }}>
@@ -252,14 +238,15 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
               <ShelfBg />
               {/* Celle interattive */}
               {CELL_DEFS.map(def => {
-                const cellItems = gridMap[`${def.ripiano}-${def.colonna}`] ?? [];
+                const key = `${def.ripiano}-${def.colonna}`;
+                const cellItems = gridMap[key] || [];
                 const status = cellStatus(cellItems, giorniAllerta);
                 const isEmpty = status === 'empty';
                 const sorted = [...cellItems].sort((a, b) => daysUntil(a.dataScadenza) - daysUntil(b.dataScadenza));
                 const first = sorted[0];
                 const days = first ? daysUntil(first.dataScadenza) : Infinity;
-                const { top, height } = cellGeometry(def.ripiano, def.colonna);
-                const { left, width } = colGeometry(COLONNE, def.colonna - 1);
+                const { top, left, width, height } = getExactGeometry(def.ripiano, def.colonna);
+                
                 return (
                   <div
                     key={`cell-${def.ripiano}-${def.colonna}`}
