@@ -54,8 +54,10 @@ export function NuovaRaccoltaDialog({ isOpen, onOpenChange, raccoltaToEdit, init
     const [nomeRaccolta, setNomeRaccolta] = useState('');
     const [tipo, setTipo] = useState<'standard' | 'tesseramento'>('standard');
     const [selectedGruppi, setSelectedGruppi] = useState<string[]>([]);
-    const [iban, setIban] = useState('');
-    const [beneficiario, setBeneficiario] = useState('');
+    const DEFAULT_IBAN = 'IT67Q0200854341000100216072';
+    const DEFAULT_BENEFICIARIO = 'PARROCCHIA DEI SANTI FAUSTINO E GIOVITA UNICREDIT – AG. CHIARI - VIALE MELLINI 1';
+    const [iban, setIban] = useState(DEFAULT_IBAN);
+    const [beneficiario, setBeneficiario] = useState(DEFAULT_BENEFICIARIO);
     const [accettaBonifico, setAccettaBonifico] = useState(true);
     const [accettaContanti, setAccettaContanti] = useState(false);
     
@@ -241,8 +243,8 @@ export function NuovaRaccoltaDialog({ isOpen, onOpenChange, raccoltaToEdit, init
                 setSelectedGruppi(initialData?.gruppiId || []);
                 setAccettaBonifico(true);
                 setAccettaContanti(false);
-                setIban('');
-                setBeneficiario('');
+                setIban(DEFAULT_IBAN);
+                setBeneficiario(DEFAULT_BENEFICIARIO);
                 setFaseConferma(initialFaseState);
                 setFaseCaparra(initialFaseState);
                 setFaseSaldo(initialFaseSaldoState);
