@@ -277,6 +277,12 @@ function LoginForm() {
                 Registrati
               </Link>
             </div>
+
+            <div className="mt-3 text-center text-xs text-muted-foreground/60">
+              <Link href="/privacy" className="hover:underline underline-offset-2">
+                Informativa sulla Privacy
+              </Link>
+            </div>
           </div>
         </div>
       </div>
