@@ -15,23 +15,23 @@ interface ShelfSelectorProps {
 }
 
 export const RIPIANI = 5;
-export const COLONNE = 4;
+export const COLONNE = 3;
 
 // ─── Struttura Scaffale Condivisa ──────────────────────────────────────────────
-// Rispecchia fedelmente lo scaffale fisico: le prime 3 sezioni hanno 5 ripiani,
+// Rispecchia fedelmente lo scaffale fisico: le prime 2 sezioni hanno 5 ripiani,
 // l'ultima sezione ne ha 3 (con i primi due di altezza doppia).
 
 export type CellDef = { colonna: number; ripiano: number; gridRow: string; isLast: boolean };
 export const CELL_DEFS: CellDef[] = [];
-for (let c = 1; c <= 3; c++) {
+for (let c = 1; c <= 2; c++) {
   for (let r = 1; r <= 5; r++) {
     CELL_DEFS.push({ colonna: c, ripiano: r, gridRow: `${r}`, isLast: r === 5 });
   }
 }
-// Colonna 4 (3 spazi: i primi due occupano 2 righe della griglia, l'ultimo 1 riga)
-CELL_DEFS.push({ colonna: 4, ripiano: 1, gridRow: '1 / span 2', isLast: false });
-CELL_DEFS.push({ colonna: 4, ripiano: 2, gridRow: '3 / span 2', isLast: false });
-CELL_DEFS.push({ colonna: 4, ripiano: 3, gridRow: '5 / span 1', isLast: true });
+// Colonna 3 (3 spazi: i primi due occupano 2 righe della griglia, l'ultimo 1 riga)
+CELL_DEFS.push({ colonna: 3, ripiano: 1, gridRow: '1 / span 2', isLast: false });
+CELL_DEFS.push({ colonna: 3, ripiano: 2, gridRow: '3 / span 2', isLast: false });
+CELL_DEFS.push({ colonna: 3, ripiano: 3, gridRow: '5 / span 1', isLast: true });
 
 export const UPRIGHTS: { colonna: number; type: 'left' | 'right' }[] = [];
 for (let c = 1; c <= COLONNE; c++) {
@@ -53,9 +53,13 @@ export function getUprightCol(colonna: number, type: 'left' | 'right', hasLabel:
   return hasLabel ? base + 1 : base;
 }
 
-// Gradienti metallici per i montanti
-const POST_LEFT  = { background: 'linear-gradient(to right,  #71717a 0%, #a1a1aa 50%, #d4d4d8 100%)' };
-const POST_RIGHT = { background: 'linear-gradient(to left,   #71717a 0%, #a1a1aa 50%, #d4d4d8 100%)' };
+// Gradienti metallici per i montanti con finti fori
+const HOLES = `radial-gradient(circle at center, rgba(0,0,0,0.6) 1.5px, transparent 2px) 0 0 / 100% 14px`;
+const METALLIC_L = `linear-gradient(to right, #8c8c8c 0%, #c4c4c4 50%, #e0e0e0 100%)`;
+const METALLIC_R = `linear-gradient(to left, #8c8c8c 0%, #c4c4c4 50%, #e0e0e0 100%)`;
+
+const POST_LEFT  = { background: `${HOLES}, ${METALLIC_L}` };
+const POST_RIGHT = { background: `${HOLES}, ${METALLIC_R}` };
 const BASE_STYLE = { background: 'linear-gradient(to bottom, #52525b 0%, #3f3f46 100%)' };
 
 // ─── Scaffale interattivo (grande, per il form) ────────────────────────────────
@@ -124,13 +128,14 @@ export function ShelfSelector({ value, onChange, disabled }: ShelfSelectorProps)
                   style={{ gridColumn: getGridCol(def.colonna, true), gridRow: def.gridRow }}
                   className={cn(
                     'flex flex-col items-center justify-center gap-0.5 transition-all duration-150',
-                    'border-t-[4px] border-zinc-300 dark:border-zinc-500',
-                    !def.isLast && 'border-b border-zinc-200 dark:border-zinc-700',
-                    'hover:bg-primary/15 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset',
-                    selected ? 'bg-primary/20 text-primary shadow-inner' : 'bg-zinc-50/50 dark:bg-zinc-800/30',
+                    'border-t-[6px] border-[#9ca3af] shadow-[0_2px_4px_rgba(0,0,0,0.15)] relative',
+                    !def.isLast && 'border-b border-black/5 dark:border-white/5',
+                    'hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset',
+                    selected ? 'bg-primary/20 text-primary' : 'bg-[#f4f4f0]/80 dark:bg-zinc-800/80',
                     disabled && 'opacity-50 cursor-not-allowed'
                   )}
                 >
+                  {selected && <div className="absolute inset-0 shadow-inner rounded-sm pointer-events-none" />}
                   {selected ? (
                     <span className="text-lg leading-none">📦</span>
                   ) : (
@@ -253,15 +258,20 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
   
   for (const item of items) {
     let { ripiano, colonna } = item.posizione;
-    // Migrazione visiva: se ci sono vecchi dati con ripiano > 3 nella colonna 4, li uniamo al ripiano 3
-    if (colonna === 4 && ripiano > 3) ripiano = 3;
+    // Migrazione visiva: costringiamo eventuali dati vecchi a rientrare nella struttura a 3 colonne
+    if (colonna > 3) {
+      colonna = 3;
+    }
+    if (colonna === 3 && ripiano > 3) {
+      ripiano = 3;
+    }
     const k = `${ripiano}-${colonna}`;
     if (!gridMap[k]) gridMap[k] = [];
     gridMap[k].push(item);
   }
 
   const occupiedCells = Object.values(gridMap).filter(c => c.length > 0).length;
-  const totalCells = CELL_DEFS.length; // 15 (sx) + 3 (dx) = 18
+  const totalCells = CELL_DEFS.length; // 10 (sx) + 3 (dx) = 13
 
   const gridCols = `2rem repeat(${COLONNE}, 10px 1fr 10px)`;
 
@@ -288,7 +298,7 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
       </div>
 
       {/* Scaffale grafico grande */}
-      <div className="w-full select-none overflow-x-auto pb-2">
+      <div className="w-full select-none overflow-x-auto pb-2 bg-[#f4f4f0] dark:bg-zinc-900 rounded-lg p-4 shadow-inner">
         <div className="min-w-[500px]">
 
           {/* Intestazioni sezioni */}
@@ -354,39 +364,45 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
                   style={{ gridColumn: getGridCol(def.colonna, true), gridRow: def.gridRow }}
                   className={cn(
                     // Bordo superiore spesso = piano del ripiano visto frontalmente
-                    'border-t-[5px]',
-                    !def.isLast && 'border-b border-b-black/10 dark:border-b-black/40',
+                    'border-t-[8px] shadow-[0_4px_6px_rgba(0,0,0,0.1)] relative z-10',
+                    !def.isLast && 'border-b border-b-black/5 dark:border-b-white/5',
                     'flex flex-col items-center justify-center gap-1 p-2 transition-colors duration-150',
                     isEmpty
-                      ? 'bg-zinc-100 dark:bg-zinc-800/60 border-t-zinc-400 dark:border-t-zinc-500'
+                      ? 'bg-transparent border-t-[#9ca3af]'
                       : status === 'ok'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-t-zinc-400 dark:border-t-zinc-500 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
+                        ? 'bg-emerald-500/10 dark:bg-emerald-950/40 border-t-[#9ca3af] cursor-pointer hover:bg-emerald-500/20'
                         : status === 'warning'
-                          ? 'bg-amber-50 dark:bg-amber-950/40 border-t-amber-400 dark:border-t-amber-600 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/60'
-                          : 'bg-red-50 dark:bg-red-950/40 border-t-red-400 dark:border-t-red-600 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/60'
+                          ? 'bg-amber-500/10 dark:bg-amber-950/40 border-t-[#9ca3af] cursor-pointer hover:bg-amber-500/20'
+                          : 'bg-red-500/10 dark:bg-red-950/40 border-t-[#9ca3af] cursor-pointer hover:bg-red-500/20'
                   )}
                 >
+                  {!isEmpty && (
+                    <div className={cn(
+                      'absolute inset-0 border-2 rounded opacity-50 pointer-events-none',
+                      status === 'ok' ? 'border-emerald-500' : status === 'warning' ? 'border-amber-500' : 'border-red-500'
+                    )} />
+                  )}
                   {isEmpty ? (
-                    <span className="text-[10px] text-zinc-400 dark:text-zinc-600 font-mono select-none">—</span>
+                    <span className="text-[10px] text-zinc-400 dark:text-zinc-600 font-mono select-none opacity-50">—</span>
                   ) : (
                     <>
-                      <div className="flex items-center gap-1">
-                        <span className={cn('w-2 h-2 rounded-full flex-shrink-0', DOT_CLASSES[status])} />
+                      <div className="flex items-center gap-1 z-20">
+                        <span className={cn('w-2 h-2 rounded-full flex-shrink-0 shadow-sm', DOT_CLASSES[status])} />
                         {cellItems.length > 1 && (
                           <span className="text-[10px] font-bold text-muted-foreground">×{cellItems.length}</span>
                         )}
                       </div>
-                      <span className="text-[11px] font-semibold text-center leading-tight line-clamp-2 max-w-full">
+                      <span className="text-[11px] font-semibold text-center leading-tight line-clamp-2 max-w-full z-20 drop-shadow-sm">
                         {first?.nome}{cellItems.length > 1 ? ` +${cellItems.length - 1}` : ''}
                       </span>
                       {first && days !== Infinity && (
                         <span className={cn(
-                          'text-[9px] font-mono px-1 py-0.5 rounded leading-none mt-0.5',
+                          'text-[9px] font-mono px-1 py-0.5 rounded leading-none mt-0.5 shadow-sm z-20',
                           days < 0
-                            ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
+                            ? 'bg-red-500 text-white'
                             : days <= giorniAllerta
-                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-                              : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+                              ? 'bg-amber-500 text-white'
+                              : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
                         )}>
                           {days < 0 ? `Sc. ${Math.abs(days)}g fa` : `${days}g`}
                         </span>
