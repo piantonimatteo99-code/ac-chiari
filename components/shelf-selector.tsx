@@ -24,29 +24,40 @@ CELL_DEFS.push({ colonna: 3, ripiano: 3, isLast: true });
 
 export const LABELS = [1, 2, 3, 4, 5];
 
-// ─── Helper: dato colonna (1-based) e NUM_COLS=3, ritorna left% e width%
-// Aggiungiamo un margine finto ai lati per non far incollare le celle ai bordi dell'immagine
-function colGeometry(numCols: number, colIdx: number) {
-  const pad = 4; // 4% padding
-  const width = (100 - pad * 2) / numCols;
-  const left = pad + colIdx * width;
-  return { left: `${left}%`, width: `${width}%` };
+// ─── Geometria calibrata sull'immagine reale scaffale-bg.png ─────────────────
+// Uprights a ~3%, ~33%, ~65%, ~97% della larghezza
+// Contenuto verticale: da ~5% a ~92% (87% totale, diviso in 6 unità logiche)
+// Unità 1-4 = 1 slot normale, unità 5-6 = slot doppio (ripiano basso)
+
+const BAY_DEFS = [
+  { left: 3.0, width: 29.5 },  // Bay 1 (sinistra)
+  { left: 34.5, width: 29.5 }, // Bay 2 (centro)
+  { left: 66.0, width: 30.5 }, // Bay 3 (destra)
+];
+
+const TOP_PAD = 5;   // % dall'alto dove inizia il primo ripiano
+const BOT_PAD = 8;   // % dal basso dove finisce l'ultimo ripiano
+const UNIT_H = (100 - TOP_PAD - BOT_PAD) / 6; // altezza 1 unità logica in %
+
+function colGeometry(_numCols: number, colIdx: number) {
+  const bay = BAY_DEFS[colIdx] ?? BAY_DEFS[0];
+  return { left: `${bay.left}%`, width: `${bay.width}%` };
 }
 
-// ─── Helper: dato ripiano (1-based) e colonna, ritorna top e height in %
 function cellGeometry(ripiano: number, colonna: number) {
-  const padTop = 6; // padding per il tetto e la base
-  const unitH = (100 - padTop * 2) / 6; 
   if (colonna <= 2) {
+    // 5 ripiani: R1-R4 = 1 unità, R5 = 2 unità
     if (ripiano <= 4) {
-      return { top: `${padTop + (ripiano - 1) * unitH}%`, height: `${unitH}%` };
+      const top = TOP_PAD + (ripiano - 1) * UNIT_H;
+      return { top: `${top}%`, height: `${UNIT_H}%` };
     } else {
-      // Ripiano 5 (ultimo) è doppio
-      return { top: `${padTop + 4 * unitH}%`, height: `${2 * unitH}%` };
+      const top = TOP_PAD + 4 * UNIT_H;
+      return { top: `${top}%`, height: `${2 * UNIT_H}%` };
     }
   } else {
-    // Colonna 3: 3 ripiani, tutti di altezza doppia per allinearsi
-    return { top: `${padTop + (ripiano - 1) * 2 * unitH}%`, height: `${2 * unitH}%` };
+    // Colonna 3: 3 ripiani, ognuno = 2 unità logiche
+    const top = TOP_PAD + (ripiano - 1) * 2 * UNIT_H;
+    return { top: `${top}%`, height: `${2 * UNIT_H}%` };
   }
 }
 
