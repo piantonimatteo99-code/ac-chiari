@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
 
     const zip = new JSZip();
     const filesToDelete: { path: string, dbPath: string }[] = [];
+    const driveFilesToDelete: { fileId: string; paymentId?: string; dbPath: string }[] = [];
     let fileAddedToZip = false;
 
     // Helper to process a phase
@@ -71,34 +72,40 @@ export async function POST(request: NextRequest) {
 
       for (const memberId of Object.keys(phaseData)) {
         const payment = phaseData[memberId];
-        if (payment && payment.receiptUrl && payment.receiptUrl.includes('firebasestorage.googleapis.com')) {
+        if (!payment?.receiptUrl) continue;
+
+        if (payment.receiptUrl.includes('firebasestorage.googleapis.com')) {
+          // Firebase Storage: download, add to ZIP, mark for deletion
           try {
-            // Fetch the file from the download URL
             const res = await fetch(payment.receiptUrl);
             if (res.ok) {
               const arrayBuffer = await res.arrayBuffer();
-              
-              // Try to find the original extension or fallback to pdf
               const urlParts = payment.receiptUrl.split('?')[0].split('%2F');
               const lastPart = urlParts[urlParts.length - 1] || '';
               const ext = lastPart.includes('.png') ? 'png' : lastPart.includes('.jpg') ? 'jpg' : lastPart.includes('.jpeg') ? 'jpeg' : 'pdf';
-              
               const filename = `${phase}_${memberId}_${payment.paymentId || 'doc'}.${ext}`;
               zip.file(filename, arrayBuffer);
               fileAddedToZip = true;
-
-              // Extract storage path to delete later
-              // Format usually: https://firebasestorage.googleapis.com/.../o/receipts%2Fsome%2Fpath.jpg
               const pathMatch = payment.receiptUrl.match(/\/o\/(.+?)\?/);
-              if (pathMatch && pathMatch[1]) {
+              if (pathMatch?.[1]) {
                 const storagePath = decodeURIComponent(pathMatch[1]);
                 filesToDelete.push({ path: storagePath, dbPath: `paymentDetails.${phase}.${memberId}.receiptUrl` });
               }
             } else {
-                console.warn(`Could not fetch receipt for ${memberId} in ${phase}`);
+              console.warn(`Could not fetch receipt for ${memberId} in ${phase}`);
             }
           } catch (e) {
             console.error(`Error processing file for member ${memberId}:`, e);
+          }
+        } else if (payment.receiptUrl.includes('drive.google.com')) {
+          // Google Drive: mark for deletion (already stored on Drive, no ZIP needed)
+          const match = payment.receiptUrl.match(/\/file\/d\/([^/?]+)/);
+          if (match?.[1]) {
+            driveFilesToDelete.push({
+              fileId: match[1],
+              paymentId: payment.paymentId,
+              dbPath: `paymentDetails.${phase}.${memberId}.receiptUrl`,
+            });
           }
         }
       }
@@ -222,10 +229,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Delete Drive-hosted receipts (new upload flow)
+    if (driveFilesToDelete.length > 0) {
+      const accessToken = await getDriveAccessToken();
+      const driveDbUpdates: { [key: string]: any } = {};
+
+      for (const item of driveFilesToDelete) {
+        try {
+          const delRes = await fetch(`${DRIVE_API}/files/${item.fileId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (delRes.ok || delRes.status === 204 || delRes.status === 404) {
+            driveDbUpdates[item.dbPath] = null;
+            driveDbUpdates[item.dbPath.replace('.receiptUrl', '.receiptDeleted')] = true;
+            // Also nullify in payments collection
+            if (item.paymentId) {
+              await db.collection('payments').doc(item.paymentId).update({
+                receiptUrl: null,
+                receiptDeleted: true,
+              }).catch(e => console.warn(`Could not update payments/${item.paymentId}:`, e));
+            }
+          } else {
+            console.warn(`Drive delete returned ${delRes.status} for fileId ${item.fileId}`);
+          }
+        } catch (e: any) {
+          console.error(`Failed to delete Drive file ${item.fileId}:`, e?.message || e);
+        }
+      }
+
+      if (Object.keys(driveDbUpdates).length > 0) {
+        await db.collection('raccolte').doc(raccoltaId).update(driveDbUpdates);
+      }
+    }
+
     // Set as archived
     await db.collection('raccolte').doc(raccoltaId).update({ archived: true });
 
-    return NextResponse.json({ success: true, processed: filesToDelete.length });
+    return NextResponse.json({ success: true, processed: filesToDelete.length + driveFilesToDelete.length });
 
   } catch (err: any) {
     console.error('Error archiving raccolta:', err);

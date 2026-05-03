@@ -58,6 +58,25 @@ const parseDate = (date: any): Date | null => {
     return null;
 };
 
+// Extracts the Google Drive file ID from a webViewLink URL
+const extractDriveFileId = (url: string): string | null => {
+    if (!url) return null;
+    const match = url.match(/\/file\/d\/([^/?]+)/);
+    return match ? match[1] : null;
+};
+
+// Fire-and-forget Drive deletion
+const deleteDriveFile = (receiptUrl: string | undefined) => {
+    if (!receiptUrl) return;
+    const fileId = extractDriveFileId(receiptUrl);
+    if (!fileId) return;
+    fetch('/api/drive/delete-segnalazione', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId }),
+    }).catch(e => console.error('Failed to delete Drive receipt file:', e));
+};
+
 const formatDate = (date: any) => {
     const jsDate = parseDate(date);
     if (!jsDate) return '-';
@@ -206,6 +225,9 @@ export default function TransazioniDaControllarePage() {
         const batch = writeBatch(firestore);
         const paymentDocRef = doc(firestore, 'payments', payment.paymentId);
 
+        // Delete from Drive before removing the URL from Firestore
+        deleteDriveFile(payment.paymentDetails.receiptUrl);
+
         // Mark verified and clear receiptUrl for privacy
         batch.update(paymentDocRef, { isVerified: true, verifiedAt: new Date(), receiptUrl: deleteField() });
 
@@ -292,6 +314,7 @@ export default function TransazioniDaControllarePage() {
 
     const handleBulkVerify = async () => {
         if (!firestore || selectedPayments.length === 0) return;
+        // Delete Drive files first (fire-and-forget per each)
         for (const paymentId of selectedPayments) {
             const payment = verificationPayments.find(p => p.paymentId === paymentId);
             if (payment) await handleVerify(payment);

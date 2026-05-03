@@ -238,8 +238,8 @@ export function UploadReceiptDialog({
         try {
             const formDataDrive = new FormData();
             formDataDrive.append('file', file);
-            const memberNames = paymentItems.map(i => i.memberName).join('_');
-            formDataDrive.append('name', `Ricevuta_${paymentId}_${memberNames}`);
+            // Nome file = causale (es. "ACR - 010526XXXX")
+            formDataDrive.append('name', causaleCompleta);
             const projectNames = Array.from(new Set(paymentItems.map(i => i.raccoltaNome))).join('_');
             const todayFormatted = format(new Date(), 'dd-MM-yyyy');
             formDataDrive.append('folderName', `${projectNames} - ${todayFormatted}`);
