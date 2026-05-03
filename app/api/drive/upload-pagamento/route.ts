@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null;
     const name = formData.get('name') as string | null;
     const folderName = formData.get('folderName') as string | null;
+    const folderNamesRaw = formData.get('folderNames') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'file richiesto' }, { status: 400 });
@@ -68,13 +69,21 @@ export async function POST(request: NextRequest) {
     // 2. Get or create "Pagamenti" folder inside root
     const pagamentiFolderId = await getOrCreateFolder(accessToken, PAGAMENTI_FOLDER_NAME, rootFolderId);
 
-    // 3. Get or create project specific folder if provided
-    let targetFolderId = pagamentiFolderId;
-    if (folderName) {
-      targetFolderId = await getOrCreateFolder(accessToken, folderName, pagamentiFolderId);
+    // 3. Parse folder names — support both folderNames[] and legacy folderName
+    let folderNames: string[] = [];
+    if (folderNamesRaw) {
+      try { folderNames = JSON.parse(folderNamesRaw); } catch {}
+    } else if (folderName) {
+      folderNames = [folderName];
     }
 
-    // 4. Upload file to target folder
+    // 4. Get or create primary target folder (first in list)
+    let targetFolderId = pagamentiFolderId;
+    if (folderNames.length > 0) {
+      targetFolderId = await getOrCreateFolder(accessToken, folderNames[0], pagamentiFolderId);
+    }
+
+    // 5. Upload file to primary folder
     const metadata = {
       name: fileName,
       parents: [targetFolderId],
@@ -121,7 +130,25 @@ export async function POST(request: NextRequest) {
 
     const uploadedFile = await uploadRes.json();
 
-    // Make the file accessible to anyone with the link so it can be viewed in the app
+    // 6. Add file to additional project folders (same fileId, multiple parents)
+    if (folderNames.length > 1) {
+      for (const fn of folderNames.slice(1)) {
+        try {
+          const additionalFolderId = await getOrCreateFolder(accessToken, fn, pagamentiFolderId);
+          await fetch(
+            `${DRIVE_API}/files/${uploadedFile.id}?addParents=${additionalFolderId}&fields=id`,
+            {
+              method: 'PATCH',
+              headers: { Authorization: `Bearer ${accessToken}` },
+            }
+          );
+        } catch (e) {
+          console.error(`Could not add file to additional folder "${fn}":`, e);
+        }
+      }
+    }
+
+    // 7. Make the file accessible to anyone with the link
     await fetch(`${DRIVE_API}/files/${uploadedFile.id}/permissions`, {
       method: 'POST',
       headers: {

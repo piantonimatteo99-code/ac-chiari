@@ -240,9 +240,13 @@ export function UploadReceiptDialog({
             formDataDrive.append('file', file);
             // Nome file = causale (es. "ACR - 010526XXXX")
             formDataDrive.append('name', causaleCompleta);
-            const projectNames = Array.from(new Set(paymentItems.map(i => i.raccoltaNome))).join('_');
+            // Una cartella per ogni raccolta coinvolta nel pagamento
+            const uniqueRaccolte = Array.from(
+                new Map(paymentItems.map(i => [i.raccoltaId, i.raccoltaNome])).values()
+            );
             const todayFormatted = format(new Date(), 'dd-MM-yyyy');
-            formDataDrive.append('folderName', `${projectNames} - ${todayFormatted}`);
+            const folderNames = uniqueRaccolte.map(nome => `${nome} - ${todayFormatted}`);
+            formDataDrive.append('folderNames', JSON.stringify(folderNames));
             const driveRes = await fetch('/api/drive/upload-pagamento', { method: 'POST', body: formDataDrive });
             const driveData = await driveRes.json();
             if (driveData.file?.webViewLink) {

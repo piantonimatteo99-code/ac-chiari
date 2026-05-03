@@ -140,10 +140,12 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Per l'admin protetto: rimuovi familyId e svuota la sotto-collez `private`
+      // Per l'admin protetto: rimuovi familyId e gruppoId (puntano a dati cancellati)
       if (userDoc.id === protectedUid) {
-        // Rimuovi eventuale familyId residuo
-        await userDoc.ref.update({ familyId: admin.firestore.FieldValue.delete() }).catch(() => {});
+        await userDoc.ref.update({
+          familyId: admin.firestore.FieldValue.delete(),
+          gruppoId: admin.firestore.FieldValue.delete(),
+        }).catch(() => {});
         // Svuota tokens google-calendar nella sotto-collezione private
         const privateSnap = await userDoc.ref.collection('private').get();
         if (!privateSnap.empty) {
