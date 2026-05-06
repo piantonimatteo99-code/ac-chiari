@@ -163,7 +163,7 @@ async function processReminders(type: 'sera' | 'mezzogiorno'): Promise<NextRespo
 
       // Filtra utenti che hanno disabilitato questo tipo di promemoria
       const eligibleUids: string[] = [];
-      for (const uid of targetUids) {
+      for (const uid of Array.from(targetUids)) {
         const prefDoc = await adminDb
           .collection('users').doc(uid)
           .collection('notificationPreferences').doc(eventTypeId)
