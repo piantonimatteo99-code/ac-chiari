@@ -24,6 +24,8 @@ const TYPE_MAP: Record<NotificaEventType, 'pagamento' | 'evento' | 'iscrizione' 
   evento_modificato: 'evento',
   evento_rimosso: 'evento',
   evento_promemoria: 'evento',
+  evento_promemoria_sera: 'evento',
+  evento_promemoria_mezzogiorno: 'evento',
   presenza_scadenza_conferma: 'evento',
   presenza_registrata: 'evento',
   raccolta_nuova: 'pagamento',

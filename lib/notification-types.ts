@@ -9,6 +9,8 @@ export type NotificaEventType =
   | 'evento_modificato'
   | 'evento_rimosso'
   | 'evento_promemoria'
+  | 'evento_promemoria_sera'
+  | 'evento_promemoria_mezzogiorno'
   // Presenze
   | 'presenza_scadenza_conferma'
   | 'presenza_registrata'
@@ -81,6 +83,24 @@ export const NOTIFICA_TYPE_DEFINITIONS: NotificaTypeDefinition[] = [
     description: 'Promemoria automatico 24 ore prima di ogni evento del gruppo.',
     category: 'Calendario',
     icon: '⏰',
+    recipients: ['tutti'],
+    defaultEnabled: true,
+  },
+  {
+    id: 'evento_promemoria_sera',
+    label: 'Promemoria sera prima dell\'evento',
+    description: 'Promemoria inviato la sera precedente (ore 20:00) a ogni evento del gruppo.',
+    category: 'Calendario',
+    icon: '🌙',
+    recipients: ['tutti'],
+    defaultEnabled: true,
+  },
+  {
+    id: 'evento_promemoria_mezzogiorno',
+    label: 'Promemoria mezzogiorno del giorno stesso',
+    description: 'Promemoria inviato alle 12:00 del giorno stesso dell\'evento.',
+    category: 'Calendario',
+    icon: '☀️',
     recipients: ['tutti'],
     defaultEnabled: true,
   },
@@ -263,3 +283,10 @@ export function getNotificasByCategory() {
   });
   return map;
 }
+
+/** Tipi di notifica che sono promemoria evento inviati automaticamente */
+export const REMINDER_EVENT_TYPES: NotificaEventType[] = [
+  'evento_promemoria',
+  'evento_promemoria_sera',
+  'evento_promemoria_mezzogiorno',
+];

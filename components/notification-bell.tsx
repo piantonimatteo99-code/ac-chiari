@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Bell, BellRing, BellOff, Check, CheckCheck, X, ExternalLink, Settings, RotateCcw, Trash2 } from 'lucide-react';
+import { Bell, BellRing, BellOff, Check, CheckCheck, X, ExternalLink, Settings, RotateCcw, Trash2, Clock, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { it as itLocale } from 'date-fns/locale';
 import Link from 'next/link';
 import { useUser } from '@/src/firebase';
-import { NOTIFICA_TYPE_DEFINITIONS, getNotificasByCategory } from '@/lib/notification-types';
+import { NOTIFICA_TYPE_DEFINITIONS, REMINDER_EVENT_TYPES, getNotificasByCategory } from '@/lib/notification-types';
 
 /** Converts a base64url VAPID public key to Uint8Array for PushManager.subscribe() */
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
@@ -372,36 +372,108 @@ export function NotificationBell() {
                 <div className="p-4 space-y-1 text-xs text-muted-foreground border-b">
                   Personalizza quali notifiche vuoi ricevere. Le notifiche disattivate globalmente dall'admin non possono essere abilitate.
                 </div>
+
                 {isPrefLoading ? (
                   <div className="p-6 text-center text-sm text-muted-foreground">Caricamento...</div>
                 ) : (
                   <div>
-                    {Array.from(byCategory.entries()).map(([category, defs]) => (
-                      <div key={category}>
-                        <div className="px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/30">
-                          {category}
-                        </div>
-                        <div className="divide-y">
-                          {defs.map(def => {
-                            const enabled = isEnabled(def.id);
-                            return (
-                              <div key={def.id} className="flex items-center gap-3 px-4 py-3">
-                                <span className="text-base w-6 text-center shrink-0">{def.icon}</span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium leading-tight">{def.label}</p>
-                                  <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{def.description}</p>
-                                </div>
-                                <Switch
-                                  checked={enabled}
-                                  onCheckedChange={(v) => setPreference(def.id, v)}
-                                  className="shrink-0"
-                                />
+                    {/* ── Sezione Promemoria eventi ── */}
+                    <div className="px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/30">
+                      Promemoria eventi
+                    </div>
+                    <div className="divide-y">
+                      {/* Sera prima */}
+                      {(() => {
+                        const def = NOTIFICA_TYPE_DEFINITIONS.find(d => d.id === 'evento_promemoria_sera')!;
+                        const enabled = isEnabled(def.id);
+                        return (
+                          <div key={def.id} className={cn(
+                            'flex items-center gap-3 px-4 py-3',
+                            enabled && 'bg-blue-50/50 dark:bg-blue-950/10'
+                          )}>
+                            <span className="text-lg w-6 text-center shrink-0">{def.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-medium leading-tight">{def.label}</p>
+                                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">DEFAULT ON</span>
                               </div>
-                            );
-                          })}
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                <Moon className="h-2.5 w-2.5 inline mr-0.5 -mt-px" />
+                                Ore 20:00 della sera precedente
+                              </p>
+                            </div>
+                            <Switch
+                              checked={enabled}
+                              onCheckedChange={(v) => setPreference(def.id, v)}
+                              className="shrink-0"
+                            />
+                          </div>
+                        );
+                      })()}
+                      {/* Mezzogiorno */}
+                      {(() => {
+                        const def = NOTIFICA_TYPE_DEFINITIONS.find(d => d.id === 'evento_promemoria_mezzogiorno')!;
+                        const enabled = isEnabled(def.id);
+                        return (
+                          <div key={def.id} className={cn(
+                            'flex items-center gap-3 px-4 py-3',
+                            enabled && 'bg-amber-50/50 dark:bg-amber-950/10'
+                          )}>
+                            <span className="text-lg w-6 text-center shrink-0">{def.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-medium leading-tight">{def.label}</p>
+                                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">DEFAULT ON</span>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                <Sun className="h-2.5 w-2.5 inline mr-0.5 -mt-px" />
+                                Ore 12:00 del giorno stesso
+                              </p>
+                            </div>
+                            <Switch
+                              checked={enabled}
+                              onCheckedChange={(v) => setPreference(def.id, v)}
+                              className="shrink-0"
+                            />
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* ── Tutte le altre categorie ── */}
+                    {Array.from(byCategory.entries()).map(([category, defs]) => {
+                      // Filtra i promemoria già mostrati sopra
+                      const filteredDefs = defs.filter(
+                        d => !REMINDER_EVENT_TYPES.includes(d.id as any)
+                      );
+                      if (filteredDefs.length === 0) return null;
+                      return (
+                        <div key={category}>
+                          <div className="px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/30">
+                            {category}
+                          </div>
+                          <div className="divide-y">
+                            {filteredDefs.map(def => {
+                              const enabled = isEnabled(def.id);
+                              return (
+                                <div key={def.id} className="flex items-center gap-3 px-4 py-3">
+                                  <span className="text-base w-6 text-center shrink-0">{def.icon}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium leading-tight">{def.label}</p>
+                                    <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{def.description}</p>
+                                  </div>
+                                  <Switch
+                                    checked={enabled}
+                                    onCheckedChange={(v) => setPreference(def.id, v)}
+                                    className="shrink-0"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </ScrollArea>

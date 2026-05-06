@@ -3,6 +3,14 @@
     {
       "path": "/api/cleanup-receipts",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/send-event-reminders?type=sera",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/send-event-reminders?type=mezzogiorno",
+      "schedule": "0 10 * * *"
     }
   ]
 }
