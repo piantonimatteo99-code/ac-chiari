@@ -98,11 +98,22 @@ export async function POST(request: NextRequest) {
             console.error(`Error processing file for member ${memberId}:`, e);
           }
         } else if (payment.receiptUrl.includes('drive.google.com')) {
-          // Google Drive: mark for deletion (already stored on Drive, no ZIP needed)
+          // Legacy: webViewLink format
           const match = payment.receiptUrl.match(/\/file\/d\/([^/?]+)/);
           if (match?.[1]) {
             driveFilesToDelete.push({
               fileId: match[1],
+              paymentId: payment.paymentId,
+              dbPath: `paymentDetails.${phase}.${memberId}.receiptUrl`,
+            });
+          }
+        } else if (payment.receiptUrl.includes('/api/drive/view-receipt')) {
+          // New: proxy URL format — extract fileId from query param
+          const params = new URLSearchParams(payment.receiptUrl.split('?')[1] || '');
+          const fId = params.get('fileId');
+          if (fId) {
+            driveFilesToDelete.push({
+              fileId: fId,
               paymentId: payment.paymentId,
               dbPath: `paymentDetails.${phase}.${memberId}.receiptUrl`,
             });

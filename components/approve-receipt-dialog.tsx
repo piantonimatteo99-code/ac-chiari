@@ -1,22 +1,34 @@
 'use client';
+import { useEffect, useState } from 'react';
+import { getAuth } from 'firebase/auth';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { ShieldCheck, Trash2, ExternalLink, Copy } from 'lucide-react';
+import { ShieldCheck, Trash2, ExternalLink, Copy, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { FlatPayment } from '@/app/(app)/contabilita/transazioni-da-controllare/page';
 
-const getReceiptPreview = (url: string): { type: 'drive' | 'image' | 'link'; previewUrl: string } => {
+/**
+ * Determines how to preview a receipt URL.
+ * - 'proxy': new private URL served via /api/drive/view-receipt (requires auth fetch → blob)
+ * - 'drive': legacy Google Drive webViewLink → embed with Drive preview iframe
+ * - 'image': Firebase Storage image URL
+ * - 'link': fallback external link
+ */
+const getReceiptPreview = (url: string): { type: 'proxy' | 'drive' | 'image' | 'link'; fileId?: string } => {
+    if (url.includes('/api/drive/view-receipt')) {
+        const params = new URLSearchParams(url.split('?')[1] || '');
+        return { type: 'proxy', fileId: params.get('fileId') ?? undefined };
+    }
     if (url.includes('drive.google.com')) {
-        const match = url.match(/\/file\/d\/([^/?]+)/);
-        if (match) return { type: 'drive', previewUrl: `https://drive.google.com/file/d/${match[1]}/preview` };
+        return { type: 'drive' };
     }
     if (url.includes('firebasestorage') || /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(url)) {
-        return { type: 'image', previewUrl: url };
+        return { type: 'image' };
     }
-    return { type: 'link', previewUrl: url };
+    return { type: 'link' };
 };
 
 const copyToClipboard = (text: string) => navigator.clipboard.writeText(text);
@@ -36,6 +48,41 @@ export function ApproveReceiptDialog({ isOpen, onOpenChange, payment, onApprove,
     const causale: string = paymentDetails.causaleAttesa ?? `ACR - ${payment.paymentId}`;
     const receiptUrl = paymentDetails.receiptUrl;
     const preview = receiptUrl ? getReceiptPreview(receiptUrl) : null;
+
+    // Authenticated blob URL for private proxy receipts
+    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [blobLoading, setBlobLoading] = useState(false);
+    const [blobError, setBlobError] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen || !receiptUrl || preview?.type !== 'proxy') return;
+        setBlobLoading(true);
+        setBlobError(false);
+        setBlobUrl(null);
+
+        const auth = getAuth();
+        auth.currentUser?.getIdToken()
+            .then(token => fetch(receiptUrl, { headers: { Authorization: `Bearer ${token}` } }))
+            .then(res => {
+                if (!res.ok) throw new Error('fetch failed');
+                return res.blob();
+            })
+            .then(blob => {
+                setBlobUrl(URL.createObjectURL(blob));
+                setBlobLoading(false);
+            })
+            .catch(() => { setBlobError(true); setBlobLoading(false); });
+
+        return () => {
+            if (blobUrl) URL.revokeObjectURL(blobUrl);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, receiptUrl]);
+
+    // Legacy Drive preview URL (webViewLink → embed)
+    const legacyDrivePreviewUrl = preview?.type === 'drive' && receiptUrl
+        ? (() => { const m = receiptUrl.match(/\/file\/d\/([^/?]+)/); return m ? `https://drive.google.com/file/d/${m[1]}/preview` : null; })()
+        : null;
 
     // Group items by raccolta name
     const grouped = items.reduce((acc: Record<string, any[]>, item: any) => {
@@ -118,8 +165,8 @@ export function ApproveReceiptDialog({ isOpen, onOpenChange, payment, onApprove,
                                     </span>
                                 </div>
 
-                                {/* Open original link */}
-                                {receiptUrl && (
+                                {/* Open original (only for legacy/public URLs) */}
+                                {receiptUrl && preview?.type !== 'proxy' && (
                                     <Button variant="outline" size="sm" asChild className="w-full">
                                         <Link href={receiptUrl} target="_blank">
                                             <ExternalLink className="mr-2 h-4 w-4" />
@@ -139,16 +186,39 @@ export function ApproveReceiptDialog({ isOpen, onOpenChange, payment, onApprove,
                                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                                     Documento non disponibile
                                 </div>
-                            ) : preview?.type === 'drive' ? (
+                            ) : preview?.type === 'proxy' ? (
+                                blobLoading ? (
+                                    <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                        <span className="text-sm">Caricamento documento...</span>
+                                    </div>
+                                ) : blobError ? (
+                                    <div className="flex items-center justify-center h-full text-destructive text-sm">
+                                        Impossibile caricare il documento
+                                    </div>
+                                ) : blobUrl ? (
+                                    // Use <object> — works for both PDF and images
+                                    <object
+                                        data={blobUrl}
+                                        className="absolute inset-0 w-full h-full"
+                                        title="Anteprima ricevuta"
+                                    >
+                                        <div className="flex items-center justify-center h-full text-muted-foreground text-sm p-4 text-center">
+                                            Il browser non supporta l'anteprima.<br />
+                                            Il documento è stato caricato correttamente.
+                                        </div>
+                                    </object>
+                                ) : null
+                            ) : preview?.type === 'drive' && legacyDrivePreviewUrl ? (
                                 <iframe
-                                    src={preview.previewUrl}
+                                    src={legacyDrivePreviewUrl}
                                     className="absolute inset-0 w-full h-full"
                                     allow="autoplay"
                                     title="Anteprima ricevuta"
                                 />
                             ) : preview?.type === 'image' ? (
                                 <Image
-                                    src={preview.previewUrl}
+                                    src={receiptUrl}
                                     alt="Ricevuta"
                                     fill
                                     className="object-contain p-4"

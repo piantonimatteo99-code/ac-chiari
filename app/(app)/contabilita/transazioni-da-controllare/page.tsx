@@ -58,9 +58,14 @@ const parseDate = (date: any): Date | null => {
     return null;
 };
 
-// Extracts the Google Drive file ID from a webViewLink URL
+// Extracts the Google Drive file ID from either:
+//  - new proxy URL: /api/drive/view-receipt?fileId=XXX
+//  - legacy webViewLink: https://drive.google.com/file/d/XXX/view
 const extractDriveFileId = (url: string): string | null => {
     if (!url) return null;
+    if (url.includes('/api/drive/view-receipt')) {
+        try { return new URLSearchParams(url.split('?')[1] || '').get('fileId'); } catch {}
+    }
     const match = url.match(/\/file\/d\/([^/?]+)/);
     return match ? match[1] : null;
 };

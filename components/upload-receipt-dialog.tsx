@@ -249,8 +249,9 @@ export function UploadReceiptDialog({
             formDataDrive.append('folderNames', JSON.stringify(folderNames));
             const driveRes = await fetch('/api/drive/upload-pagamento', { method: 'POST', body: formDataDrive });
             const driveData = await driveRes.json();
-            if (driveData.file?.webViewLink) {
-                finalReceiptUrl = driveData.file.webViewLink;
+            if (driveData.file?.id) {
+                // URL proxy autenticato — il file Drive rimane privato
+                finalReceiptUrl = `/api/drive/view-receipt?fileId=${driveData.file.id}`;
                 deleteObject(storageRef).catch(e => console.error("Error deleting temp storage file:", e));
             }
         } catch (driveErr) {

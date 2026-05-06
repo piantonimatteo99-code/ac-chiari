@@ -148,20 +148,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7. Make the file accessible to anyone with the link
-    await fetch(`${DRIVE_API}/files/${uploadedFile.id}/permissions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        role: 'reader',
-        type: 'anyone',
-      }),
-    });
-
+    // File rimane PRIVATO — accessibile solo tramite il proxy autenticato /api/drive/view-receipt
     return NextResponse.json({ file: uploadedFile });
+
 
   } catch (err: any) {
     console.error('Error uploading file to Drive:', err);
