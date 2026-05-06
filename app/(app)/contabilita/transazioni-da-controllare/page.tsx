@@ -387,8 +387,7 @@ export default function TransazioniDaControllarePage() {
                                     <TableHead>Riferimento</TableHead>
                                     <TableHead>Importo</TableHead>
                                     <TableHead>Raccolta/e</TableHead>
-                                    <TableHead>Documento</TableHead>
-                                    <TableHead className="text-right">Azioni</TableHead>
+                                    <TableHead>Azioni</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -410,36 +409,14 @@ export default function TransazioniDaControllarePage() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            {p.paymentDetails.receiptUrl ? (
-                                                <Button variant="outline" size="sm" asChild>
-                                                    <Link href={p.paymentDetails.receiptUrl} target="_blank">
-                                                        <ExternalLink className="mr-2 h-4 w-4" />
-                                                        Visualizza
-                                                    </Link>
-                                                </Button>
-                                            ) : (
-                                                <span className="text-muted-foreground text-sm">Non disponibile</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => setApprovingPayment(p)}
-                                                    className="bg-green-600 hover:bg-green-700 text-white"
-                                                >
-                                                    <ShieldCheck className="mr-2 h-4 w-4" />
-                                                    Approva
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => setPaymentToDelete(p)}
-                                                >
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                    Rifiuta
-                                                </Button>
-                                            </div>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setApprovingPayment(p)}
+                                            >
+                                                <ExternalLink className="mr-2 h-4 w-4" />
+                                                Visualizza
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
