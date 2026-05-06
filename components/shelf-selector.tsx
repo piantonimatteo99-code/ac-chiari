@@ -136,26 +136,44 @@ export function ShelfSelector({ value, onChange, disabled }: ShelfSelectorProps)
 }
 
 // ─── MiniShelf (thumbnail) ────────────────────────────────────────────────────
-interface MiniShelfProps { posizione: ShelfPosition | null | undefined; }
-export function MiniShelf({ posizione }: MiniShelfProps) {
+// Rappresentazione minimal: griglia di celle con un pallino colorato nella cella selezionata.
+interface MiniShelfProps { posizione: ShelfPosition | null | undefined; dotColor?: string; }
+export function MiniShelf({ posizione, dotColor = 'bg-primary' }: MiniShelfProps) {
   if (!posizione) return null;
   const { ripiano: targetR, colonna: targetC } = posizione;
-  
+
+  // Griglia semplificata: RIPIANI righe × COLONNE colonne
+  // Colonna 3 ha solo 3 ripiani, per il mini la trattiamo uguale alle altre
+  const rows = Array.from({ length: RIPIANI }, (_, ri) => ri + 1);
+  const cols = Array.from({ length: COLONNE }, (_, ci) => ci + 1);
+
   return (
-    <div className="relative inline-block flex-shrink-0 rounded overflow-hidden" title={`Ripiano ${targetR}, Sez. ${targetC}`}
-      style={{ height: '50px', width: '80px', backgroundImage: 'url(/scaffale-bg.png)', backgroundSize: '100% 100%' }}>
-      {/* cella evidenziata */}
-      {CELL_DEFS.map(def => {
-        const sel = def.ripiano === targetR && def.colonna === targetC;
-        if (!sel) return null;
-        
-        const { top, height, left, width } = getExactGeometry(def.ripiano, def.colonna);
-        
-        return (
-          <div key={`${def.ripiano}-${def.colonna}`} className="absolute bg-primary/60 border border-primary/50"
-            style={{ top, height, left, width }} />
-        );
-      })}
+    <div
+      className="inline-flex flex-col gap-[2px] flex-shrink-0 p-[3px] rounded border border-border bg-muted/40"
+      title={`Ripiano ${targetR}, Sez. ${targetC}`}
+      style={{ width: 44 }}
+    >
+      {rows.map(r => (
+        <div key={r} className="flex gap-[2px]">
+          {cols.map(c => {
+            const isTarget = r === targetR && c === targetC;
+            return (
+              <div
+                key={c}
+                className={cn(
+                  'rounded-[2px] flex-1 flex items-center justify-center',
+                  'border border-border/50',
+                )}
+                style={{ height: 7 }}
+              >
+                {isTarget && (
+                  <span className={cn('w-[5px] h-[5px] rounded-full', dotColor)} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -174,16 +192,11 @@ function cellStatus(cellItems: ShelfItem[], giorniAllerta: number) {
   if (cellItems.some(i => { const d = daysUntil(i.dataScadenza); return d >= 0 && d <= giorniAllerta; })) return 'warning';
   return 'ok';
 }
-const STATUS_BG: Record<string, string> = {
-  empty: 'bg-transparent',
-  ok: 'bg-emerald-500/15 hover:bg-emerald-500/25 cursor-pointer',
-  warning: 'bg-amber-500/15 hover:bg-amber-500/25 cursor-pointer',
-  expired: 'bg-red-500/20 hover:bg-red-500/30 cursor-pointer',
-};
-const DOT_CLASSES = { empty: '', ok: 'bg-emerald-500', warning: 'bg-amber-500', expired: 'bg-red-500' };
+const DOT_CLASSES: Record<string, string> = { empty: '', ok: 'bg-emerald-500', warning: 'bg-amber-500', expired: 'bg-red-500' };
 
 // ─── ShelfMap (visualizzazione inventario) ───────────────────────────────────
 export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProps) {
+  // Costruisce mappa per cella
   const gridMap: Record<string, ShelfItem[]> = {};
   for (const item of items) {
     let { ripiano, colonna } = item.posizione;
@@ -193,97 +206,125 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
     if (!gridMap[k]) gridMap[k] = [];
     gridMap[k].push(item);
   }
-  const occupiedCells = Object.values(gridMap).filter(c => c.length > 0).length;
-  const totalCells = CELL_DEFS.length;
+
+  // Raggruppa per ripiano: righe R1..R5, colonne 1..3
+  // Per colonna 3, ripiani validi sono 1..3, per le altre 1..5
+  const allRipiani = [1, 2, 3, 4, 5];
+  const allColonne = [1, 2, 3];
 
   return (
-    <div className="space-y-4">
-      {/* Legenda */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          {[{ color: 'bg-emerald-400', label: 'Presente' }, { color: 'bg-amber-400', label: 'In scadenza' }, { color: 'bg-red-400', label: 'Scaduto' }, { color: 'bg-zinc-300', label: 'Vuoto' }].map(({ color, label }) => (
-            <span key={label} className="flex items-center gap-1.5"><span className={cn('w-3 h-3 rounded-sm inline-block', color)} />{label}</span>
-          ))}
-        </div>
-        <span className="text-xs text-muted-foreground font-medium">{occupiedCells}/{totalCells} celle · {items.length} prodotti</span>
+    <div className="space-y-2">
+      {/* Header colonne */}
+      <div className="flex items-center gap-2">
+        <div className="w-10 flex-shrink-0" />
+        {allColonne.map(c => (
+          <div key={c} className="flex-1 text-center text-xs font-semibold text-muted-foreground tracking-wide py-1">
+            Sez. {c}
+          </div>
+        ))}
       </div>
 
-      {/* Scaffale */}
-      <div className="w-full select-none overflow-x-auto pb-2">
-        <div className="min-w-[520px]">
-          {/* Etichette sezioni */}
-          <div className="flex mb-1" style={{ paddingLeft: 36 }}>
-            {Array.from({ length: COLONNE }, (_, ci) => (
-              <div key={ci} className="flex-1 text-center text-xs font-semibold text-muted-foreground tracking-wide">Sez. {ci + 1}</div>
-            ))}
-          </div>
-          <div className="flex gap-1.5">
-            {/* Label ripiani */}
-            <div className="flex flex-col flex-shrink-0 relative" style={{ width: 28 }}>
-              {LABELS.map(r => {
-                const { top, height } = getExactGeometry(r, 1);
-                return (
-                  <div key={r} className="absolute w-full flex items-center justify-center"
-                    style={{ top, height }}>
-                    <span className="text-[11px] font-bold text-muted-foreground bg-muted rounded px-1 py-0.5 shadow-sm">R{r}</span>
-                  </div>
-                );
-              })}
+      {/* Righe ripiani */}
+      {allRipiani.map(r => {
+        // Verifica se ci sono prodotti in scadenza/scaduti in questo ripiano
+        const ripianoItems = allColonne
+          .map(c => gridMap[`${r}-${c}`] ?? [])
+          .flat();
+        const ripianoStatus = cellStatus(ripianoItems, giorniAllerta);
+        const hasAlert = ripianoStatus === 'expired' || ripianoStatus === 'warning';
+
+        return (
+          <div
+            key={r}
+            className={cn(
+              'flex items-stretch gap-2 rounded-lg border p-1.5 transition-colors',
+              ripianoStatus === 'expired' && 'border-red-300 bg-red-50 dark:bg-red-950/20',
+              ripianoStatus === 'warning' && 'border-amber-300 bg-amber-50 dark:bg-amber-950/20',
+              ripianoStatus === 'ok' && 'border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/10',
+              ripianoStatus === 'empty' && 'border-border bg-muted/20',
+            )}
+          >
+            {/* Label ripiano + alert badge */}
+            <div className="w-10 flex-shrink-0 flex flex-col items-center justify-center gap-1">
+              <span className="text-[11px] font-bold text-muted-foreground">R{r}</span>
+              {hasAlert && (
+                <span
+                  className={cn(
+                    'text-[9px] font-bold px-1 py-0.5 rounded-full leading-none',
+                    ripianoStatus === 'expired'
+                      ? 'bg-red-500 text-white'
+                      : 'bg-amber-500 text-white'
+                  )}
+                >
+                  {ripianoStatus === 'expired' ? 'Sc.' : '⚠'}
+                </span>
+              )}
             </div>
-            {/* Frame scaffale grande (immagine) */}
-            <div
-              className="relative flex-1 rounded overflow-hidden shadow-lg border border-black/10"
-              style={{ height: '500px' }}
-            >
-              <ShelfBg />
-              {/* Celle interattive */}
-              {CELL_DEFS.map(def => {
-                const key = `${def.ripiano}-${def.colonna}`;
-                const cellItems = gridMap[key] || [];
-                const status = cellStatus(cellItems, giorniAllerta);
-                const isEmpty = status === 'empty';
-                const sorted = [...cellItems].sort((a, b) => daysUntil(a.dataScadenza) - daysUntil(b.dataScadenza));
-                const first = sorted[0];
-                const days = first ? daysUntil(first.dataScadenza) : Infinity;
-                const { top, left, width, height } = getExactGeometry(def.ripiano, def.colonna);
-                
-                return (
-                  <div
-                    key={`cell-${def.ripiano}-${def.colonna}`}
-                    role={isEmpty ? undefined : 'button'}
-                    tabIndex={isEmpty ? undefined : 0}
-                    onClick={() => !isEmpty && onCellClick?.(cellItems, def.ripiano, def.colonna)}
-                    onKeyDown={e => { if (!isEmpty && (e.key === 'Enter' || e.key === ' ')) onCellClick?.(cellItems, def.ripiano, def.colonna); }}
-                    title={isEmpty ? `R${def.ripiano} Sez.${def.colonna} — vuoto` : cellItems.map(i => i.nome).join(', ')}
-                    className={cn('absolute z-30 flex flex-col items-center justify-center gap-1 p-2 transition-colors duration-150', STATUS_BG[status])}
-                    style={{ top, height, left, width }}
-                  >
-                    {isEmpty ? (
-                      <span className="text-[11px] text-zinc-400/40 font-mono select-none">—</span>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-1.5">
-                          <span className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm ring-1 ring-black/10', DOT_CLASSES[status])} />
-                          {cellItems.length > 1 && <span className="text-[10px] font-bold text-muted-foreground">×{cellItems.length}</span>}
-                        </div>
-                        <span className="text-[12px] font-semibold text-center leading-tight line-clamp-2 max-w-full text-zinc-800">
+
+            {/* Celle per ogni sezione */}
+            {allColonne.map(c => {
+              // Colonna 3 ha solo 3 ripiani
+              const isDisabled = c === 3 && r > 3;
+              const cellKey = `${r}-${c}`;
+              const cellItems = isDisabled ? [] : (gridMap[cellKey] ?? []);
+              const status = isDisabled ? 'disabled' : cellStatus(cellItems, giorniAllerta);
+              const isEmpty = status === 'empty' || status === 'disabled';
+              const sorted = [...cellItems].sort((a, b) => daysUntil(a.dataScadenza) - daysUntil(b.dataScadenza));
+              const first = sorted[0];
+              const days = first ? daysUntil(first.dataScadenza) : Infinity;
+
+              return (
+                <div
+                  key={c}
+                  role={isEmpty ? undefined : 'button'}
+                  tabIndex={isEmpty ? undefined : 0}
+                  onClick={() => !isEmpty && onCellClick?.(cellItems, r, c)}
+                  onKeyDown={e => { if (!isEmpty && (e.key === 'Enter' || e.key === ' ')) onCellClick?.(cellItems, r, c); }}
+                  title={isEmpty ? undefined : cellItems.map(i => i.nome).join(', ')}
+                  className={cn(
+                    'flex-1 rounded-md border min-h-[52px] px-2 py-1.5 flex flex-col justify-center gap-1 transition-colors',
+                    status === 'disabled' && 'bg-muted/30 border-dashed border-border/40 opacity-40',
+                    status === 'empty' && 'bg-transparent border-dashed border-border/60',
+                    status === 'ok' && 'bg-emerald-500/10 border-emerald-300/50 hover:bg-emerald-500/20 cursor-pointer',
+                    status === 'warning' && 'bg-amber-500/10 border-amber-300/50 hover:bg-amber-500/20 cursor-pointer',
+                    status === 'expired' && 'bg-red-500/10 border-red-300/50 hover:bg-red-500/20 cursor-pointer',
+                  )}
+                >
+                  {status === 'disabled' ? (
+                    <span className="text-[10px] text-muted-foreground/40 text-center select-none">—</span>
+                  ) : isEmpty ? (
+                    <span className="text-[10px] text-muted-foreground/50 text-center select-none">vuoto</span>
+                  ) : (
+                    <>
+                      {/* Riga nome + dot + conteggio */}
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={cn('w-2 h-2 rounded-full flex-shrink-0', DOT_CLASSES[status])} />
+                        <span className="text-[11px] font-semibold truncate text-foreground leading-tight flex-1">
                           {first?.nome}{cellItems.length > 1 ? ` +${cellItems.length - 1}` : ''}
                         </span>
-                        {first && days !== Infinity && (
-                          <span className={cn('text-[9px] font-mono px-1.5 py-0.5 rounded-full leading-none shadow-sm',
-                            days < 0 ? 'bg-red-500 text-white' : days <= giorniAllerta ? 'bg-amber-500 text-white' : 'bg-zinc-200 text-zinc-600')}>
-                            {days < 0 ? `Sc. ${Math.abs(days)}g fa` : `${days}g`}
-                          </span>
+                        {cellItems.length > 1 && (
+                          <span className="text-[9px] font-medium text-muted-foreground flex-shrink-0">×{cellItems.length}</span>
                         )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      </div>
+                      {/* Scadenza */}
+                      {first && days !== Infinity && (
+                        <span
+                          className={cn(
+                            'self-start text-[9px] font-mono px-1.5 py-0.5 rounded-full leading-none',
+                            days < 0 ? 'bg-red-500 text-white' : days <= giorniAllerta ? 'bg-amber-500 text-white' : 'bg-zinc-200 text-zinc-600'
+                          )}
+                        >
+                          {days < 0 ? `Sc. ${Math.abs(days)}g fa` : `${days}g`}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
 }
