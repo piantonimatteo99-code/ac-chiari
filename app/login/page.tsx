@@ -9,9 +9,9 @@ import { Label } from '@/components/ui/label';
 import { useAuth, useUser, useFirestore } from '@/src/firebase';
 import { signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Eye, EyeOff, AlertCircle, InfoIcon } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, InfoIcon, ShieldCheck, X } from 'lucide-react';
 import { AcChiariLogo } from '@/components/ac-logo';
-
+import { triggerNotification } from '@/lib/trigger-notification';
 
 // ---- Componente interno che usa useSearchParams ----
 function LoginForm() {
@@ -22,6 +22,11 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // Google first-time: pending user waiting for privacy acceptance
+  const [pendingGoogleUser, setPendingGoogleUser] = useState<any>(null);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
@@ -88,34 +93,70 @@ function LoginForm() {
       const result = await signInWithPopup(auth, provider);
       const fbUser = result.user;
 
-      // Crea il documento Firestore solo se è la prima volta
       const userDocRef = doc(firestore, 'users', fbUser.uid);
       const userSnap = await getDoc(userDocRef);
+
       if (!userSnap.exists()) {
-        const displayParts = (fbUser.displayName || '').split(' ');
-        const nome = displayParts[0] || '';
-        const cognome = displayParts.slice(1).join(' ') || '';
-        await setDoc(userDocRef, {
-          id: fbUser.uid,
-          nome,
-          cognome,
-          displayName: fbUser.displayName || '',
-          email: fbUser.email || '',
-          roles: ['utente'],
-          createdAt: serverTimestamp(),
-        });
+        // Prima registrazione via Google → richiedi accettazione privacy
+        setPendingGoogleUser(fbUser);
+        setShowPrivacyModal(true);
+        setIsGoogleLoading(false);
+        return;
       }
 
-      // Google garantisce emailVerified — vai direttamente alla dashboard
+      // Utente già registrato → vai alla dashboard
       router.push('/dashboard');
     } catch (err: any) {
       setIsGoogleLoading(false);
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        // Utente ha chiuso il popup — non è un errore da mostrare
         return;
       }
       setError('Accesso con Google non riuscito. Riprova.');
     }
+  };
+
+  // Conferma privacy nel modal → crea il documento Firestore e vai alla dashboard
+  const handlePrivacyAccept = async () => {
+    if (!pendingGoogleUser || !firestore) return;
+    try {
+      const userDocRef = doc(firestore, 'users', pendingGoogleUser.uid);
+      const displayParts = (pendingGoogleUser.displayName || '').split(' ');
+      const nome = displayParts[0] || '';
+      const cognome = displayParts.slice(1).join(' ') || '';
+      await setDoc(userDocRef, {
+        id: pendingGoogleUser.uid,
+        nome,
+        cognome,
+        displayName: pendingGoogleUser.displayName || '',
+        email: pendingGoogleUser.email || '',
+        roles: ['utente'],
+        createdAt: serverTimestamp(),
+        privacyAcceptedAt: serverTimestamp(),
+      });
+      // Notifica admin
+      try {
+        await triggerNotification({
+          eventType: 'nuovo_utente',
+          title: 'Nuovo Utente Registrato',
+          body: `L'utente ${pendingGoogleUser.displayName} ha creato un account con Google.`,
+          href: '/admin/gestione-utenti/utenti-registrati',
+          userId: '__admin_broadcast__',
+        });
+      } catch { /* non bloccante */ }
+
+      router.push('/dashboard');
+    } catch (err) {
+      console.error("Errore creazione doc Google:", err);
+      setShowPrivacyModal(false);
+      setError('Si è verificato un errore. Riprova.');
+    }
+  };
+
+  // Rifiuto privacy → logout e chiudi modal
+  const handlePrivacyDecline = async () => {
+    if (auth) await signOut(auth);
+    setPendingGoogleUser(null);
+    setShowPrivacyModal(false);
   };
 
   if (isUserLoading || (!isUserLoading && user && user.emailVerified)) {
@@ -131,9 +172,63 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen bg-background flex">
+      {/* ── Modal privacy per primo accesso Google ── */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-card rounded-2xl border border-border shadow-xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
+                <h3 className="font-bold text-lg text-foreground">Prima di continuare</h3>
+              </div>
+              <button
+                onClick={handlePrivacyDecline}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Chiudi"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Benvenuto/a! Poiché è la tua prima volta su AC Chiari, ti chiediamo di leggere
+              e accettare la nostra Informativa sulla Privacy prima di creare il tuo profilo.
+            </p>
+
+            <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm space-y-1.5 text-foreground/80">
+              <p className="flex items-start gap-2"><span>✅</span><span>I tuoi dati sono accessibili solo agli educatori autorizzati</span></p>
+              <p className="flex items-start gap-2"><span>✅</span><span>Le ricevute di pagamento vengono eliminate dopo la verifica</span></p>
+              <p className="flex items-start gap-2"><span>✅</span><span>Nessun sistema di intelligenza artificiale analizza i tuoi documenti</span></p>
+              <p className="flex items-start gap-2"><span>✅</span><span>I tuoi dati non vengono ceduti a terze parti</span></p>
+            </div>
+
+            <p className="text-center text-xs text-muted-foreground">
+              <Link href="/privacy" target="_blank" className="underline hover:text-primary underline-offset-2">
+                Leggi la Privacy Policy completa
+              </Link>
+            </p>
+
+            <div className="flex gap-3 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handlePrivacyDecline}
+              >
+                Non accetto
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handlePrivacyAccept}
+              >
+                Accetto e continuo
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Colonna sinistra — Branding (solo desktop) */}
       <div className="hidden lg:flex lg:w-1/2 xl:w-5/12 flex-col items-center justify-center bg-sidebar-bg p-12 relative overflow-hidden">
-        {/* Cerchio decorativo sfondo */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-[-20%] right-[-20%] w-96 h-96 rounded-full bg-yellow-400" />
           <div className="absolute bottom-[-10%] left-[-15%] w-72 h-72 rounded-full bg-blue-300" />
@@ -144,7 +239,6 @@ function LoginForm() {
             <h1 className="text-3xl font-bold text-sidebar-fg tracking-tight">Azione Cattolica</h1>
             <p className="text-lg font-medium text-sidebar-muted mt-1">Chiari</p>
           </div>
-
         </div>
       </div>
 

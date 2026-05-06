@@ -13,18 +13,25 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth, useUser, useFirestore } from '@/src/firebase';
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { setDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { triggerNotification } from '@/lib/trigger-notification';
+import { AlertCircle, ShieldCheck, X } from 'lucide-react';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nome, setNome] = useState('');
   const [cognome, setCognome] = useState('');
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // Google first-time: pending user waiting for privacy acceptance
+  const [pendingGoogleUser, setPendingGoogleUser] = useState<any>(null);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const auth = useAuth();
   const firestore = useFirestore();
@@ -40,31 +47,29 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!privacyAccepted) {
+      setError('Devi accettare la Privacy Policy per continuare.');
+      return;
+    }
     if (!auth || !firestore) return;
 
     try {
-      // STEP 1: Crea l'account Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-      // STEP 2: Invia email di verifica personalizzata via API server-side.
-      // L'API crea anche il documento Firestore via Admin SDK (affidabile).
       try {
         const emailRes = await fetch('/api/send-registration-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             uid: userCredential.user.uid,
-            email: email,
-            nome: nome,
-            cognome: cognome,
+            email,
+            nome,
+            cognome,
             displayName: `${nome} ${cognome}`,
           })
         });
-        if (!emailRes.ok) {
-          throw new Error('Risposta API non OK, uso fallback Firebase');
-        }
+        if (!emailRes.ok) throw new Error('Risposta API non OK, uso fallback Firebase');
       } catch (emailErr) {
-        // Fallback: usa l'email di default Firebase (non brandizzata ma con redirect corretto)
         console.warn("Invio custom email fallito, uso fallback Firebase:", emailErr);
         try {
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://olicachiari.vercel.app';
@@ -77,24 +82,22 @@ export default function SignupPage() {
         }
       }
 
-      // STEP 3: Crea il documento utente su Firestore come fallback (nel caso in cui
-      // l'API abbia saltato la creazione perché SMTP non è configurato).
       try {
         const userDocRef = doc(firestore, "users", userCredential.user.uid);
         await setDoc(userDocRef, {
           id: userCredential.user.uid,
-          nome: nome,
-          cognome: cognome,
+          nome,
+          cognome,
           displayName: `${nome} ${cognome}`,
-          email: email,
+          email,
           roles: ["utente"],
           createdAt: serverTimestamp(),
-        }, { merge: true }); // merge:true → non sovrascrive se già creato dal server
+          privacyAcceptedAt: serverTimestamp(),
+        }, { merge: true });
       } catch (firestoreErr) {
         console.error("Errore scrittura Firestore (non bloccante):", firestoreErr);
       }
 
-      // STEP 4: Notifica admin (non bloccante)
       try {
         await triggerNotification({
           eventType: 'nuovo_utente',
@@ -107,7 +110,6 @@ export default function SignupPage() {
         console.warn("Errore notifica admin (non bloccante):", notifErr);
       }
 
-      // STEP 5: Logout e redirect
       await signOut(auth);
       router.push('/login?signup_success=true');
 
@@ -125,6 +127,10 @@ export default function SignupPage() {
 
   const handleGoogleSignup = async () => {
     setError(null);
+    if (!privacyAccepted) {
+      setError('Devi accettare la Privacy Policy per continuare.');
+      return;
+    }
     if (!auth || !firestore) return;
     setIsGoogleLoading(true);
     try {
@@ -132,7 +138,6 @@ export default function SignupPage() {
       const result = await signInWithPopup(auth, provider);
       const fbUser = result.user;
 
-      // Crea il documento Firestore solo se è la prima volta
       const userDocRef = doc(firestore, 'users', fbUser.uid);
       const userSnap = await getDoc(userDocRef);
       if (!userSnap.exists()) {
@@ -147,8 +152,8 @@ export default function SignupPage() {
           email: fbUser.email || '',
           roles: ['utente'],
           createdAt: serverTimestamp(),
+          privacyAcceptedAt: serverTimestamp(),
         });
-        // Notifica admin per nuovo utente Google
         try {
           await triggerNotification({
             eventType: 'nuovo_utente',
@@ -160,7 +165,6 @@ export default function SignupPage() {
         } catch { /* non bloccante */ }
       }
 
-      // Google verifica già l'email — vai alla dashboard
       router.push('/dashboard');
     } catch (err: any) {
       setIsGoogleLoading(false);
@@ -168,14 +172,90 @@ export default function SignupPage() {
       setError('Accesso con Google non riuscito. Riprova.');
     }
   };
-  
+
+  // Handle Google first-time login privacy modal confirm
+  const handlePrivacyModalAccept = async () => {
+    if (!pendingGoogleUser || !firestore) return;
+    try {
+      const userDocRef = doc(firestore, 'users', pendingGoogleUser.uid);
+      const displayParts = (pendingGoogleUser.displayName || '').split(' ');
+      const nomeG = displayParts[0] || '';
+      const cognomeG = displayParts.slice(1).join(' ') || '';
+      await setDoc(userDocRef, {
+        id: pendingGoogleUser.uid,
+        nome: nomeG,
+        cognome: cognomeG,
+        displayName: pendingGoogleUser.displayName || '',
+        email: pendingGoogleUser.email || '',
+        roles: ['utente'],
+        createdAt: serverTimestamp(),
+        privacyAcceptedAt: serverTimestamp(),
+      });
+      router.push('/dashboard');
+    } catch (err) {
+      console.error("Errore creazione doc Google:", err);
+      setShowPrivacyModal(false);
+    }
+  };
+
   if (isUserLoading || (!isUserLoading && user)) {
     return <div className="flex items-center justify-center min-h-screen">Caricamento...</div>;
   }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="mx-auto max-w-md">
+      {/* ── Privacy modal per primo accesso Google ── */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-card rounded-2xl border border-border shadow-xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
+                <h3 className="font-bold text-lg text-foreground">Accettazione Privacy Policy</h3>
+              </div>
+              <button
+                onClick={async () => { if (auth) await signOut(auth); setShowPrivacyModal(false); setPendingGoogleUser(null); }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Prima di completare la registrazione, è necessario leggere e accettare la
+              nostra Informativa sulla Privacy. I tuoi dati personali e i documenti di ricevuta
+              saranno consultati esclusivamente dagli educatori autorizzati e i documenti
+              verranno eliminati al termine della verifica.
+            </p>
+            <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm space-y-1">
+              <p>✅ I tuoi dati sono accessibili solo agli educatori autorizzati</p>
+              <p>✅ Le ricevute vengono eliminate dopo la verifica</p>
+              <p>✅ Nessun sistema AI analizza i tuoi documenti</p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={async () => { if (auth) await signOut(auth); setShowPrivacyModal(false); setPendingGoogleUser(null); }}
+              >
+                Annulla
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handlePrivacyModalAccept}
+              >
+                Accetto e continuo
+              </Button>
+            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              <Link href="/privacy" target="_blank" className="underline hover:text-primary">
+                Leggi la Privacy Policy completa
+              </Link>
+            </p>
+          </div>
+        </div>
+      )}
+
+      <Card className="mx-auto max-w-md w-full mx-4">
         <CardHeader>
           <CardTitle className="text-xl">Registrati</CardTitle>
           <CardDescription>
@@ -227,9 +307,37 @@ export default function SignupPage() {
                 />
               </div>
 
+              {/* ── Checkbox Privacy ── */}
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                <Checkbox
+                  id="privacy-accept"
+                  checked={privacyAccepted}
+                  onCheckedChange={(checked) => setPrivacyAccepted(!!checked)}
+                  className="mt-0.5"
+                />
+                <label htmlFor="privacy-accept" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
+                  Ho letto e accetto la{' '}
+                  <Link href="/privacy" target="_blank" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">
+                    Privacy Policy
+                  </Link>
+                  . Comprendo che i miei dati personali e i documenti di ricevuta saranno
+                  consultati esclusivamente dagli educatori autorizzati e che i documenti
+                  verranno eliminati al termine della verifica del pagamento.
+                </label>
+              </div>
 
-              {error && <p className="text-destructive text-sm p-3 bg-destructive/10 border border-destructive/20 rounded-md">{error}</p>}
-              <Button type="submit" className="w-full">
+              {error && (
+                <div className="flex items-start gap-2 text-destructive text-sm p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <p>{error}</p>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={!privacyAccepted}
+              >
                 Crea un account
               </Button>
             </div>
@@ -251,7 +359,7 @@ export default function SignupPage() {
             variant="outline"
             className="w-full flex items-center gap-2.5"
             onClick={handleGoogleSignup}
-            disabled={isGoogleLoading}
+            disabled={isGoogleLoading || !privacyAccepted}
           >
             {isGoogleLoading ? (
               <span className="h-4 w-4 rounded-full border-2 border-foreground border-t-transparent animate-spin" />
@@ -265,6 +373,12 @@ export default function SignupPage() {
             )}
             {isGoogleLoading ? 'Accesso in corso...' : 'Registrati con Google'}
           </Button>
+
+          {!privacyAccepted && (
+            <p className="text-center text-xs text-muted-foreground mt-2">
+              Accetta la Privacy Policy per abilitare la registrazione
+            </p>
+          )}
 
           <div className="mt-4 text-center text-sm">
             Hai già un account?{' '}
