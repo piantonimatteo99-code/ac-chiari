@@ -150,30 +150,25 @@ function buildEmailHtml(
       </div>
       ${paymentIdSection}
       <div style="border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;margin-top:16px;">
-        <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
-          <colgroup>
-            <col style="width:22%"/>
-            <col style="width:40%"/>
-            <col style="width:16%"/>
-            <col style="width:22%"/>
-          </colgroup>
+        <table style="width:100%;border-collapse:collapse;">
           <thead>
             <tr style="background:#f3f4f6;">
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;word-break:break-word;">Membro</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;word-break:break-word;">Progetto</th>
-              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Fase</th>
-              <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;">Importo</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;white-space:nowrap;">Membro</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;white-space:nowrap;">Progetto</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;white-space:nowrap;">Fase</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;white-space:nowrap;">Importo</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
           <tfoot>
             <tr style="background:#f9fafb;">
-              <td colspan="3" style="padding:12px;font-weight:700;font-size:14px;color:#111827;">Totale</td>
-              <td style="padding:12px;font-weight:700;font-size:15px;color:#1d4ed8;text-align:right;">€ ${total.toFixed(2)}</td>
+              <td colspan="3" style="padding:12px 10px;font-weight:700;font-size:14px;color:#111827;">Totale</td>
+              <td style="padding:12px 10px;font-weight:700;font-size:15px;color:#1d4ed8;text-align:right;">€ ${total.toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
       </div>
+
 
       <div style="margin-top:24px;padding:16px;background:#fefce8;border:1px solid #fde68a;border-radius:8px;">
         <p style="margin:0;font-size:13px;color:#92400e;">ℹ️ Email generata automaticamente dal sistema di AC Chiari. Per domande, contatta il tuo educatore.</p>
