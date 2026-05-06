@@ -264,7 +264,14 @@ export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionCha
             if (isPaid) {
                 const amountPaid = phase === 'caparra' ? baseCaparra : (scontoFratelliAttivo ? importoSaldoFratelli : baseSaldo);
                  if (payment) {
-                    content = <Link href={payment.receiptUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-start text-green-600 hover:underline gap-2 h-full"><CheckCircle2 className="h-5 w-5" /><span className="text-sm font-medium">€{amountPaid.toFixed(2)}</span><FileText className="h-4 w-4" /></Link>;
+                    // Mostra icona file solo se la ricevuta esiste ancora (non eliminata post-approvazione)
+                    content = (
+                        <div className="flex items-center justify-start text-green-600 gap-2 h-full">
+                            <CheckCircle2 className="h-5 w-5" />
+                            <span className="text-sm font-medium">€{amountPaid.toFixed(2)}</span>
+                            {payment.receiptUrl && <FileText className="h-4 w-4 text-muted-foreground" />}
+                        </div>
+                    );
                 } else {
                     content = <div className="flex items-center justify-start text-green-600 gap-2 h-full"><CheckCircle2 className="h-5 w-5" /><span className="text-sm font-medium">€{amountPaid.toFixed(2)}</span></div>;
                 }

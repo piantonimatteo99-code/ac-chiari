@@ -405,23 +405,18 @@ export default function ContoPage() {
     }
     
     const renderTransactionCell = (movimento: Movimento) => {
-        if (movimento.receiptUrl && movimento.paymentId) { // Bonifico con ricevuta
-            return (
-                <Link href={movimento.receiptUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-green-600 hover:underline">
-                    <FileText className="h-4 w-4" />
-                    <span className="text-xs font-mono">ACR - {movimento.paymentId}</span>
-                </Link>
-            );
-        }
-        if (movimento.paymentId) { // Bonifico senza ricevuta (in attesa)
+        if (movimento.paymentId) {
+            // Bonifico: mostra sempre l'ID come testo.
+            // Il documento si vede solo dalla pagina di approvazione (proxy autenticato).
+            const hasReceipt = !!movimento.receiptUrl;
             return (
                 <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <FileText className={`h-4 w-4 ${hasReceipt ? 'text-amber-500' : 'text-muted-foreground'}`} />
                     <span className="text-xs font-mono">ACR - {movimento.paymentId}</span>
                 </div>
             );
         }
-        if (movimento.receiptUrl) { // Spesa con ricevuta
+        if (movimento.receiptUrl) { // Spesa con ricevuta (URL Firebase Storage, non proxy)
             return (
                  <Link href={movimento.receiptUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:underline">
                     <FileText className="h-4 w-4" />
@@ -447,6 +442,7 @@ export default function ContoPage() {
         }
         return null;
     };
+
     
     const handleToggleCashierSelection = (cashierId: string) => {
         setSelectedCashiers(prev => 
