@@ -268,11 +268,15 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
               style={{ height: '500px' }}
             >
               <ShelfBg />
-              {/* Celle cliccabili — solo un pallino invisibile per mantenere l'interattività */}
+              {/* Celle interattive con rettangolo colorato */}
               {CELL_DEFS.map(def => {
                 const key = `${def.ripiano}-${def.colonna}`;
                 const cellItems = gridMap[key] || [];
-                const isEmpty = cellItems.length === 0;
+                const status = cellStatus(cellItems, giorniAllerta);
+                const isEmpty = status === 'empty';
+                const sorted = [...cellItems].sort((a, b) => daysUntil(a.dataScadenza) - daysUntil(b.dataScadenza));
+                const first = sorted[0];
+                const days = first ? daysUntil(first.dataScadenza) : Infinity;
                 const { top, left, width, height } = getExactGeometry(def.ripiano, def.colonna);
 
                 return (
@@ -284,44 +288,31 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
                     onKeyDown={e => { if (!isEmpty && (e.key === 'Enter' || e.key === ' ')) onCellClick?.(cellItems, def.ripiano, def.colonna); }}
                     title={isEmpty ? `R${def.ripiano} Sez.${def.colonna} — vuoto` : cellItems.map(i => i.nome).join(', ')}
                     className={cn(
-                      'absolute z-30 transition-colors duration-150',
-                      !isEmpty && 'hover:bg-black/5 cursor-pointer'
+                      'absolute z-30 flex flex-col items-center justify-center gap-0.5 p-1 transition-colors duration-150',
+                      STATUS_BG[status]
                     )}
                     style={{ top, height, left, width }}
-                  />
-                );
-              })}
-
-              {/* Pallini prodotti sovrapposti all'immagine */}
-              {CELL_DEFS.map(def => {
-                const key = `${def.ripiano}-${def.colonna}`;
-                const cellItems = gridMap[key] || [];
-                if (cellItems.length === 0) return null;
-                const status = cellStatus(cellItems, giorniAllerta);
-                const geo = getExactGeometry(def.ripiano, def.colonna);
-                const topP = parseFloat(geo.top);
-                const leftP = parseFloat(geo.left);
-                const heightP = parseFloat(geo.height);
-                const widthP = parseFloat(geo.width);
-                const dotTop = `${topP + heightP / 2}%`;
-                const dotLeft = `${leftP + widthP / 2}%`;
-
-                return (
-                  <span
-                    key={`dot-${def.ripiano}-${def.colonna}`}
-                    className={cn(
-                      'absolute z-40 rounded-full shadow ring-2 ring-white/80 pointer-events-none',
-                      DOT_CLASSES[status]
+                  >
+                    {!isEmpty && (
+                      <>
+                        <div className="flex items-center gap-1">
+                          <span className={cn('w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-black/10', DOT_CLASSES[status])} />
+                          {cellItems.length > 1 && <span className="text-[9px] font-bold text-zinc-600">×{cellItems.length}</span>}
+                        </div>
+                        <span className="text-[10px] font-semibold text-center leading-tight line-clamp-2 max-w-full text-zinc-800 drop-shadow-sm">
+                          {first?.nome}{cellItems.length > 1 ? ` +${cellItems.length - 1}` : ''}
+                        </span>
+                        {first && days !== Infinity && (
+                          <span className={cn(
+                            'text-[8px] font-mono px-1 py-0.5 rounded-full leading-none',
+                            days < 0 ? 'bg-red-500 text-white' : days <= giorniAllerta ? 'bg-amber-500 text-white' : 'bg-white/70 text-zinc-600'
+                          )}>
+                            {days < 0 ? `Sc. ${Math.abs(days)}g fa` : `${days}g`}
+                          </span>
+                        )}
+                      </>
                     )}
-                    style={{
-                      top: dotTop,
-                      left: dotLeft,
-                      transform: 'translate(-50%, -50%)',
-                      width: 12,
-                      height: 12,
-                    }}
-                    title={cellItems.map(i => i.nome).join(', ')}
-                  />
+                  </div>
                 );
               })}
             </div>
