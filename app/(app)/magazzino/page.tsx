@@ -437,7 +437,6 @@ function TabAlimenti() {
                   const giorni = giorniScadenza(p.dataScadenza);
                   const isScaduto = giorni < 0;
                   const isWarning = giorni >= 0 && giorni <= GIORNI_ALLERTA;
-                  const dotColor = isScaduto ? 'bg-red-500' : isWarning ? 'bg-amber-500' : 'bg-emerald-500';
                   return (
                     <TableRow key={p.id} className={cn(isScaduto && 'bg-destructive/5', isWarning && 'bg-amber-50 dark:bg-amber-950/20')}>
                       <TableCell className="font-medium">{p.nome}</TableCell>
@@ -453,7 +452,7 @@ function TabAlimenti() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <MiniShelf posizione={p.posizione} dotColor={dotColor} />
+                          <MiniShelf posizione={p.posizione} hasAlert={isScaduto || isWarning} />
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
                             R{p.posizione?.ripiano} C{p.posizione?.colonna}
                           </span>
@@ -545,12 +544,7 @@ function TabAlimenti() {
                                 {/* Posizione scaffale */}
                                 <div className="flex flex-col items-center gap-1.5">
                                   <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Posizione</p>
-                                  <MiniShelf posizione={p.posizione} dotColor={(() => {
-                                    const g = giorniScadenza(p.dataScadenza);
-                                    if (g < 0) return 'bg-red-500';
-                                    if (g <= GIORNI_ALLERTA) return 'bg-amber-500';
-                                    return 'bg-emerald-500';
-                                  })()}  />
+                                  <MiniShelf posizione={p.posizione} hasAlert={giorni < 0 || (giorni >= 0 && giorni <= GIORNI_ALLERTA)} />
                                   <span className="text-[11px] font-mono font-semibold bg-muted px-2 py-0.5 rounded">
                                     R{p.posizione?.ripiano} · C{p.posizione?.colonna}
                                   </span>
