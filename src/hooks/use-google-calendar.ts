@@ -217,8 +217,10 @@ export function useGoogleCalendar() {
     const startDate = isAllDay
       ? new Date(ev.start.date + 'T00:00:00')
       : new Date(ev.start.dateTime!);
+    // Google Calendar API returns end.date as EXCLUSIVE (day after last day).
+    // We subtract 1 day to get the actual last day of the event.
     const endDate = isAllDay
-      ? new Date(ev.end.date + 'T23:59:59')
+      ? (() => { const d = new Date(ev.end.date + 'T00:00:00'); d.setDate(d.getDate() - 1); d.setHours(23, 59, 59, 999); return d; })()
       : new Date(ev.end.dateTime!);
     return {
       id: `gcal_${ev.id}`,

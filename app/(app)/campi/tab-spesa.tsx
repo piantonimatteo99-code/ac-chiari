@@ -24,9 +24,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 export interface Piatto {
   id: string;
   nome: string;
-  categoria: string; // salva case-insensitive, es. 'Colazione' o 'colazione'
-  costoPorzione: number; // € per persona
-  ingredienti: { nome: string; quantitaPerPersona: number; unita: string }[];
+  categoria: string;
+  costoPorzione?: number; // € per persona (opzionale, auto-calcolato da ingredienti)
+  ingredienti: { nome: string; quantitaPerPersona: number; unita: string; prezzoPerUnita?: number }[];
   intolleranze: string[];
   note?: string;
 }
@@ -157,7 +157,7 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
   };
 
   return (
-    <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
+    <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto px-1">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1 col-span-2"><Label>Nome piatto *</Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder="es. Pasta al pomodoro" /></div>
         <div className="space-y-1">
@@ -199,19 +199,43 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
           <Label>Ingredienti (per persona)</Label>
           <Button size="sm" variant="outline" onClick={addIngrediente}><Plus className="h-3 w-3 mr-1" />Aggiungi</Button>
         </div>
-        {ingredienti.map((ing, i) => (
-          <div key={i} className="flex gap-2 items-center">
-            <Input value={ing.nome} onChange={e => updateIngrediente(i, 'nome', e.target.value)} placeholder="ingrediente" className="flex-1" />
-            <Input type="number" min={0} step={0.1} value={ing.quantitaPerPersona} onChange={e => updateIngrediente(i, 'quantitaPerPersona', parseFloat(e.target.value) || 0)} className="w-20" />
-            <Select value={ing.unita} onValueChange={v => updateIngrediente(i, 'unita', v)}>
-              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeIngrediente(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
+        {/* Intestazioni colonne */}
+        {ingredienti.length > 0 && (
+          <div className="grid grid-cols-[1fr_5rem_5rem_4rem_auto] gap-2 text-xs text-muted-foreground px-0.5">
+            <span>Ingrediente</span><span>Quantità</span><span>Unità</span><span>€/unità</span><span />
           </div>
-        ))}
+        )}
+        {ingredienti.map((ing, i) => {
+          const costoRiga = (ing.prezzoPerUnita || 0) * ing.quantitaPerPersona;
+          return (
+            <div key={i} className="grid grid-cols-[1fr_5rem_5rem_4rem_auto] gap-2 items-center">
+              <Input value={ing.nome} onChange={e => updateIngrediente(i, 'nome', e.target.value)} placeholder="ingrediente" />
+              <Input type="number" min={0} step={0.1} value={ing.quantitaPerPersona || ''} onChange={e => updateIngrediente(i, 'quantitaPerPersona', parseFloat(e.target.value) || 0)} />
+              <Select value={ing.unita} onValueChange={v => updateIngrediente(i, 'unita', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+              </Select>
+              <div className="relative">
+                <Input
+                  type="number" min={0} step={0.01}
+                  value={ing.prezzoPerUnita ?? ''}
+                  onChange={e => updateIngrediente(i, 'prezzoPerUnita', parseFloat(e.target.value) || undefined)}
+                  placeholder="0.00"
+                  className="pr-1 pl-5"
+                />
+                <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
+              </div>
+              <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeIngrediente(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
+            </div>
+          );
+        })}
+        {ingredienti.some(i => (i.prezzoPerUnita || 0) > 0) && (
+          <p className="text-xs text-right text-muted-foreground pr-8">
+            Costo/porzione stimato: <span className="font-semibold text-foreground">
+              € {ingredienti.reduce((s, i) => s + (i.prezzoPerUnita || 0) * i.quantitaPerPersona, 0).toFixed(3)}
+            </span>
+          </p>
+        )}
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
@@ -266,7 +290,6 @@ function SlotSelector({ value, onChange, piatti, label, tipoPasto }: {
 
 function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: Piatto[]; nPersone: number }) {
   const { ingredientiTotali, costoTotale, intolleranzeUniche } = useMemo(() => {
-    // { chiave → { valoreBase, base, unitaOriginale } }
     const totali: Record<string, { valoreBase: number; base: 'g' | 'ml' | 'altro'; unitaOriginale: string }> = {};
     let costo = 0;
     const intSet = new Set<string>();
@@ -278,11 +301,14 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
         for (const id of [slot.piattoPrincipaleId, slot.contornoId, slot.fruttaId].filter(Boolean)) {
           const piatto = piatti.find(p => p.id === id);
           if (!piatto) continue;
-          costo += piatto.costoPorzione * nPersone;
+          costo += (piatto.costoPorzione || 0) * nPersone;
           piatto.intolleranze?.forEach(i => intSet.add(i));
+          // Se il piatto ha 1 solo ingrediente usa il nome del piatto (evita disallineamenti tipo "Latteo" vs "Latte")
+          const usaNomePiatto = (piatto.ingredienti?.length ?? 0) === 1;
           piatto.ingredienti?.forEach(ing => {
+            const nomeDisplay = usaNomePiatto ? piatto.nome : (ing.nome?.trim() || piatto.nome);
             const { valore, base } = normalizzaUnita(ing.quantitaPerPersona, ing.unita);
-            const k = chiaveAggregazione(ing.nome, ing.unita);
+            const k = chiaveAggregazione(nomeDisplay, ing.unita);
             if (!totali[k]) totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita };
             totali[k].valoreBase += valore * nPersone;
           });
