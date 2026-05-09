@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, Pencil, ShoppingCart, Users, AlertTriangle, ChevronDown, ChevronUp, Save, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { Piatto, GiornoMenu, SlotMenu, TipoPasto } from '../tab-spesa';
 import { PASTO_LABELS, CAT_LABELS, ALLERGENI_PREDEFINITI, UNITA_MISURA, normalizzaUnita, formattaQuantita, chiaveAggregazione } from '../tab-spesa';
 
@@ -179,7 +180,7 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
   };
 
   return (
-    <div className="space-y-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
+    <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1 col-span-2"><Label>Nome piatto *</Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder="es. Pasta al pomodoro" /></div>
         <div className="space-y-1">
@@ -194,14 +195,13 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
         {/* Intolleranze con checkbox */}
         <div className="space-y-2 col-span-2">
           <Label>Allergeni / Intolleranze</Label>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-4">
             {ALLERGENI_PREDEFINITI.map(a => (
-              <label key={a} className="flex items-center gap-1.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300"
+              <label key={a} className="flex items-center gap-2 cursor-pointer select-none">
+                <Checkbox
                   checked={checkedAllergeni.has(a)}
-                  onChange={() => toggleAllergene(a)}
+                  onCheckedChange={() => toggleAllergene(a)}
+                  className="rounded-full"
                 />
                 <span className="text-sm">{a}</span>
               </label>

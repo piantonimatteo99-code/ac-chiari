@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   CookingPot, Plus, Trash2, Pencil, ChevronDown, ChevronRight, Users, Package,
 } from 'lucide-react';
@@ -142,7 +143,7 @@ function PiattoForm({
   };
 
   return (
-    <div className="space-y-4 py-1 max-h-[70vh] overflow-y-auto pr-1">
+    <div className="space-y-4 py-1 max-h-[60vh] overflow-y-auto pr-1">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1 col-span-2">
           <Label>Nome piatto *</Label>
@@ -150,13 +151,14 @@ function PiattoForm({
         </div>
         <div className="space-y-1">
           <Label>Categoria</Label>
-          <select
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={categoria}
-            onChange={e => setCategoria(e.target.value)}
-          >
-            {CATEGORIE.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <Select value={categoria} onValueChange={v => setCategoria(v)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORIE.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label>Porzioni di riferimento</Label>
@@ -204,14 +206,13 @@ function PiattoForm({
       {/* Allergeni / Intolleranze */}
       <div className="space-y-2">
         <Label>Allergeni / Intolleranze</Label>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-4">
           {ALLERGENI_PREDEFINITI.map(a => (
-            <label key={a} className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300"
+            <label key={a} className="flex items-center gap-2 cursor-pointer select-none">
+              <Checkbox
                 checked={checkedAllergeni.has(a)}
-                onChange={() => toggleAllergene(a)}
+                onCheckedChange={() => toggleAllergene(a)}
+                className="rounded-full"
               />
               <span className="text-sm">{a}</span>
             </label>
