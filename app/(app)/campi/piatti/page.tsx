@@ -33,8 +33,9 @@ const UNITA_MISURA = ['ml', 'gr', 'L', 'Kg', 'pz', 'metri'];
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 export interface Ingrediente {
   nome: string;
-  quantitaPerPersona: number;   // grammi / ml / unità
-  unita: string;                // g, ml, pz, cucchiai...
+  quantitaPerPersona: number;
+  unita: string;
+  prezzoPerUnita?: number; // € per unità (es. €/L, €/Kg, €/pz)
 }
 
 export interface Piatto {
@@ -51,36 +52,29 @@ const CATEGORIE = ['Colazione', 'Primo', 'Secondo', 'Contorno', 'Dessert', 'Mere
 
 /* ─── Ingrediente row editor ─────────────────────────────────────────────── */
 function IngredienteRow({
-  item,
-  onChange,
-  onRemove,
+  item, onChange, onRemove,
 }: {
   item: Ingrediente;
   onChange: (updated: Ingrediente) => void;
   onRemove: () => void;
 }) {
   return (
-    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
-      <Input
-        placeholder="Nome ingrediente"
-        value={item.nome}
-        onChange={e => onChange({ ...item, nome: e.target.value })}
-      />
-      <Input
-        type="number"
-        min={0}
-        step="any"
-        className="w-24"
-        placeholder="Qtà"
-        value={item.quantitaPerPersona || ''}
-        onChange={e => onChange({ ...item, quantitaPerPersona: parseFloat(e.target.value) || 0 })}
-      />
+    <div className="grid grid-cols-[1fr_5rem_5rem_4rem_auto] gap-2 items-center">
+      <Input placeholder="Nome ingrediente" value={item.nome} onChange={e => onChange({ ...item, nome: e.target.value })} />
+      <Input type="number" min={0} step="any" placeholder="Qtà" value={item.quantitaPerPersona || ''}
+        onChange={e => onChange({ ...item, quantitaPerPersona: parseFloat(e.target.value) || 0 })} />
       <Select value={item.unita} onValueChange={v => onChange({ ...item, unita: v })}>
-        <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-        </SelectContent>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>{UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
       </Select>
+      <div className="relative">
+        <Input type="number" min={0} step={0.01} placeholder="0.00"
+          value={item.prezzoPerUnita ?? ''}
+          onChange={e => onChange({ ...item, prezzoPerUnita: parseFloat(e.target.value) || undefined })}
+          className="pl-5 pr-1"
+        />
+        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
+      </div>
       <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="text-destructive hover:text-destructive">
         <Trash2 className="h-4 w-4" />
       </Button>
@@ -189,9 +183,12 @@ function PiattoForm({
               Nessun ingrediente aggiunto
             </p>
           )}
-          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 text-xs text-muted-foreground px-0.5 mb-1">
-            <span>Ingrediente</span><span>Quantità</span><span>Unità</span><span />
+        {/* Intestazioni colonne */}
+        {ingredienti.length > 0 && (
+          <div className="grid grid-cols-[1fr_5rem_5rem_4rem_auto] gap-2 text-xs text-muted-foreground px-0.5 mb-1">
+            <span>Ingrediente</span><span>Quantità</span><span>Unità</span><span>€/u</span><span />
           </div>
+        )}
           {ingredienti.map((ing, i) => (
             <IngredienteRow
               key={i}
@@ -209,11 +206,7 @@ function PiattoForm({
         <div className="flex flex-wrap gap-4">
           {ALLERGENI_PREDEFINITI.map(a => (
             <label key={a} className="flex items-center gap-2 cursor-pointer select-none">
-              <Checkbox
-                checked={checkedAllergeni.has(a)}
-                onCheckedChange={() => toggleAllergene(a)}
-                className="rounded-full"
-              />
+              <Checkbox checked={checkedAllergeni.has(a)} onCheckedChange={() => toggleAllergene(a)} className="rounded-full" />
               <span className="text-sm">{a}</span>
             </label>
           ))}

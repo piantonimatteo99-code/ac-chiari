@@ -76,11 +76,13 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
         for (const id of [slot.piattoPrincipaleId, slot.contornoId, slot.fruttaId].filter(Boolean)) {
           const piatto = piatti.find(p => p.id === id);
           if (!piatto) continue;
-          costo += piatto.costoPorzione * nPersone;
+          costo += (piatto.costoPorzione || 0) * nPersone;
           piatto.intolleranze?.forEach(i => intSet.add(i));
+          const usaNomePiatto = (piatto.ingredienti?.length ?? 0) === 1;
           piatto.ingredienti?.forEach(ing => {
+            const nomeDisplay = usaNomePiatto ? piatto.nome : (ing.nome?.trim() || piatto.nome);
             const { valore, base } = normalizzaUnita(ing.quantitaPerPersona, ing.unita);
-            const k = chiaveAggregazione(ing.nome, ing.unita);
+            const k = chiaveAggregazione(nomeDisplay, ing.unita);
             if (!totali[k]) totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita };
             totali[k].valoreBase += valore * nPersone;
           });
@@ -180,7 +182,7 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
   };
 
   return (
-    <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
+    <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto px-1">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1 col-span-2"><Label>Nome piatto *</Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder="es. Pasta al pomodoro" /></div>
         <div className="space-y-1">
