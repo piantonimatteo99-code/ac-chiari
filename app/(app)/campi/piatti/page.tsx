@@ -30,6 +30,23 @@ import { cn } from '@/lib/utils';
 const ALLERGENI_PREDEFINITI = ['Lattosio', 'Glutine', 'Carne'];
 const UNITA_MISURA = ['ml', 'gr', 'L', 'Kg', 'pz', 'metri'];
 
+function etichettaPrezzoUnita(unita: string): string {
+  const u = unita?.trim().toLowerCase();
+  if (['ml', 'l'].includes(u)) return '€/L';
+  if (['gr', 'g', 'kg'].includes(u)) return '€/Kg';
+  if (u === 'pz') return '€/Pz';
+  if (['m', 'cm', 'metri'].includes(u)) return '€/M';
+  return '€/u';
+}
+
+function fattoreConversione(unita: string): number {
+  const u = unita?.trim().toLowerCase();
+  if (u === 'ml') return 0.001;
+  if (u === 'gr' || u === 'g') return 0.001;
+  if (u === 'cm') return 0.01;
+  return 1;
+}
+
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 export interface Ingrediente {
   nome: string;
@@ -80,15 +97,16 @@ function IngredienteRow({
   };
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_4.5rem_5.5rem_2rem] gap-1.5 items-center">
+    <div className="grid grid-cols-[minmax(0,6.5rem)_3.5rem_4rem_6.5rem_2rem] gap-1.5 items-center">
       {/* Nome con autocomplete */}
       <div className="relative" ref={wrapRef}>
         <Input
-          placeholder="Nome ingrediente"
+          placeholder="ingrediente"
           value={item.nome}
           onChange={e => { onChange({ ...item, nome: e.target.value }); setOpen(true); }}
           onFocus={() => item.nome.trim().length > 0 && setOpen(true)}
           autoComplete="off"
+          className="text-sm"
         />
         {open && filtered.length > 0 && (
           <div className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-popover border rounded-md shadow-md max-h-36 overflow-y-auto">
@@ -108,20 +126,22 @@ function IngredienteRow({
       </div>
       {/* Quantità */}
       <Input type="number" min={0} step="any" placeholder="Qtà" value={item.quantitaPerPersona || ''}
-        onChange={e => onChange({ ...item, quantitaPerPersona: parseFloat(e.target.value) || 0 })} />
+        onChange={e => onChange({ ...item, quantitaPerPersona: parseFloat(e.target.value) || 0 })} className="text-sm" />
       {/* Unità */}
       <Select value={item.unita} onValueChange={v => onChange({ ...item, unita: v })}>
-        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
         <SelectContent>{UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
       </Select>
-      {/* Prezzo */}
+      {/* Prezzo per unità base con label dinamica */}
       <div className="relative">
         <Input type="number" min={0} step={0.01} placeholder="0.00"
           value={item.prezzoPerUnita ?? ''}
           onChange={e => onChange({ ...item, prezzoPerUnita: parseFloat(e.target.value) || undefined })}
-          className="pl-4 pr-1 text-sm"
+          className="pl-7 pr-1 text-xs"
         />
-        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
+        <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] leading-none text-muted-foreground whitespace-nowrap">
+          {etichettaPrezzoUnita(item.unita)}
+        </span>
       </div>
       <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="text-destructive hover:text-destructive h-8 w-8">
         <Trash2 className="h-3.5 w-3.5" />
@@ -241,8 +261,8 @@ function PiattoForm({
             </p>
           )}
         {ingredienti.length > 0 && (
-          <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_4.5rem_5.5rem_2rem] gap-1.5 text-xs text-muted-foreground px-0.5 mb-1">
-            <span>Ingrediente</span><span>Qtà</span><span>Unità</span><span>€/u</span><span />
+          <div className="grid grid-cols-[minmax(0,6.5rem)_3.5rem_4rem_6.5rem_2rem] gap-1.5 text-xs text-muted-foreground px-0.5 mb-1">
+            <span>Ingrediente</span><span>Qtà</span><span>Unità</span><span>Prezzo</span><span />
           </div>
         )}
           {ingredienti.map((ing, i) => (

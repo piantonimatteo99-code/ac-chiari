@@ -116,6 +116,25 @@ export function chiaveAggregazione(nome: string, unita: string): string {
   return `${nome}__${u}`;
 }
 
+/** Etichetta del prezzo per unità base (sempre Kg/L/Pz/M indipendente dal sottomultiplo usato) */
+export function etichettaPrezzoUnita(unita: string): string {
+  const u = unita?.trim().toLowerCase();
+  if (['ml', 'l'].includes(u)) return '€/L';
+  if (['gr', 'g', 'kg'].includes(u)) return '€/Kg';
+  if (u === 'pz') return '€/Pz';
+  if (['m', 'cm', 'metri'].includes(u)) return '€/M';
+  return '€/u';
+}
+
+/** Fattore di conversione dalla unità inserita all'unità base del prezzo */
+export function fattoreConversione(unita: string): number {
+  const u = unita?.trim().toLowerCase();
+  if (u === 'ml') return 0.001;       // ml → L
+  if (u === 'gr' || u === 'g') return 0.001; // gr → Kg
+  if (u === 'cm') return 0.01;        // cm → M
+  return 1; // L, Kg, pz, m, metri → già in unità base
+}
+
 // ─── IngredienteAutoRow: input nome con autocomplete ─────────────────────────
 
 function IngredienteAutoRow({ ing, suggestions, onUpdate, onRemove }: {
@@ -139,7 +158,7 @@ function IngredienteAutoRow({ ing, suggestions, onUpdate, onRemove }: {
   }, []);
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_4.5rem_5.5rem_2rem] gap-1.5 items-center">
+    <div className="grid grid-cols-[minmax(0,6.5rem)_3.5rem_4rem_6.5rem_2rem] gap-1.5 items-center">
       <div className="relative" ref={wrapRef}>
         <Input
           value={ing.nome}
@@ -147,6 +166,7 @@ function IngredienteAutoRow({ ing, suggestions, onUpdate, onRemove }: {
           onFocus={() => ing.nome.trim().length > 0 && setOpen(true)}
           placeholder="ingrediente"
           autoComplete="off"
+          className="text-sm"
         />
         {open && filtered.length > 0 && (
           <div className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-popover border rounded-md shadow-md max-h-36 overflow-y-auto">
@@ -169,16 +189,19 @@ function IngredienteAutoRow({ ing, suggestions, onUpdate, onRemove }: {
         )}
       </div>
       <Input type="number" min={0} step={0.1} value={ing.quantitaPerPersona || ''}
-        onChange={e => onUpdate('quantitaPerPersona', parseFloat(e.target.value) || 0)} />
+        onChange={e => onUpdate('quantitaPerPersona', parseFloat(e.target.value) || 0)} className="text-sm" />
       <Select value={ing.unita} onValueChange={v => onUpdate('unita', v)}>
-        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
         <SelectContent>{UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
       </Select>
+      {/* Prezzo per unità base: label dinamica */}
       <div className="relative">
         <Input type="number" min={0} step={0.01} value={ing.prezzoPerUnita ?? ''}
           onChange={e => onUpdate('prezzoPerUnita', parseFloat(e.target.value) || undefined)}
-          placeholder="0.00" className="pl-4 pr-1 text-sm" />
-        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
+          placeholder="0.00" className="pl-7 pr-1 text-xs" />
+        <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] leading-none text-muted-foreground whitespace-nowrap">
+          {etichettaPrezzoUnita(ing.unita)}
+        </span>
       </div>
       <Button size="sm" variant="ghost" className="text-destructive h-8 w-8 p-0" onClick={onRemove}>
         <Trash2 className="h-3.5 w-3.5" />
@@ -281,8 +304,8 @@ function PiattoForm({ initial, onSave, onClose, piatti = [] }: { initial?: Parti
           <Button size="sm" variant="outline" onClick={addIngrediente}><Plus className="h-3 w-3 mr-1" />Aggiungi</Button>
         </div>
         {ingredienti.length > 0 && (
-          <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_4.5rem_5.5rem_2rem] gap-1.5 text-xs text-muted-foreground px-0.5">
-            <span>Ingrediente</span><span>Qtà</span><span>Unità</span><span>€/u</span><span />
+          <div className="grid grid-cols-[minmax(0,6.5rem)_3.5rem_4rem_6.5rem_2rem] gap-1.5 text-xs text-muted-foreground px-0.5">
+            <span>Ingrediente</span><span>Qtà</span><span>Unità</span><span>Prezzo</span><span />
           </div>
         )}
         {ingredienti.map((ing, i) => (
@@ -293,7 +316,7 @@ function PiattoForm({ initial, onSave, onClose, piatti = [] }: { initial?: Parti
         {ingredienti.some(i => (i.prezzoPerUnita || 0) > 0) && (
           <p className="text-xs text-right text-muted-foreground pr-8">
             Costo/porzione stimato: <span className="font-semibold text-foreground">
-              € {ingredienti.reduce((s, i) => s + (i.prezzoPerUnita || 0) * i.quantitaPerPersona, 0).toFixed(3)}
+              € {ingredienti.reduce((s, i) => s + (i.prezzoPerUnita || 0) * i.quantitaPerPersona * fattoreConversione(i.unita), 0).toFixed(3)}
             </span>
           </p>
         )}
