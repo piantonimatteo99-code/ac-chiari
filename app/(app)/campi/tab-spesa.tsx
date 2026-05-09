@@ -23,7 +23,7 @@ import { Separator } from '@/components/ui/separator';
 export interface Piatto {
   id: string;
   nome: string;
-  categoria: 'primo' | 'secondo' | 'contorno' | 'frutta' | 'dolce' | 'colazione' | 'merenda' | 'altro';
+  categoria: string; // salva case-insensitive, es. 'Colazione' o 'colazione'
   costoPorzione: number; // € per persona
   ingredienti: { nome: string; quantitaPerPersona: number; unita: string }[];
   intolleranze: string[];
@@ -66,18 +66,76 @@ export const CAT_LABELS: Record<string, string> = {
   altro: 'Altro',
 };
 
+/** Restituisce la label di una categoria indipendentemente dal case */
+export function getCatLabel(cat: string): string {
+  return CAT_LABELS[cat?.toLowerCase()] ?? CAT_LABELS[cat] ?? cat;
+}
+
+export const ALLERGENI_PREDEFINITI = ['Lattosio', 'Glutine', 'Carne'];
+export const UNITA_MISURA = ['ml', 'gr', 'L', 'Kg', 'pz', 'metri'];
+
+// ─── Utility: normalizzazione e conversione unità ────────────────────────────
+
+/** Tipo normalizzato usato internamente per l'aggregazione */
+type UnitaBase = 'g' | 'ml' | 'altro';
+
+/** Converte qualsiasi unità alla base (grammi o ml) e restituisce il valore e il gruppo */
+export function normalizzaUnita(quantita: number, unita: string): { valore: number; base: UnitaBase } {
+  const u = unita.trim().toLowerCase();
+  switch (u) {
+    case 'kg': case 'kg': return { valore: quantita * 1000, base: 'g' };
+    case 'gr': case 'g':  return { valore: quantita,         base: 'g' };
+    case 'l':             return { valore: quantita * 1000, base: 'ml' };
+    case 'ml':            return { valore: quantita,         base: 'ml' };
+    default:              return { valore: quantita,         base: 'altro' };
+  }
+}
+
+/** Formatta un valore in base (grammi o ml) nella migliore unità di visualizzazione */
+export function formattaQuantita(valoreBase: number, base: UnitaBase, unitaOriginale: string): { quantita: number; unita: string } {
+  if (base === 'g') {
+    if (valoreBase >= 1000) return { quantita: Math.round(valoreBase / 10) / 100, unita: 'Kg' };
+    return { quantita: Math.round(valoreBase * 10) / 10, unita: 'gr' };
+  }
+  if (base === 'ml') {
+    if (valoreBase >= 1000) return { quantita: Math.round(valoreBase / 10) / 100, unita: 'L' };
+    return { quantita: Math.round(valoreBase * 10) / 10, unita: 'ml' };
+  }
+  // unità non convertibili (pz, metri, ecc.) → mantieni originale
+  return { quantita: Math.round(valoreBase * 100) / 100, unita: unitaOriginale };
+}
+
+/** Chiave di aggregazione: stesso nome + stesso gruppo unità vengono sommati */
+export function chiaveAggregazione(nome: string, unita: string): string {
+  const u = unita.trim().toLowerCase();
+  const isPeso = ['kg', 'gr', 'g'].includes(u);
+  const isLiquido = ['l', 'ml'].includes(u);
+  if (isPeso) return `${nome}__peso`;
+  if (isLiquido) return `${nome}__liquido`;
+  return `${nome}__${u}`;
+}
+
 // ─── Form Piatto ──────────────────────────────────────────────────────────────
 
 function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; onSave: (d: Partial<Piatto>) => Promise<void>; onClose: () => void }) {
   const [nome, setNome] = useState(initial?.nome ?? '');
-  const [categoria, setCategoria] = useState<Piatto['categoria']>(initial?.categoria ?? 'primo');
+  const [categoria, setCategoria] = useState<string>(initial?.categoria ?? 'primo');
   const [costoPorzione, setCostoPorzione] = useState(initial?.costoPorzione ?? 0);
-  const [intolleranze, setIntolleranze] = useState(initial?.intolleranze?.join(', ') ?? '');
   const [note, setNote] = useState(initial?.note ?? '');
-  const [ingredienti, setIngredienti] = useState<Piatto['ingredienti']>(initial?.ingredienti ?? [{ nome: '', quantitaPerPersona: 0, unita: 'g' }]);
+  const [ingredienti, setIngredienti] = useState<Piatto['ingredienti']>(initial?.ingredienti ?? [{ nome: '', quantitaPerPersona: 0, unita: 'ml' }]);
   const [saving, setSaving] = useState(false);
 
-  const addIngrediente = () => setIngredienti(p => [...p, { nome: '', quantitaPerPersona: 0, unita: 'g' }]);
+  // ── Gestione intolleranze con checkbox ──
+  const existingExtra = (initial?.intolleranze ?? []).filter(i => !ALLERGENI_PREDEFINITI.includes(i));
+  const [checkedAllergeni, setCheckedAllergeni] = useState<Set<string>>(
+    new Set((initial?.intolleranze ?? []).filter(i => ALLERGENI_PREDEFINITI.includes(i)))
+  );
+  const [extraAllergeni, setExtraAllergeni] = useState(existingExtra.join(', '));
+
+  const toggleAllergene = (a: string) =>
+    setCheckedAllergeni(prev => { const s = new Set(prev); s.has(a) ? s.delete(a) : s.add(a); return s; });
+
+  const addIngrediente = () => setIngredienti(p => [...p, { nome: '', quantitaPerPersona: 0, unita: 'ml' }]);
   const removeIngrediente = (i: number) => setIngredienti(p => p.filter((_, idx) => idx !== i));
   const updateIngrediente = (i: number, field: keyof Piatto['ingredienti'][0], value: any) =>
     setIngredienti(p => p.map((ing, idx) => idx === i ? { ...ing, [field]: value } : ing));
@@ -85,9 +143,11 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
   const handleSave = async () => {
     if (!nome) return;
     setSaving(true);
+    const extra = extraAllergeni.split(',').map(s => s.trim()).filter(Boolean);
+    const intolleranze = [...Array.from(checkedAllergeni), ...extra];
     await onSave({
       nome, categoria, costoPorzione,
-      intolleranze: intolleranze.split(',').map(s => s.trim()).filter(Boolean),
+      intolleranze,
       ingredienti: ingredienti.filter(i => i.nome),
       note,
     });
@@ -101,13 +161,36 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
         <div className="space-y-1 col-span-2"><Label>Nome piatto *</Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder="es. Pasta al pomodoro" /></div>
         <div className="space-y-1">
           <Label>Categoria</Label>
-          <Select value={categoria} onValueChange={v => setCategoria(v as Piatto['categoria'])}>
+          <Select value={categoria} onValueChange={v => setCategoria(v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>{Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1"><Label>Costo per persona (€)</Label><Input type="number" min={0} step={0.01} value={costoPorzione} onChange={e => setCostoPorzione(parseFloat(e.target.value) || 0)} /></div>
-        <div className="space-y-1 col-span-2"><Label>Intolleranze (separate da virgola)</Label><Input value={intolleranze} onChange={e => setIntolleranze(e.target.value)} placeholder="es. glutine, lattosio, frutta secca" /></div>
+        
+        {/* Intolleranze con checkbox */}
+        <div className="space-y-2 col-span-2">
+          <Label>Allergeni / Intolleranze</Label>
+          <div className="flex flex-wrap gap-3">
+            {ALLERGENI_PREDEFINITI.map(a => (
+              <label key={a} className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300"
+                  checked={checkedAllergeni.has(a)}
+                  onChange={() => toggleAllergene(a)}
+                />
+                <span className="text-sm">{a}</span>
+              </label>
+            ))}
+          </div>
+          <Input
+            value={extraAllergeni}
+            onChange={e => setExtraAllergeni(e.target.value)}
+            placeholder="Altro (es. frutta secca, uova) — separati da virgola"
+          />
+        </div>
+
         <div className="space-y-1 col-span-2"><Label>Note</Label><Input value={note} onChange={e => setNote(e.target.value)} placeholder="Note aggiuntive..." /></div>
       </div>
 
@@ -121,9 +204,9 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
             <Input value={ing.nome} onChange={e => updateIngrediente(i, 'nome', e.target.value)} placeholder="ingrediente" className="flex-1" />
             <Input type="number" min={0} step={0.1} value={ing.quantitaPerPersona} onChange={e => updateIngrediente(i, 'quantitaPerPersona', parseFloat(e.target.value) || 0)} className="w-20" />
             <Select value={ing.unita} onValueChange={v => updateIngrediente(i, 'unita', v)}>
-              <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {['g', 'kg', 'ml', 'cl', 'l', 'pz', 'cucchiai', 'fette'].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                {UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
               </SelectContent>
             </Select>
             <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeIngrediente(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -149,7 +232,8 @@ function SlotSelector({ value, onChange, piatti, label, tipoPasto }: {
     ? ['colazione', 'merenda', 'frutta', 'dolce', 'altro']
     : ['primo', 'secondo', 'contorno', 'frutta', 'dolce', 'altro'];
 
-  const piattiFiltered = piatti.filter(p => catFiltro.includes(p.categoria));
+  // Confronto case-insensitive per compatibilità con piatti salvati con maiuscola
+  const piattiFiltered = piatti.filter(p => catFiltro.includes(p.categoria?.toLowerCase()));
   const selectedPiatto = piatti.find(p => p.id === value);
 
   return (
@@ -182,7 +266,8 @@ function SlotSelector({ value, onChange, piatti, label, tipoPasto }: {
 
 function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: Piatto[]; nPersone: number }) {
   const { ingredientiTotali, costoTotale, intolleranzeUniche } = useMemo(() => {
-    const totali: Record<string, { quantita: number; unita: string }> = {};
+    // { chiave → { valoreBase, base, unitaOriginale } }
+    const totali: Record<string, { valoreBase: number; base: 'g' | 'ml' | 'altro'; unitaOriginale: string }> = {};
     let costo = 0;
     const intSet = new Set<string>();
 
@@ -196,16 +281,21 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
           costo += piatto.costoPorzione * nPersone;
           piatto.intolleranze?.forEach(i => intSet.add(i));
           piatto.ingredienti?.forEach(ing => {
-            const key = `${ing.nome}__${ing.unita}`;
-            if (!totali[key]) totali[key] = { quantita: 0, unita: ing.unita };
-            totali[key].quantita += ing.quantitaPerPersona * nPersone;
+            const { valore, base } = normalizzaUnita(ing.quantitaPerPersona, ing.unita);
+            const k = chiaveAggregazione(ing.nome, ing.unita);
+            if (!totali[k]) totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita };
+            totali[k].valoreBase += valore * nPersone;
           });
         }
       }
     }
 
     const ingredientiTotali = Object.entries(totali)
-      .map(([key, v]) => ({ nome: key.split('__')[0], ...v }))
+      .map(([k, v]) => {
+        const nome = k.split('__')[0];
+        const { quantita, unita } = formattaQuantita(v.valoreBase, v.base, v.unitaOriginale);
+        return { nome, quantita, unita };
+      })
       .sort((a, b) => a.nome.localeCompare(b.nome));
 
     return { ingredientiTotali, costoTotale: costo, intolleranzeUniche: Array.from(intSet) };
@@ -241,9 +331,9 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
             : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {ingredientiTotali.map(ing => (
-                  <div key={ing.nome} className="flex items-center justify-between p-2 border rounded text-sm">
+                  <div key={`${ing.nome}-${ing.unita}`} className="flex items-center justify-between p-2 border rounded text-sm">
                     <span className="font-medium">{ing.nome}</span>
-                    <span className="text-muted-foreground">{ing.quantita.toFixed(1)} {ing.unita}</span>
+                    <span className="text-muted-foreground font-tabular-nums">{ing.quantita} {ing.unita}</span>
                   </div>
                 ))}
               </div>

@@ -23,7 +23,11 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   CookingPot, Plus, Trash2, Pencil, ChevronDown, ChevronRight, Users, Package,
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+
+const ALLERGENI_PREDEFINITI = ['Lattosio', 'Glutine', 'Carne'];
+const UNITA_MISURA = ['ml', 'gr', 'L', 'Kg', 'pz', 'metri'];
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 export interface Ingrediente {
@@ -70,12 +74,12 @@ function IngredienteRow({
         value={item.quantitaPerPersona || ''}
         onChange={e => onChange({ ...item, quantitaPerPersona: parseFloat(e.target.value) || 0 })}
       />
-      <Input
-        className="w-20"
-        placeholder="unità"
-        value={item.unita}
-        onChange={e => onChange({ ...item, unita: e.target.value })}
-      />
+      <Select value={item.unita} onValueChange={v => onChange({ ...item, unita: v })}>
+        <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+        </SelectContent>
+      </Select>
       <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="text-destructive hover:text-destructive">
         <Trash2 className="h-4 w-4" />
       </Button>
@@ -102,8 +106,23 @@ function PiattoForm({
   );
   const [saving, setSaving] = useState(false);
 
+  // ── Gestione intolleranze con checkbox (salvate in 'note' per compatibilità) ──
+  // Usiamo il campo note per le intolleranze in questo form
+  const parseAllergeniFromNote = (n: string) => {
+    const known = ALLERGENI_PREDEFINITI.filter(a => n.includes(a));
+    const extra = n.split(',').map(s => s.trim()).filter(s => s && !ALLERGENI_PREDEFINITI.includes(s));
+    return { known, extra };
+  };
+  const parsed = parseAllergeniFromNote(initial?.note ?? '');
+  const [checkedAllergeni, setCheckedAllergeni] = useState<Set<string>>(new Set(parsed.known));
+  const [extraAllergeni, setExtraAllergeni] = useState(parsed.extra.join(', '));
+  const [noteLibere, setNoteLibere] = useState('');
+
+  const toggleAllergene = (a: string) =>
+    setCheckedAllergeni(prev => { const s = new Set(prev); s.has(a) ? s.delete(a) : s.add(a); return s; });
+
   const addIngrediente = () =>
-    setIngredienti(prev => [...prev, { nome: '', quantitaPerPersona: 0, unita: 'g' }]);
+    setIngredienti(prev => [...prev, { nome: '', quantitaPerPersona: 0, unita: 'ml' }]);
 
   const updateIngrediente = (i: number, updated: Ingrediente) =>
     setIngredienti(prev => prev.map((ing, idx) => (idx === i ? updated : ing)));
@@ -114,7 +133,10 @@ function PiattoForm({
   const handleSave = async () => {
     if (!nome) return;
     setSaving(true);
-    await onSave({ nome, categoria, porzioniBase, note, ingredienti });
+    const extra = extraAllergeni.split(',').map(s => s.trim()).filter(Boolean);
+    const allergeniNote = [...Array.from(checkedAllergeni), ...extra].join(', ');
+    const noteFinale = [allergeniNote, noteLibere].filter(Boolean).join(' | ');
+    await onSave({ nome, categoria, porzioniBase, note: noteFinale, ingredienti });
     setSaving(false);
     onClose();
   };
@@ -179,9 +201,32 @@ function PiattoForm({
         </div>
       </div>
 
+      {/* Allergeni / Intolleranze */}
+      <div className="space-y-2">
+        <Label>Allergeni / Intolleranze</Label>
+        <div className="flex flex-wrap gap-3">
+          {ALLERGENI_PREDEFINITI.map(a => (
+            <label key={a} className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300"
+                checked={checkedAllergeni.has(a)}
+                onChange={() => toggleAllergene(a)}
+              />
+              <span className="text-sm">{a}</span>
+            </label>
+          ))}
+        </div>
+        <Input
+          value={extraAllergeni}
+          onChange={e => setExtraAllergeni(e.target.value)}
+          placeholder="Altro allergene (es. frutta secca, uova) — separati da virgola"
+        />
+      </div>
+
       <div className="space-y-1">
-        <Label>Note</Label>
-        <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Preparazione, varianti, allergie..." rows={3} />
+        <Label>Note aggiuntive</Label>
+        <Textarea value={noteLibere} onChange={e => setNoteLibere(e.target.value)} placeholder="Preparazione, varianti..." rows={2} />
       </div>
 
       <div className="flex justify-end gap-2 pt-2 border-t">

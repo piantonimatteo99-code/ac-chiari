@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Plus, Trash2, Save, Loader2, Users, ShoppingCart, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Piatto, TipoPasto, SlotMenu, GiornoMenu } from '../tab-spesa';
-import { PASTO_LABELS, CAT_LABELS } from '../tab-spesa';
+import { PASTO_LABELS, CAT_LABELS, normalizzaUnita, formattaQuantita, chiaveAggregazione } from '../tab-spesa';
 
 interface MenuCampoDoc {
   nPersone: number;
@@ -41,7 +41,8 @@ function SlotSelector({ value, onChange, piatti, label, tipoPasto }: {
     ? ['colazione', 'merenda', 'frutta', 'dolce', 'altro']
     : ['primo', 'secondo', 'contorno', 'frutta', 'dolce', 'altro'];
 
-  const piattiFiltered = piatti.filter(p => catFiltro.includes(p.categoria));
+  // Confronto case-insensitive per compatibilità con piatti salvati con maiuscola
+  const piattiFiltered = piatti.filter(p => catFiltro.includes(p.categoria?.toLowerCase()));
   const selectedPiatto = piatti.find(p => p.id === value);
 
   return (
@@ -73,7 +74,7 @@ function SlotSelector({ value, onChange, piatti, label, tipoPasto }: {
 // ─── Lista Spesa Calcolata ────────────────────────────────────────────────────
 function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: Piatto[]; nPersone: number }) {
   const { ingredientiTotali, costoTotale, intolleranzeUniche } = useMemo(() => {
-    const totali: Record<string, { quantita: number; unita: string }> = {};
+    const totali: Record<string, { valoreBase: number; base: 'g' | 'ml' | 'altro'; unitaOriginale: string }> = {};
     let costo = 0;
     const intSet = new Set<string>();
     const PASTO_KEYS = ['colazione', 'merenda_mattina', 'pranzo', 'merenda', 'cena'] as const;
@@ -87,16 +88,21 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
           costo += piatto.costoPorzione * nPersone;
           piatto.intolleranze?.forEach(i => intSet.add(i));
           piatto.ingredienti?.forEach(ing => {
-            const k = `${ing.nome}__${ing.unita}`;
-            if (!totali[k]) totali[k] = { quantita: 0, unita: ing.unita };
-            totali[k].quantita += ing.quantitaPerPersona * nPersone;
+            const { valore, base } = normalizzaUnita(ing.quantitaPerPersona, ing.unita);
+            const k = chiaveAggregazione(ing.nome, ing.unita);
+            if (!totali[k]) totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita };
+            totali[k].valoreBase += valore * nPersone;
           });
         }
       }
     }
 
     const ingredientiTotali = Object.entries(totali)
-      .map(([k, v]) => ({ nome: k.split('__')[0], ...v }))
+      .map(([k, v]) => {
+        const nome = k.split('__')[0];
+        const { quantita, unita } = formattaQuantita(v.valoreBase, v.base, v.unitaOriginale);
+        return { nome, quantita, unita };
+      })
       .sort((a, b) => a.nome.localeCompare(b.nome));
 
     return { ingredientiTotali, costoTotale: costo, intolleranzeUniche: Array.from(intSet) };
@@ -137,9 +143,9 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
             : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {ingredientiTotali.map(ing => (
-                  <div key={ing.nome} className="flex items-center justify-between p-2 border rounded text-sm">
+                  <div key={`${ing.nome}-${ing.unita}`} className="flex items-center justify-between p-2 border rounded text-sm">
                     <span className="font-medium">{ing.nome}</span>
-                    <span className="text-muted-foreground">{ing.quantita.toFixed(1)} {ing.unita}</span>
+                    <span className="text-muted-foreground tabular-nums">{ing.quantita} {ing.unita}</span>
                   </div>
                 ))}
               </div>
