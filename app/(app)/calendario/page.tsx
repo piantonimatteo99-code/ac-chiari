@@ -98,7 +98,7 @@ function DayWithEvents({
     return (
         <div
           className={cn(
-            "w-full h-full flex flex-col relative p-0 transition-colors", 
+            "w-full h-full flex flex-col relative p-0 transition-colors lg:overflow-hidden lg:min-h-0", 
             isOutside && "opacity-30", 
             !isOutside && "cursor-pointer hover:bg-muted/50",
             canAddEvents && !isOutside && "group",
@@ -540,8 +540,8 @@ export default function CalendarioPage() {
                     head_row: 'flex w-full border-b',
                     head_cell: 'flex-1 text-muted-foreground font-normal text-sm p-2 text-center',
                     row: 'flex w-full border-b lg:flex-1',
-                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[3.75rem] lg:min-h-0',
-                    day: 'w-full h-full p-0 flex flex-col',
+                    cell: 'flex-1 border-r last:border-r-0 relative p-0 min-h-[3.75rem] lg:min-h-0 lg:overflow-hidden',
+                    day: 'w-full h-full p-0 flex flex-col lg:overflow-hidden lg:min-h-0',
                     day_selected: '',
                     day_today: '',
                     day_outside: '',
