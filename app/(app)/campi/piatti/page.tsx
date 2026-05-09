@@ -609,7 +609,7 @@ export default function PiattiPage() {
               {editingPiatto ? 'Modifica piatto' : 'Nuovo piatto'}
             </DialogTitle>
           </DialogHeader>
-          <div className="overflow-y-auto flex-1 pr-1">
+          <div className="overflow-y-auto flex-1 px-1 -mx-1">
             <PiattoForm
               initial={editingPiatto ?? undefined}
               onSave={handleSave}

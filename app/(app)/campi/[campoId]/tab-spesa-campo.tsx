@@ -478,7 +478,7 @@ export default function TabSpesaCampo({ campoId }: TabSpesaCampoProps) {
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
                   <DialogHeader className="shrink-0"><DialogTitle>Aggiungi piatto</DialogTitle></DialogHeader>
-                  <div className="overflow-y-auto flex-1 pr-1">
+                  <div className="overflow-y-auto flex-1 px-1 -mx-1">
                     <PiattoForm onSave={d => savePiatto(d)} onClose={() => setOpenAdd(false)} piatti={piatti} />
                   </div>
                 </DialogContent>
@@ -509,7 +509,7 @@ export default function TabSpesaCampo({ campoId }: TabSpesaCampoProps) {
                           </DialogTrigger>
                           <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
                             <DialogHeader className="shrink-0"><DialogTitle>Modifica piatto</DialogTitle></DialogHeader>
-                            <div className="overflow-y-auto flex-1 pr-1">
+                            <div className="overflow-y-auto flex-1 px-1 -mx-1">
                               <PiattoForm initial={p} onSave={d => savePiatto(d, p.id)} onClose={() => setEditingId(null)} piatti={piatti} />
                             </div>
                           </DialogContent>
