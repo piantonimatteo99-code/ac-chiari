@@ -31,28 +31,24 @@ export const LABELS = [1, 2, 3, 4, 5, 6];
 type CellGeometry = { top: string, left: string, width: string, height: string };
 
 export const EXACT_CELLS: Record<string, CellGeometry> = {
-  // Colonna 1 — PERFETTA, non modificare
-  "1-1": { top: "8.5%", left: "3.8%", width: "29.7%", height: "12.0%" },
-  "2-1": { top: "23.0%", left: "3.8%", width: "29.7%", height: "12.5%" },
-  "3-1": { top: "37.5%", left: "3.8%", width: "29.7%", height: "12.5%" },
-  "4-1": { top: "52.0%", left: "3.8%", width: "29.7%", height: "12.5%" },
-  "5-1": { top: "66.5%", left: "3.8%", width: "29.7%", height: "12.5%" },
-  "6-1": { top: "81.0%", left: "3.8%", width: "29.7%", height: "12.5%" },
+  // Modulo Sinistro (Colonna 1) - 5 ripiani
+  "1-1": { top: "0%", left: "2.3%", width: "29.6%", height: "18.9%" },
+  "2-1": { top: "18.9%", left: "2.3%", width: "29.6%", height: "18.4%" },
+  "3-1": { top: "37.3%", left: "2.3%", width: "29.6%", height: "18.5%" },
+  "4-1": { top: "55.8%", left: "2.3%", width: "29.6%", height: "18.40" },
+  "5-1": { top: "74.2%", left: "2.3%", width: "29.6%", height: "25.8%" },
 
-  // Colonna 2 — spostato a destra (+1.5%) e in basso (+1%)
-  "1-2": { top: "8.5%", left: "35.0%", width: "29.5%", height: "12.7%" },
-  "2-2": { top: "23.0%", left: "35.0%", width: "29.5%", height: "12.5%" },
-  "3-2": { top: "37.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
-  "4-2": { top: "52.0%", left: "35.0%", width: "29.5%", height: "12.5%" },
-  "5-2": { top: "66.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
-  "6-2": { top: "81.0%", left: "35.0%", width: "29.5%", height: "12.5%" },
+  // Modulo Centrale (Colonna 2) - 5 ripiani
+  "1-2": { top: "0%", left: "31.9%", width: "29.6%", height: "18.9%" },
+  "2-2": { top: "18.9%", left: "31.9%", width: "29.6%", height: "18.4%" },
+  "3-2": { top: "37.3%", left: "31.9%", width: "29.6%", height: "18.5%" },
+  "4-2": { top: "55.8%", left: "31.9%", width: "29.6%", height: "18.4%" },
+  "5-2": { top: "74.2%", left: "31.9%", width: "29.6%", height: "25.8%" },
 
-  // Colonna 3 — bordo sinistro ridotto (+1% left, -1% width)
-  "1-3": { top: "9.5%", left: "67.0%", width: "29.2%", height: "26.0%" },
-  "3-3": { top: "38.5%", left: "67.0%", width: "29.2%", height: "11.5%" },
-  "4-3": { top: "53.0%", left: "67.0%", width: "29.2%", height: "11.5%" },
-  "5-3": { top: "67.5%", left: "67.0%", width: "29.2%", height: "11.5%" },
-  "6-3": { top: "82.0%", left: "67.0%", width: "29.2%", height: "11.5%" },
+  // Modulo Destro (Colonna 3) - 3 ripiani
+  "1-3": { top: "0%", left: "61.5%", width: "29.7%", height: "31.8%" },
+  "2-3": { top: "31.8%", left: "61.5%", width: "29.7%", height: "31.8%" },
+  "3-3": { top: "63.6%", left: "61.5%", width: "29.7%", height: "36.4%" },
 };
 
 function getExactGeometry(ripiano: number, colonna: number): CellGeometry {
