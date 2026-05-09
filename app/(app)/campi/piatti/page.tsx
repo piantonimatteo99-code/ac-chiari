@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/src/firebase';
 import {
   collection, addDoc, deleteDoc, doc, updateDoc, serverTimestamp,
@@ -52,31 +52,79 @@ const CATEGORIE = ['Colazione', 'Primo', 'Secondo', 'Contorno', 'Dessert', 'Mere
 
 /* ─── Ingrediente row editor ─────────────────────────────────────────────── */
 function IngredienteRow({
-  item, onChange, onRemove,
+  item, onChange, onRemove, suggestions,
 }: {
   item: Ingrediente;
   onChange: (updated: Ingrediente) => void;
   onRemove: () => void;
+  suggestions: { nome: string; unita?: string; prezzoPerUnita?: number }[];
 }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  const filtered = item.nome.trim().length > 0
+    ? suggestions.filter(s => s.nome.toLowerCase().includes(item.nome.toLowerCase())).slice(0, 8)
+    : [];
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleSelect = (s: { nome: string; unita?: string; prezzoPerUnita?: number }) => {
+    onChange({ ...item, nome: s.nome, unita: s.unita ?? item.unita, prezzoPerUnita: s.prezzoPerUnita ?? item.prezzoPerUnita });
+    setOpen(false);
+  };
+
   return (
-    <div className="grid grid-cols-[1fr_5rem_5rem_4rem_auto] gap-2 items-center">
-      <Input placeholder="Nome ingrediente" value={item.nome} onChange={e => onChange({ ...item, nome: e.target.value })} />
+    <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_4.5rem_5.5rem_2rem] gap-1.5 items-center">
+      {/* Nome con autocomplete */}
+      <div className="relative" ref={wrapRef}>
+        <Input
+          placeholder="Nome ingrediente"
+          value={item.nome}
+          onChange={e => { onChange({ ...item, nome: e.target.value }); setOpen(true); }}
+          onFocus={() => item.nome.trim().length > 0 && setOpen(true)}
+          autoComplete="off"
+        />
+        {open && filtered.length > 0 && (
+          <div className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-popover border rounded-md shadow-md max-h-36 overflow-y-auto">
+            {filtered.map((s, i) => (
+              <button key={i} type="button"
+                className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent flex justify-between items-center"
+                onMouseDown={e => { e.preventDefault(); handleSelect(s); }}
+              >
+                <span>{s.nome}</span>
+                <span className="text-muted-foreground text-xs ml-2">
+                  {s.unita}{s.prezzoPerUnita ? ` · €${s.prezzoPerUnita}` : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Quantità */}
       <Input type="number" min={0} step="any" placeholder="Qtà" value={item.quantitaPerPersona || ''}
         onChange={e => onChange({ ...item, quantitaPerPersona: parseFloat(e.target.value) || 0 })} />
+      {/* Unità */}
       <Select value={item.unita} onValueChange={v => onChange({ ...item, unita: v })}>
         <SelectTrigger><SelectValue /></SelectTrigger>
         <SelectContent>{UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
       </Select>
+      {/* Prezzo */}
       <div className="relative">
         <Input type="number" min={0} step={0.01} placeholder="0.00"
           value={item.prezzoPerUnita ?? ''}
           onChange={e => onChange({ ...item, prezzoPerUnita: parseFloat(e.target.value) || undefined })}
-          className="pl-5 pr-1"
+          className="pl-4 pr-1 text-sm"
         />
         <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
       </div>
-      <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="text-destructive hover:text-destructive">
-        <Trash2 className="h-4 w-4" />
+      <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="text-destructive hover:text-destructive h-8 w-8">
+        <Trash2 className="h-3.5 w-3.5" />
       </Button>
     </div>
   );
@@ -84,13 +132,12 @@ function IngredienteRow({
 
 /* ─── Piatto Form ────────────────────────────────────────────────────────── */
 function PiattoForm({
-  initial,
-  onSave,
-  onClose,
+  initial, onSave, onClose, piatti = [],
 }: {
   initial?: Partial<Piatto>;
   onSave: (d: Omit<Piatto, 'id' | 'createdAt'>) => Promise<void>;
   onClose: () => void;
+  piatti?: Piatto[];
 }) {
   const [nome, setNome] = useState(initial?.nome ?? '');
   const [categoria, setCategoria] = useState(initial?.categoria ?? 'Primo');
@@ -116,6 +163,16 @@ function PiattoForm({
   const toggleAllergene = (a: string) =>
     setCheckedAllergeni(prev => { const s = new Set(prev); s.has(a) ? s.delete(a) : s.add(a); return s; });
 
+  // ── Suggerimenti ingredienti da piatti esistenti ──
+  const suggestions = useMemo(() => {
+    const map = new Map<string, { nome: string; unita?: string; prezzoPerUnita?: number }>();
+    piatti.forEach(p => p.ingredienti?.forEach(ing => {
+      const k = ing.nome?.trim().toLowerCase();
+      if (k && !map.has(k)) map.set(k, { nome: ing.nome.trim(), unita: ing.unita, prezzoPerUnita: ing.prezzoPerUnita });
+    }));
+    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [piatti]);
+
   const addIngrediente = () =>
     setIngredienti(prev => [...prev, { nome: '', quantitaPerPersona: 0, unita: 'ml' }]);
 
@@ -137,7 +194,7 @@ function PiattoForm({
   };
 
   return (
-    <div className="space-y-4 py-1 max-h-[60vh] overflow-y-auto pr-1">
+    <div className="space-y-4 py-1">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1 col-span-2">
           <Label>Nome piatto *</Label>
@@ -183,16 +240,16 @@ function PiattoForm({
               Nessun ingrediente aggiunto
             </p>
           )}
-        {/* Intestazioni colonne */}
         {ingredienti.length > 0 && (
-          <div className="grid grid-cols-[1fr_5rem_5rem_4rem_auto] gap-2 text-xs text-muted-foreground px-0.5 mb-1">
-            <span>Ingrediente</span><span>Quantità</span><span>Unità</span><span>€/u</span><span />
+          <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_4.5rem_5.5rem_2rem] gap-1.5 text-xs text-muted-foreground px-0.5 mb-1">
+            <span>Ingrediente</span><span>Qtà</span><span>Unità</span><span>€/u</span><span />
           </div>
         )}
           {ingredienti.map((ing, i) => (
             <IngredienteRow
               key={i}
               item={ing}
+              suggestions={suggestions}
               onChange={updated => updateIngrediente(i, updated)}
               onRemove={() => removeIngrediente(i)}
             />
@@ -545,18 +602,21 @@ export default function PiattiPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={o => { if (!o) { setEditingPiatto(null); } setFormOpen(o); }}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <CookingPot className="h-5 w-5" />
               {editingPiatto ? 'Modifica piatto' : 'Nuovo piatto'}
             </DialogTitle>
           </DialogHeader>
-          <PiattoForm
-            initial={editingPiatto ?? undefined}
-            onSave={handleSave}
-            onClose={() => { setFormOpen(false); setEditingPiatto(null); }}
-          />
+          <div className="overflow-y-auto flex-1 pr-1">
+            <PiattoForm
+              initial={editingPiatto ?? undefined}
+              onSave={handleSave}
+              onClose={() => { setFormOpen(false); setEditingPiatto(null); }}
+              piatti={piatti}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>

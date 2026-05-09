@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/src/firebase';
 import { collection, addDoc, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
@@ -116,9 +116,80 @@ export function chiaveAggregazione(nome: string, unita: string): string {
   return `${nome}__${u}`;
 }
 
+// ─── IngredienteAutoRow: input nome con autocomplete ─────────────────────────
+
+function IngredienteAutoRow({ ing, suggestions, onUpdate, onRemove }: {
+  ing: Piatto['ingredienti'][0];
+  suggestions: { nome: string; unita?: string; prezzoPerUnita?: number }[];
+  onUpdate: (field: keyof Piatto['ingredienti'][0], value: any) => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const filtered = ing.nome.trim().length > 0
+    ? suggestions.filter(s => s.nome.toLowerCase().includes(ing.nome.toLowerCase())).slice(0, 8)
+    : [];
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_4.5rem_5.5rem_2rem] gap-1.5 items-center">
+      <div className="relative" ref={wrapRef}>
+        <Input
+          value={ing.nome}
+          onChange={e => { onUpdate('nome', e.target.value); setOpen(true); }}
+          onFocus={() => ing.nome.trim().length > 0 && setOpen(true)}
+          placeholder="ingrediente"
+          autoComplete="off"
+        />
+        {open && filtered.length > 0 && (
+          <div className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-popover border rounded-md shadow-md max-h-36 overflow-y-auto">
+            {filtered.map((s, idx) => (
+              <button key={idx} type="button"
+                className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent flex justify-between"
+                onMouseDown={e => {
+                  e.preventDefault();
+                  onUpdate('nome', s.nome);
+                  if (s.unita) onUpdate('unita', s.unita);
+                  if (s.prezzoPerUnita) onUpdate('prezzoPerUnita', s.prezzoPerUnita);
+                  setOpen(false);
+                }}
+              >
+                <span>{s.nome}</span>
+                <span className="text-muted-foreground text-xs">{s.unita}{s.prezzoPerUnita ? ` · €${s.prezzoPerUnita}` : ''}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <Input type="number" min={0} step={0.1} value={ing.quantitaPerPersona || ''}
+        onChange={e => onUpdate('quantitaPerPersona', parseFloat(e.target.value) || 0)} />
+      <Select value={ing.unita} onValueChange={v => onUpdate('unita', v)}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>{UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+      </Select>
+      <div className="relative">
+        <Input type="number" min={0} step={0.01} value={ing.prezzoPerUnita ?? ''}
+          onChange={e => onUpdate('prezzoPerUnita', parseFloat(e.target.value) || undefined)}
+          placeholder="0.00" className="pl-4 pr-1 text-sm" />
+        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
+      </div>
+      <Button size="sm" variant="ghost" className="text-destructive h-8 w-8 p-0" onClick={onRemove}>
+        <Trash2 className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
 // ─── Form Piatto ──────────────────────────────────────────────────────────────
 
-function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; onSave: (d: Partial<Piatto>) => Promise<void>; onClose: () => void }) {
+function PiattoForm({ initial, onSave, onClose, piatti = [] }: { initial?: Partial<Piatto>; onSave: (d: Partial<Piatto>) => Promise<void>; onClose: () => void; piatti?: Piatto[] }) {
   const [nome, setNome] = useState(initial?.nome ?? '');
   const [categoria, setCategoria] = useState<string>(initial?.categoria ?? 'primo');
   const [costoPorzione, setCostoPorzione] = useState(initial?.costoPorzione ?? 0);
@@ -135,6 +206,16 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
 
   const toggleAllergene = (a: string) =>
     setCheckedAllergeni(prev => { const s = new Set(prev); s.has(a) ? s.delete(a) : s.add(a); return s; });
+
+  // ── Suggerimenti da ingredienti già nel database ──
+  const suggestions = useMemo(() => {
+    const map = new Map<string, { nome: string; unita?: string; prezzoPerUnita?: number }>();
+    piatti.forEach(p => p.ingredienti?.forEach(ing => {
+      const k = ing.nome?.trim().toLowerCase();
+      if (k && !map.has(k)) map.set(k, { nome: ing.nome.trim(), unita: ing.unita, prezzoPerUnita: ing.prezzoPerUnita });
+    }));
+    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [piatti]);
 
   const addIngrediente = () => setIngredienti(p => [...p, { nome: '', quantitaPerPersona: 0, unita: 'ml' }]);
   const removeIngrediente = (i: number) => setIngredienti(p => p.filter((_, idx) => idx !== i));
@@ -157,7 +238,7 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
   };
 
   return (
-    <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto px-1">
+    <div className="space-y-4 py-2">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1 col-span-2"><Label>Nome piatto *</Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder="es. Pasta al pomodoro" /></div>
         <div className="space-y-1">
@@ -199,36 +280,16 @@ function PiattoForm({ initial, onSave, onClose }: { initial?: Partial<Piatto>; o
           <Label>Ingredienti (per persona)</Label>
           <Button size="sm" variant="outline" onClick={addIngrediente}><Plus className="h-3 w-3 mr-1" />Aggiungi</Button>
         </div>
-        {/* Intestazioni colonne */}
         {ingredienti.length > 0 && (
-          <div className="grid grid-cols-[1fr_5rem_5rem_4rem_auto] gap-2 text-xs text-muted-foreground px-0.5">
-            <span>Ingrediente</span><span>Quantità</span><span>Unità</span><span>€/unità</span><span />
+          <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_4.5rem_5.5rem_2rem] gap-1.5 text-xs text-muted-foreground px-0.5">
+            <span>Ingrediente</span><span>Qtà</span><span>Unità</span><span>€/u</span><span />
           </div>
         )}
-        {ingredienti.map((ing, i) => {
-          const costoRiga = (ing.prezzoPerUnita || 0) * ing.quantitaPerPersona;
-          return (
-            <div key={i} className="grid grid-cols-[1fr_5rem_5rem_4rem_auto] gap-2 items-center">
-              <Input value={ing.nome} onChange={e => updateIngrediente(i, 'nome', e.target.value)} placeholder="ingrediente" />
-              <Input type="number" min={0} step={0.1} value={ing.quantitaPerPersona || ''} onChange={e => updateIngrediente(i, 'quantitaPerPersona', parseFloat(e.target.value) || 0)} />
-              <Select value={ing.unita} onValueChange={v => updateIngrediente(i, 'unita', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-              </Select>
-              <div className="relative">
-                <Input
-                  type="number" min={0} step={0.01}
-                  value={ing.prezzoPerUnita ?? ''}
-                  onChange={e => updateIngrediente(i, 'prezzoPerUnita', parseFloat(e.target.value) || undefined)}
-                  placeholder="0.00"
-                  className="pr-1 pl-5"
-                />
-                <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
-              </div>
-              <Button size="sm" variant="ghost" className="text-destructive" onClick={() => removeIngrediente(i)}><Trash2 className="h-3.5 w-3.5" /></Button>
-            </div>
-          );
-        })}
+        {ingredienti.map((ing, i) => (
+          <IngredienteAutoRow key={i} ing={ing} suggestions={suggestions}
+            onUpdate={(field, val) => updateIngrediente(i, field, val)}
+            onRemove={() => removeIngrediente(i)} />
+        ))}
         {ingredienti.some(i => (i.prezzoPerUnita || 0) > 0) && (
           <p className="text-xs text-right text-muted-foreground pr-8">
             Costo/porzione stimato: <span className="font-semibold text-foreground">
@@ -494,9 +555,11 @@ export default function TabSpesa() {
                 <DialogTrigger asChild>
                   <Button size="sm"><Plus className="h-4 w-4 mr-1" />Nuovo piatto</Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader><DialogTitle>Aggiungi piatto</DialogTitle></DialogHeader>
-                  <PiattoForm onSave={d => savePiatto(d)} onClose={() => setOpenAdd(false)} />
+                <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
+                  <DialogHeader className="shrink-0"><DialogTitle>Aggiungi piatto</DialogTitle></DialogHeader>
+                  <div className="overflow-y-auto flex-1 pr-1">
+                    <PiattoForm onSave={d => savePiatto(d)} onClose={() => setOpenAdd(false)} piatti={piatti} />
+                  </div>
                 </DialogContent>
               </Dialog>
             )}
@@ -526,9 +589,11 @@ export default function TabSpesa() {
                           <DialogTrigger asChild>
                             <Button size="sm" variant="ghost" onClick={() => setEditingId(p.id)}><Pencil className="h-3.5 w-3.5" /></Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader><DialogTitle>Modifica piatto</DialogTitle></DialogHeader>
-                            <PiattoForm initial={p} onSave={d => savePiatto(d, p.id)} onClose={() => setEditingId(null)} />
+                          <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
+                            <DialogHeader className="shrink-0"><DialogTitle>Modifica piatto</DialogTitle></DialogHeader>
+                            <div className="overflow-y-auto flex-1 pr-1">
+                              <PiattoForm initial={p} onSave={d => savePiatto(d, p.id)} onClose={() => setEditingId(null)} piatti={piatti} />
+                            </div>
                           </DialogContent>
                         </Dialog>
                         <AlertDialog>
