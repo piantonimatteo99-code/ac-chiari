@@ -297,24 +297,39 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
                     style={{ top, height, left, width }}
                   >
                     {!isEmpty && (
-                      <>
-                        <div className="flex items-center gap-1">
-                          <span className={cn('w-2 h-2 rounded-full flex-shrink-0 ring-1 ring-black/10', DOT_CLASSES[status])} />
-                          {cellItems.length > 1 && <span className="text-[9px] font-bold text-zinc-600">×{cellItems.length}</span>}
-                        </div>
-                        <span className="text-[10px] font-semibold text-center leading-tight line-clamp-2 max-w-full text-zinc-800 drop-shadow-sm">
-                          {first?.nome}{cellItems.length > 1 ? ` +${cellItems.length - 1}` : ''}
-                        </span>
-                        {first && days !== Infinity && (
-                          <span className={cn(
-                            'text-[8px] font-mono px-1 py-0.5 rounded-full leading-none',
-                            days < 0 ? 'bg-red-500 text-white' : days <= giorniAllerta ? 'bg-amber-500 text-white' : 'bg-white/70 text-zinc-600'
-                          )}>
-                            {days < 0 ? `Sc. ${Math.abs(days)}g fa` : `${days}g`}
-                          </span>
-                        )}
-                      </>
+                      <div className="w-full h-full overflow-y-auto flex flex-col gap-0.5 py-0.5 px-0.5">
+                        {sorted.map((item, idx) => {
+                          const d = daysUntil(item.dataScadenza);
+                          const badgeColor = d < 0
+                            ? 'bg-red-500 text-white'
+                            : d <= giorniAllerta
+                              ? 'bg-amber-500 text-white'
+                              : 'bg-white/60 text-zinc-600';
+                          return (
+                            <div
+                              key={item.id ?? idx}
+                              className="flex items-center gap-1 min-w-0 bg-white/50 rounded px-1 py-0.5"
+                            >
+                              <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', DOT_CLASSES[
+                                d < 0 ? 'expired' : d <= giorniAllerta ? 'warning' : 'ok'
+                              ])} />
+                              <span className="text-[9px] font-semibold text-zinc-800 truncate flex-1 leading-tight">
+                                {item.nome}
+                                {item.quantita > 1 && (
+                                  <span className="text-zinc-500 font-normal"> ×{item.quantita}</span>
+                                )}
+                              </span>
+                              {d !== Infinity && (
+                                <span className={cn('text-[7px] font-mono px-0.5 py-px rounded leading-none flex-shrink-0', badgeColor)}>
+                                  {d < 0 ? `-${Math.abs(d)}g` : `${d}g`}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
+
                   </div>
                 );
               })}
