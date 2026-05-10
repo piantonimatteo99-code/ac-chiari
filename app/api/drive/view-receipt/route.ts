@@ -1,24 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDriveAccessToken, initAdminApp } from '@/lib/firebase-admin';
+import { initAdminApp } from '@/lib/firebase-admin';
 import * as admin from 'firebase-admin';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
-const GCS_API = 'https://storage.googleapis.com/storage/v1';
-const GCS_DOWNLOAD = 'https://storage.googleapis.com/download/storage/v1';
 
 export const dynamic = 'force-dynamic';
 
-/** Ottiene un access token per Google Cloud Storage usando le credenziali del service account */
-async function getStorageAccessToken(): Promise<string> {
-    initAdminApp();
-    const app = admin.app();
-    const credential = app.options.credential as admin.credential.Credential;
-    const token = await credential.getAccessToken();
-    return token.access_token;
+/** Genera un access token per GCS usando JWT del service account */
+async function getGCSAccessToken(): Promise<string> {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY non configurato');
+  const cleaned = raw.trim().replace(/^'([\s\S]*)'$/, '$1');
+  const sa = JSON.parse(cleaned);
+  if (sa.private_key) sa.private_key = sa.private_key.replace(/\\n/g, '\n');
+
+  // JWT claim set
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/devstorage.read_only https://www.googleapis.com/auth/cloud-platform',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  };
+
+  // Encode header + payload
+  const enc = (obj: object) =>
+    Buffer.from(JSON.stringify(obj)).toString('base64url');
+  const header = enc({ alg: 'RS256', typ: 'JWT' });
+  const body = enc(payload);
+  const unsigned = `${header}.${body}`;
+
+  // Sign with private key using crypto
+  const { createSign } = await import('crypto');
+  const signer = createSign('RSA-SHA256');
+  signer.update(unsigned);
+  const signature = signer.sign(sa.private_key, 'base64url');
+  const jwt = `${unsigned}.${signature}`;
+
+  // Exchange JWT for access token
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`GCS token error: ${data.error_description || data.error}`);
+  return data.access_token as string;
 }
 
 export async function GET(request: NextRequest) {
-  // ── 1. Auth: richiede Firebase ID token nell'header Authorization ──
+  // ── 1. Auth: richiede Firebase ID token ──
   const authHeader = request.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
@@ -28,8 +63,6 @@ export async function GET(request: NextRequest) {
     initAdminApp();
     const token = authHeader.slice(7);
     const decoded = await admin.auth().verifyIdToken(token);
-
-    // Verifica ruolo educatore o admin
     const db = admin.firestore();
     const userDoc = await db.collection('users').doc(decoded.uid).get();
     const roles: string[] = Array.isArray(userDoc.data()?.roles) ? userDoc.data()!.roles : [];
@@ -44,88 +77,67 @@ export async function GET(request: NextRequest) {
   const fileId = searchParams.get('fileId');
   const storagePath = searchParams.get('storagePath');
 
-  // ── 2a. Firebase Storage path (nuovo flusso — nessun file su Drive) ──
+  // ── 2a. Firebase Storage (nuovo flusso) ──
   if (storagePath) {
     try {
       const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-      if (!bucket) throw new Error('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET non configurato');
-
-      const accessToken = await getStorageAccessToken();
-
-      // Encode del path per l'API (le slash diventano %2F)
+      if (!bucket) throw new Error('Storage bucket non configurato');
+      const accessToken = await getGCSAccessToken();
       const encodedPath = encodeURIComponent(storagePath);
 
-      // Metadata (content-type)
+      // Metadata
       const metaRes = await fetch(
-        `${GCS_API}/b/${bucket}/o/${encodedPath}`,
+        `https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodedPath}`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-      if (!metaRes.ok) {
-        return NextResponse.json({ error: 'File non trovato' }, { status: 404 });
-      }
+      if (!metaRes.ok) return NextResponse.json({ error: 'File non trovato' }, { status: 404 });
       const meta = await metaRes.json();
-      const contentType: string = meta.contentType || 'application/octet-stream';
-      const fileName = storagePath.split('/').pop() || 'ricevuta';
 
-      // Contenuto file
+      // Contenuto
       const fileRes = await fetch(
-        `${GCS_DOWNLOAD}/b/${bucket}/o/${encodedPath}?alt=media`,
+        `https://storage.googleapis.com/download/storage/v1/b/${bucket}/o/${encodedPath}?alt=media`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-      if (!fileRes.ok) {
-        return NextResponse.json({ error: 'Download fallito' }, { status: 500 });
-      }
+      if (!fileRes.ok) return NextResponse.json({ error: 'Download fallito' }, { status: 500 });
 
       return new NextResponse(fileRes.body, {
         headers: {
-          'Content-Type': contentType,
+          'Content-Type': meta.contentType || 'application/octet-stream',
           'Cache-Control': 'private, max-age=120',
-          'Content-Disposition': `inline; filename="${fileName}"`,
+          'Content-Disposition': `inline; filename="${storagePath.split('/').pop() || 'ricevuta'}"`,
         },
       });
     } catch (err: any) {
-      console.error('[view-receipt] Errore Storage:', err);
+      console.error('[view-receipt] Errore Storage:', err.message);
       return NextResponse.json({ error: err.message }, { status: 500 });
     }
   }
 
-  // ── 2b. Google Drive file ID (flusso legacy) ──
-  if (!fileId) {
-    return NextResponse.json({ error: 'fileId o storagePath richiesto' }, { status: 400 });
-  }
+  // ── 2b. Google Drive (flusso legacy) ──
+  if (!fileId) return NextResponse.json({ error: 'fileId o storagePath richiesto' }, { status: 400 });
 
   try {
+    const { getDriveAccessToken } = await import('@/lib/firebase-admin');
     const accessToken = await getDriveAccessToken();
-
-    // Metadata (content-type, nome)
-    const metaRes = await fetch(
-      `${DRIVE_API}/files/${fileId}?fields=mimeType,name`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    if (!metaRes.ok) {
-      return NextResponse.json({ error: 'File non trovato' }, { status: 404 });
-    }
+    const metaRes = await fetch(`${DRIVE_API}/files/${fileId}?fields=mimeType,name`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!metaRes.ok) return NextResponse.json({ error: 'File non trovato' }, { status: 404 });
     const meta = await metaRes.json();
-
-    // Contenuto file
     const fileRes = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (!fileRes.ok) {
-      return NextResponse.json({ error: 'Download fallito' }, { status: 500 });
-    }
-
-    const contentType = meta.mimeType || 'application/octet-stream';
+    if (!fileRes.ok) return NextResponse.json({ error: 'Download fallito' }, { status: 500 });
 
     return new NextResponse(fileRes.body, {
       headers: {
-        'Content-Type': contentType,
+        'Content-Type': meta.mimeType || 'application/octet-stream',
         'Cache-Control': 'private, max-age=120',
         'Content-Disposition': `inline; filename="${meta.name || 'ricevuta'}"`,
       },
     });
   } catch (err: any) {
-    console.error('[view-receipt] Errore Drive:', err);
+    console.error('[view-receipt] Errore Drive:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
