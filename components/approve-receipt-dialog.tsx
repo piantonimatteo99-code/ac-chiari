@@ -37,11 +37,12 @@ interface ApproveReceiptDialogProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
     payment: FlatPayment;
-    onApprove: () => void;
-    onReject: () => void;
+    onApprove?: () => void;
+    onReject?: () => void;
+    viewOnly?: boolean;
 }
 
-export function ApproveReceiptDialog({ isOpen, onOpenChange, payment, onApprove, onReject }: ApproveReceiptDialogProps) {
+export function ApproveReceiptDialog({ isOpen, onOpenChange, payment, onApprove, onReject, viewOnly = false }: ApproveReceiptDialogProps) {
     const { paymentDetails, raccolte } = payment;
     const items: any[] = paymentDetails.items || [];
     const importoTotale: number | undefined = paymentDetails.importoAtteso ?? paymentDetails.analysisData?.importo;
@@ -99,8 +100,8 @@ export function ApproveReceiptDialog({ isOpen, onOpenChange, payment, onApprove,
             <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col gap-0 p-0">
                 <DialogHeader className="px-6 pt-6 pb-4 border-b">
                     <DialogTitle className="flex items-center gap-2">
-                        <ShieldCheck className="h-5 w-5 text-amber-500" />
-                        Approvazione Ricevuta — ACR {payment.paymentId}
+                        <ShieldCheck className={`h-5 w-5 ${viewOnly ? 'text-blue-500' : 'text-amber-500'}`} />
+                        {viewOnly ? 'Visualizza Ricevuta' : 'Approvazione Ricevuta'} — ACR {payment.paymentId}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -241,14 +242,18 @@ export function ApproveReceiptDialog({ isOpen, onOpenChange, payment, onApprove,
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
                         Chiudi
                     </Button>
-                    <Button variant="destructive" onClick={onReject}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Rifiuta e Rimuovi
-                    </Button>
-                    <Button onClick={onApprove} className="bg-green-600 hover:bg-green-700 text-white">
-                        <ShieldCheck className="mr-2 h-4 w-4" />
-                        Approva Ricevuta
-                    </Button>
+                    {!viewOnly && (
+                        <>
+                            <Button variant="destructive" onClick={onReject}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Rifiuta e Rimuovi
+                            </Button>
+                            <Button onClick={onApprove} className="bg-green-600 hover:bg-green-700 text-white">
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Approva Ricevuta
+                            </Button>
+                        </>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

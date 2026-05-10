@@ -92,6 +92,7 @@ export default function TransazioniDaControllarePage() {
     const firestore = useFirestore();
     const [paymentToDelete, setPaymentToDelete] = useState<FlatPayment | null>(null);
     const [approvingPayment, setApprovingPayment] = useState<FlatPayment | null>(null);
+    const [viewingPayment, setViewingPayment] = useState<FlatPayment | null>(null);
     const [selectedPayments, setSelectedPayments] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
@@ -366,6 +367,15 @@ export default function TransazioniDaControllarePage() {
                 />
             )}
 
+            {viewingPayment && (
+                <ApproveReceiptDialog
+                    isOpen={!!viewingPayment}
+                    onOpenChange={(open) => !open && setViewingPayment(null)}
+                    payment={viewingPayment}
+                    viewOnly
+                />
+            )}
+
             {/* ── SEZIONE 1: Da Approvare ── */}
             {toApprovePayments.length > 0 && (
                 <Card className="border-amber-200 dark:border-amber-900">
@@ -523,11 +533,13 @@ export default function TransazioniDaControllarePage() {
                                             </TableCell>
                                             <TableCell>
                                                 {p.paymentDetails.receiptUrl ? (
-                                                    <Button variant="ghost" size="sm" asChild>
-                                                        <Link href={p.paymentDetails.receiptUrl} target="_blank">
-                                                            <ExternalLink className="mr-1 h-4 w-4" />
-                                                            Apri
-                                                        </Link>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => setViewingPayment(p)}
+                                                    >
+                                                        <ExternalLink className="mr-1 h-4 w-4" />
+                                                        Apri
                                                     </Button>
                                                 ) : (
                                                     <Badge variant="secondary">Rimosso</Badge>
