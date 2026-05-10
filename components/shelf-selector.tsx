@@ -13,8 +13,8 @@ export const COLONNE = 3;
 export type CellDef = { colonna: number; ripiano: number; isLast: boolean };
 export const CELL_DEFS: CellDef[] = [];
 for (let c = 1; c <= 2; c++) {
-  for (let r = 1; r <= 6; r++) {
-    CELL_DEFS.push({ colonna: c, ripiano: r, isLast: r === 6 });
+  for (let r = 1; r <= 4; r++) {
+    CELL_DEFS.push({ colonna: c, ripiano: r, isLast: r === 4 });
   }
 }
 // Colonna 3: R1 grande (copre visivamente R1+R2), poi R3-R6
@@ -31,19 +31,17 @@ export const LABELS = [1, 2, 3, 4, 5, 6];
 type CellGeometry = { top: string, left: string, width: string, height: string };
 
 export const EXACT_CELLS: Record<string, CellGeometry> = {
-  // Modulo Sinistro (Colonna 1) - 5 ripiani
+  // Modulo Sinistro (Colonna 1) - 4 ripiani
   "1-1": { top: "10.0%", left: "3.8%", width: "29.7%", height: "12.7%" },
   "2-1": { top: "23.0%", left: "3.8%", width: "29.7%", height: "12.5%" },
   "3-1": { top: "37.5%", left: "3.8%", width: "29.7%", height: "12.5%" },
   "4-1": { top: "52.0%", left: "3.8%", width: "29.7%", height: "12.5%" },
-  "5-1": { top: "00%", left: "3.8%", width: "29.7%", height: "12.5%" },
 
-  // Modulo Centrale (Colonna 2) - 5 ripiani
+  // Modulo Centrale (Colonna 2) - 4 ripiani
   "1-2": { top: "8.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
   "2-2": { top: "23.0%", left: "35.0%", width: "29.5%", height: "12.5%" },
   "3-2": { top: "37.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
   "4-2": { top: "52.0%", left: "35.0%", width: "29.5%", height: "12.5%" },
-  "5-2": { top: "66.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
 
   // Modulo Destro (Colonna 3) - 3 ripiani
   "1-3": { top: "9.5%", left: "65.0%", width: "29.2%", height: "26.0%" },
