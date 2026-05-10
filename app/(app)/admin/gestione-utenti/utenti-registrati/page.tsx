@@ -364,7 +364,8 @@ export default function UtentiRegistratiPage() {
         });
 
         if (gruppo) {
-          const matchingGroup = groups.find(g => g.name === gruppo);
+          const gruppoLower = gruppo.toLowerCase().trim();
+          const matchingGroup = groups.find(g => g.name.toLowerCase().trim() === gruppoLower);
           if (matchingGroup) {
             batch.update(doc(firestore, 'gruppi', matchingGroup.id), {
               memberIds: arrayUnion(newRef.id)
@@ -402,13 +403,58 @@ export default function UtentiRegistratiPage() {
     URL.revokeObjectURL(url);
   };
 
+  // ── Ricollega ghost ai gruppi (fix case-insensitive retroattivo) ──────────
+  const [isRepairing, setIsRepairing] = useState(false);
+  const [repairResult, setRepairResult] = useState<string | null>(null);
+
+  const handleRepairGroupLinks = async () => {
+    if (!firestore) return;
+    setIsRepairing(true);
+    setRepairResult(null);
+    try {
+      const importedSnap = await getDocs(collection(firestore, 'imported-members'));
+      const groupsSnap = await getDocs(collection(firestore, 'gruppi'));
+      const allGroups = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+      const batch = writeBatch(firestore);
+      let fixed = 0;
+
+      for (const ghostDoc of importedSnap.docs) {
+        const ghost = ghostDoc.data();
+        if (!ghost.gruppo || ghost.matchedWith) continue;
+        const gruppoLower = ghost.gruppo.toLowerCase().trim();
+        const matchingGroup = allGroups.find((g: any) => g.name.toLowerCase().trim() === gruppoLower);
+        if (!matchingGroup) continue;
+
+        // Controlla se è già presente nei memberIds
+        const already = (matchingGroup.memberIds ?? []).includes(ghostDoc.id);
+        if (!already) {
+          batch.update(doc(firestore, 'gruppi', matchingGroup.id), {
+            memberIds: arrayUnion(ghostDoc.id),
+          });
+          fixed++;
+        }
+      }
+
+      await batch.commit();
+      setRepairResult(`Fatto! ${fixed} ghost ricollegati ai rispettivi gruppi.`);
+      await loadData();
+    } catch (e) {
+      console.error(e);
+      setRepairResult('Errore durante il ricollegamento.');
+    } finally {
+      setIsRepairing(false);
+    }
+  };
+
   // ── Confirm Match ─────────────────────────────────────────────────────────
   const handleConfirmMatch = async (pair: MatchPair) => {
     if (!firestore) return;
     setIsConfirming(true);
     try {
       const batch = writeBatch(firestore);
-      const matchingGroup = groups.find(g => g.name === pair.placeholder.gruppo);
+      const gruppoPlaceholderLower = (pair.placeholder.gruppo ?? '').toLowerCase().trim();
+      const matchingGroup = groups.find(g => g.name.toLowerCase().trim() === gruppoPlaceholderLower);
       const realDocRef = doc(firestore, pair.realMember.docPath);
 
       if (matchingGroup) {
@@ -423,7 +469,7 @@ export default function UtentiRegistratiPage() {
       }
 
       // If the placeholder was in a group, we should remove its ID from that group
-      const placeholderGroup = groups.find(g => g.name === pair.placeholder.gruppo);
+      const placeholderGroup = groups.find(g => g.name.toLowerCase().trim() === gruppoPlaceholderLower);
       if (placeholderGroup) {
         batch.update(doc(firestore, 'gruppi', placeholderGroup.id), {
           memberIds: arrayRemove(pair.placeholder.id)
@@ -553,7 +599,7 @@ export default function UtentiRegistratiPage() {
       const batch = writeBatch(firestore);
       batch.delete(doc(firestore, 'imported-members', placeholder.id));
       
-      const placeholderGroup = groups.find(g => g.name === placeholder.gruppo);
+      const placeholderGroup = groups.find(g => g.name.toLowerCase().trim() === (placeholder.gruppo ?? '').toLowerCase().trim());
       if (placeholderGroup) {
         batch.update(doc(firestore, 'gruppi', placeholderGroup.id), {
           memberIds: arrayRemove(placeholder.id)
@@ -674,6 +720,10 @@ export default function UtentiRegistratiPage() {
             <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Aggiorna
           </Button>
+          <Button variant="outline" size="sm" onClick={handleRepairGroupLinks} disabled={isRepairing}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isRepairing ? 'animate-spin' : ''}`} />
+            Ricollega Gruppi
+          </Button>
           <Button onClick={() => setIsImportDialogOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
             Importa da CSV
@@ -691,6 +741,13 @@ export default function UtentiRegistratiPage() {
         <div className="rounded-md bg-green-50 border border-green-200 text-green-800 px-4 py-3 text-sm flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
           {familyLinkSuccess}
+        </div>
+      )}
+
+      {repairResult && (
+        <div className="rounded-md bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 text-sm flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0" />
+          {repairResult}
         </div>
       )}
 
