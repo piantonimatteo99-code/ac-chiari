@@ -30,8 +30,8 @@ type CellGeometry = { top: string, left: string, width: string, height: string }
 
 export const EXACT_CELLS: Record<string, CellGeometry> = {
   // Modulo Sinistro (Colonna 1) - 5 ripiani
-  "1-1": { top: "9.5%", left: "3.9%", width: "29.6%", height: "12.4%" },
-  "2-1": { top: "23.5%", left: "3.9%", width: "29.6%", height: "12.5%" },
+  "1-1": { top: "9.5%", left: "3.9%", width: "29.5%", height: "12.3%" },
+  "2-1": { top: "23.5%", left: "3.9%", width: "29.55%", height: "12.35%" },
   "3-1": { top: "37.5%", left: "3.9%", width: "29.6%", height: "12.5%" },
   "4-1": { top: "52.0%", left: "3.9%", width: "29.6%", height: "12.5%" },
   "5-1": { top: "66.5%", left: "3.9%", width: "29.6%", height: "25.0%" },
@@ -44,9 +44,9 @@ export const EXACT_CELLS: Record<string, CellGeometry> = {
   "5-2": { top: "66.5%", left: "35.1%", width: "29.7%", height: "25.0%" },
 
   // Modulo Destro (Colonna 3) - 3 ripiani
-  "1-3": { top: "9.5%", left: "65.0%", width: "29.6%", height: "26.0%" },
-  "2-3": { top: "37.0%", left: "66.0%", width: "29.6%", height: "26.0%" },
-  "3-3": { top: "66.5%", left: "67.0%", width: "29.6%", height: "26.0%" },
+  "1-3": { top: "9.5%", left: "66.45%", width: "29.6%", height: "26.0%" },
+  "2-3": { top: "38.0%", left: "66.5%", width: "29.6%", height: "26.0%" },
+  "3-3": { top: "65.5%", left: "66.55%", width: "29.6%", height: "26.0%" },
 };
 
 function getExactGeometry(ripiano: number, colonna: number): CellGeometry {
