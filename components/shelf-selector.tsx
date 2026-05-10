@@ -37,11 +37,11 @@ export const EXACT_CELLS: Record<string, CellGeometry> = {
   "5-1": { top: "66.5%", left: "3.8%", width: "29.7%", height: "12.5%" },
 
   // Modulo Centrale (Colonna 2) - 5 ripiani
-  "1-2": { top: "9.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
-  "2-2": { top: "23.0%", left: "35.0%", width: "29.5%", height: "12.5%" },
-  "3-2": { top: "37.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
-  "4-2": { top: "52.0%", left: "35.0%", width: "29.5%", height: "12.5%" },
-  "5-2": { top: "66.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
+  "1-2": { top: "9.5%", left: "35.0%", width: "29.7%", height: "12.5%" },
+  "2-2": { top: "23.0%", left: "35.0%", width: "29.7%", height: "12.5%" },
+  "3-2": { top: "37.5%", left: "35.0%", width: "29.7%", height: "12.5%" },
+  "4-2": { top: "52.0%", left: "35.0%", width: "29.7%", height: "12.5%" },
+  "5-2": { top: "66.5%", left: "35.0%", width: "29.7%", height: "12.5%" },
 
   // Modulo Destro (Colonna 3) - 3 ripiani
   "1-3": { top: "9.5%", left: "65.0%", width: "29.2%", height: "26.0%" },
