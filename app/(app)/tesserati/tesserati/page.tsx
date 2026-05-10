@@ -63,6 +63,13 @@ export default function TesseratiSubPage() {
   }, [firestore]);
   const { data: groupsData, isLoading: isLoadingGroups } = useCollection<Group>(groupsQuery);
 
+  // Ghost (placeholder) importati — non ancora matchati con un utente reale
+  const importedMembersQuery = useMemoFirebase(() => {
+    if (!firestore || (!isAdmin && !isEducatore)) return null;
+    return collection(firestore, 'imported-members');
+  }, [firestore, isAdmin, isEducatore]);
+  const { data: importedMembersData, isLoading: isLoadingImported } = useCollection<any>(importedMembersQuery);
+
 
   const assignedMembers = useMemo(() => {
     if (!allUsersData || !allMembersData) return [];
@@ -80,15 +87,45 @@ export default function TesseratiSubPage() {
     allMembersData.forEach(member => {
       if (member.id && !processedIds.has(member.id)) {
         combinedList.push({ ...member });
+        processedIds.add(member.id);
       }
     });
+
+    // Aggiungi i ghost (imported-members non ancora matchati)
+    // Il loro groupId va ricavato scorrendo i memberIds dei gruppi
+    if (importedMembersData && groupsData) {
+      // Mappa: ghostId -> group
+      const ghostGroupMap = new Map<string, Group>();
+      groupsData.forEach(group => {
+        (group.memberIds ?? []).forEach(mid => ghostGroupMap.set(mid, group));
+      });
+
+      importedMembersData.forEach(ghost => {
+        if (!ghost.id || processedIds.has(ghost.id)) return;
+        // Escludi già matchati
+        if (ghost.matchedWith) return;
+        const group = ghostGroupMap.get(ghost.id);
+        if (!group) return; // senza gruppo non compare in Tesserati
+        combinedList.push({
+          id: ghost.id,
+          nome: ghost.nome,
+          cognome: ghost.cognome,
+          dataNascita: ghost.dataNascita,
+          groupId: group.id,
+          groupName: group.name,
+          archived: false,
+          tesseramento: ghost.tesseramento,
+        });
+        processedIds.add(ghost.id);
+      });
+    }
 
     return combinedList.filter(member => {
       const isAssigned = !!member.groupId;
       const isNotArchived = member.archived === false || member.archived === undefined;
       return isAssigned && isNotArchived;
     });
-  }, [allUsersData, allMembersData]);
+  }, [allUsersData, allMembersData, importedMembersData, groupsData]);
   
   const currentMembershipYear = getCurrentMembershipYear();
 
@@ -126,7 +163,13 @@ export default function TesseratiSubPage() {
         return memberMatch.ref;
     }
 
-    // 3. Fallback: cerca esplicitamente l'utente su Firestore se non in memoria (raro)
+    // 3. Controlla se è un ghost importato
+    const ghostMatch = importedMembersData?.find(g => g.id === memberId);
+    if (ghostMatch) {
+        return doc(firestore, 'imported-members', memberId);
+    }
+
+    // 4. Fallback: cerca esplicitamente l'utente su Firestore se non in memoria (raro)
     const userDocRef = doc(firestore, 'users', memberId);
     const userDocSnap = await getDoc(userDocRef);
     if (userDocSnap.exists()) {
@@ -251,7 +294,7 @@ export default function TesseratiSubPage() {
     }
   };
 
-  const isLoading = isUserLoading || isLoadingMembers || isLoadingUsers || isLoadingGroups;
+  const isLoading = isUserLoading || isLoadingMembers || isLoadingUsers || isLoadingGroups || isLoadingImported;
 
   if (!isUserLoading && !isAdmin && !isEducatore) {
      return (
