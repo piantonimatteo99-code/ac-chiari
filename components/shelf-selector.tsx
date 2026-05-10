@@ -46,7 +46,7 @@ export const EXACT_CELLS: Record<string, CellGeometry> = {
   // Modulo Destro (Colonna 3) - 3 ripiani
   "1-3": { top: "9.5%", left: "66.55%", width: "29.6%", height: "26.0%" },
   "2-3": { top: "37.5%", left: "66.55%", width: "29.6%", height: "26.1%" },
-  "3-3": { top: "65.55%", left: "66.55%", width: "29.6%", height: "25.0%" },
+  "3-3": { top: "65.55%", left: "66.55%", width: "29.6%", height: "25.07%" },
 };
 
 function getExactGeometry(ripiano: number, colonna: number): CellGeometry {
