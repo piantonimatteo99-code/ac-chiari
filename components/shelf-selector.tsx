@@ -7,46 +7,44 @@ export interface ShelfPosition { ripiano: number; colonna: number; }
 interface ShelfSelectorProps { value?: ShelfPosition | null; onChange: (pos: ShelfPosition) => void; disabled?: boolean; }
 
 // ─── Costanti layout realistico ───────────────────────────────────────────────
-export const RIPIANI = 6;
+export const RIPIANI = 5;
 export const COLONNE = 3;
 
 export type CellDef = { colonna: number; ripiano: number; isLast: boolean };
 export const CELL_DEFS: CellDef[] = [];
 for (let c = 1; c <= 2; c++) {
-  for (let r = 1; r <= 4; r++) {
-    CELL_DEFS.push({ colonna: c, ripiano: r, isLast: r === 4 });
+  for (let r = 1; r <= 5; r++) {
+    CELL_DEFS.push({ colonna: c, ripiano: r, isLast: r === 5 });
   }
 }
-// Colonna 3: R1 grande (copre visivamente R1+R2), poi R3-R6
+// Colonna 3: R1 grande (copre visivamente R1+R2), poi R2
 CELL_DEFS.push({ colonna: 3, ripiano: 1, isLast: false });
-CELL_DEFS.push({ colonna: 3, ripiano: 3, isLast: false });
-CELL_DEFS.push({ colonna: 3, ripiano: 4, isLast: false });
-CELL_DEFS.push({ colonna: 3, ripiano: 5, isLast: false });
-CELL_DEFS.push({ colonna: 3, ripiano: 6, isLast: true });
+CELL_DEFS.push({ colonna: 3, ripiano: 2, isLast: true });
 
-export const LABELS = [1, 2, 3, 4, 5, 6];
+export const LABELS = [1, 2, 3, 4, 5];
 
 // ─── Configurazione Geometrica Esatta — coordinate normalizzate 0-1000 ────────
 // Formato [yMin, xMin, yMax, xMax] → top=(yMin/10)%, left=(xMin/10)%, h=((yMax-yMin)/10)%, w=((xMax-xMin)/10)%
 type CellGeometry = { top: string, left: string, width: string, height: string };
 
 export const EXACT_CELLS: Record<string, CellGeometry> = {
-  // Modulo Sinistro (Colonna 1) - 4 ripiani
+  // Modulo Sinistro (Colonna 1) - 5 ripiani
   "1-1": { top: "10.0%", left: "3.8%", width: "29.7%", height: "12.7%" },
   "2-1": { top: "23.0%", left: "3.8%", width: "29.7%", height: "12.5%" },
   "3-1": { top: "37.5%", left: "3.8%", width: "29.7%", height: "12.5%" },
   "4-1": { top: "52.0%", left: "3.8%", width: "29.7%", height: "12.5%" },
+  "5-1": { top: "66.5%", left: "3.8%", width: "29.7%", height: "12.5%" },
 
-  // Modulo Centrale (Colonna 2) - 4 ripiani
+  // Modulo Centrale (Colonna 2) - 5 ripiani
   "1-2": { top: "8.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
   "2-2": { top: "23.0%", left: "35.0%", width: "29.5%", height: "12.5%" },
   "3-2": { top: "37.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
   "4-2": { top: "52.0%", left: "35.0%", width: "29.5%", height: "12.5%" },
+  "5-2": { top: "66.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
 
-  // Modulo Destro (Colonna 3) - 3 ripiani
+  // Modulo Destro (Colonna 3) - 2 ripiani
   "1-3": { top: "9.5%", left: "65.0%", width: "29.2%", height: "26.0%" },
   "2-3": { top: "38.5%", left: "65.0%", width: "29.2%", height: "11.5%" },
-  "3-3": { top: "53.0%", left: "65.0%", width: "29.2%", height: "11.5%" },
 };
 
 function getExactGeometry(ripiano: number, colonna: number): CellGeometry {
@@ -214,9 +212,9 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
   for (const item of items) {
     let { ripiano, colonna } = item.posizione;
     if (colonna > 3) colonna = 3;
-    if (ripiano > 6) ripiano = 6;
-    // C3 non ha R2: prodotti in R2-C3 confluiscono nella cella grande R1-C3
-    if (colonna === 3 && ripiano === 2) ripiano = 1;
+    if (ripiano > 5) ripiano = 5;
+    // La colonna 3 ha solo R1 (grande) e R2. Rindirizziamo R3+ in R2
+    if (colonna === 3 && ripiano > 2) ripiano = 2;
     const k = `${ripiano}-${colonna}`;
     if (!gridMap[k]) gridMap[k] = [];
     gridMap[k].push(item);
