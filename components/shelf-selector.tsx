@@ -17,9 +17,10 @@ for (let c = 1; c <= 2; c++) {
     CELL_DEFS.push({ colonna: c, ripiano: r, isLast: r === 5 });
   }
 }
-// Colonna 3: R1 grande (copre visivamente R1+R2), poi R2
+// Colonna 3: R1 grande (copre visivamente R1+R2), poi R2 e R3
 CELL_DEFS.push({ colonna: 3, ripiano: 1, isLast: false });
-CELL_DEFS.push({ colonna: 3, ripiano: 2, isLast: true });
+CELL_DEFS.push({ colonna: 3, ripiano: 2, isLast: false });
+CELL_DEFS.push({ colonna: 3, ripiano: 3, isLast: true });
 
 export const LABELS = [1, 2, 3, 4, 5];
 
@@ -42,9 +43,10 @@ export const EXACT_CELLS: Record<string, CellGeometry> = {
   "4-2": { top: "52.0%", left: "35.0%", width: "29.5%", height: "12.5%" },
   "5-2": { top: "66.5%", left: "35.0%", width: "29.5%", height: "12.5%" },
 
-  // Modulo Destro (Colonna 3) - 2 ripiani
+  // Modulo Destro (Colonna 3) - 3 ripiani
   "1-3": { top: "9.5%", left: "65.0%", width: "29.2%", height: "26.0%" },
   "2-3": { top: "38.5%", left: "65.0%", width: "29.2%", height: "11.5%" },
+  "3-3": { top: "53.0%", left: "65.0%", width: "29.2%", height: "11.5%" },
 };
 
 function getExactGeometry(ripiano: number, colonna: number): CellGeometry {
@@ -213,8 +215,8 @@ export function ShelfMap({ items, giorniAllerta = 7, onCellClick }: ShelfMapProp
     let { ripiano, colonna } = item.posizione;
     if (colonna > 3) colonna = 3;
     if (ripiano > 5) ripiano = 5;
-    // La colonna 3 ha solo R1 (grande) e R2. Rindirizziamo R3+ in R2
-    if (colonna === 3 && ripiano > 2) ripiano = 2;
+    // La colonna 3 ha solo R1 (grande), R2 e R3. Rindirizziamo R4+ in R3
+    if (colonna === 3 && ripiano > 3) ripiano = 3;
     const k = `${ripiano}-${colonna}`;
     if (!gridMap[k]) gridMap[k] = [];
     gridMap[k].push(item);
