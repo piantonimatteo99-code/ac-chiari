@@ -3,8 +3,19 @@ import { getDriveAccessToken, initAdminApp } from '@/lib/firebase-admin';
 import * as admin from 'firebase-admin';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+const GCS_API = 'https://storage.googleapis.com/storage/v1';
+const GCS_DOWNLOAD = 'https://storage.googleapis.com/download/storage/v1';
 
 export const dynamic = 'force-dynamic';
+
+/** Ottiene un access token per Google Cloud Storage usando le credenziali del service account */
+async function getStorageAccessToken(): Promise<string> {
+    initAdminApp();
+    const app = admin.app();
+    const credential = app.options.credential as admin.credential.Credential;
+    const token = await credential.getAccessToken();
+    return token.access_token;
+}
 
 export async function GET(request: NextRequest) {
   // ── 1. Auth: richiede Firebase ID token nell'header Authorization ──
@@ -36,22 +47,36 @@ export async function GET(request: NextRequest) {
   // ── 2a. Firebase Storage path (nuovo flusso — nessun file su Drive) ──
   if (storagePath) {
     try {
-      initAdminApp();
-      const bucket = admin.storage().bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
-      const fileRef = bucket.file(storagePath);
+      const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+      if (!bucket) throw new Error('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET non configurato');
 
-      const [exists] = await fileRef.exists();
-      if (!exists) {
+      const accessToken = await getStorageAccessToken();
+
+      // Encode del path per l'API (le slash diventano %2F)
+      const encodedPath = encodeURIComponent(storagePath);
+
+      // Metadata (content-type)
+      const metaRes = await fetch(
+        `${GCS_API}/b/${bucket}/o/${encodedPath}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!metaRes.ok) {
         return NextResponse.json({ error: 'File non trovato' }, { status: 404 });
       }
-
-      const [metadata] = await fileRef.getMetadata();
-      const contentType = metadata.contentType || 'application/octet-stream';
+      const meta = await metaRes.json();
+      const contentType: string = meta.contentType || 'application/octet-stream';
       const fileName = storagePath.split('/').pop() || 'ricevuta';
 
-      const [fileBuffer] = await fileRef.download();
+      // Contenuto file
+      const fileRes = await fetch(
+        `${GCS_DOWNLOAD}/b/${bucket}/o/${encodedPath}?alt=media`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (!fileRes.ok) {
+        return NextResponse.json({ error: 'Download fallito' }, { status: 500 });
+      }
 
-      return new NextResponse(new Uint8Array(fileBuffer), {
+      return new NextResponse(fileRes.body, {
         headers: {
           'Content-Type': contentType,
           'Cache-Control': 'private, max-age=120',
