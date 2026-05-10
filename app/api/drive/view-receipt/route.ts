@@ -29,10 +29,44 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Token non valido' }, { status: 401 });
   }
 
-  // ── 2. Recupera il file da Drive via service account ──
-  const fileId = request.nextUrl.searchParams.get('fileId');
+  const { searchParams } = request.nextUrl;
+  const fileId = searchParams.get('fileId');
+  const storagePath = searchParams.get('storagePath');
+
+  // ── 2a. Firebase Storage path (nuovo flusso — nessun file su Drive) ──
+  if (storagePath) {
+    try {
+      initAdminApp();
+      const bucket = admin.storage().bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
+      const fileRef = bucket.file(storagePath);
+
+      const [exists] = await fileRef.exists();
+      if (!exists) {
+        return NextResponse.json({ error: 'File non trovato' }, { status: 404 });
+      }
+
+      const [metadata] = await fileRef.getMetadata();
+      const contentType = metadata.contentType || 'application/octet-stream';
+      const fileName = storagePath.split('/').pop() || 'ricevuta';
+
+      const [fileBuffer] = await fileRef.download();
+
+      return new NextResponse(new Uint8Array(fileBuffer), {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'private, max-age=120',
+          'Content-Disposition': `inline; filename="${fileName}"`,
+        },
+      });
+    } catch (err: any) {
+      console.error('[view-receipt] Errore Storage:', err);
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+  }
+
+  // ── 2b. Google Drive file ID (flusso legacy) ──
   if (!fileId) {
-    return NextResponse.json({ error: 'fileId mancante' }, { status: 400 });
+    return NextResponse.json({ error: 'fileId o storagePath richiesto' }, { status: 400 });
   }
 
   try {
@@ -66,7 +100,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err: any) {
-    console.error('[view-receipt] Errore:', err);
+    console.error('[view-receipt] Errore Drive:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

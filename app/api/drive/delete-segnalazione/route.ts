@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDriveAccessToken } from '@/lib/firebase-admin';
+import { getDriveAccessToken, initAdminApp } from '@/lib/firebase-admin';
+import * as admin from 'firebase-admin';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { fileId } = await request.json();
-    if (!fileId) return NextResponse.json({ error: 'fileId richiesto' }, { status: 400 });
+    const body = await request.json();
+    const { fileId, storagePath } = body;
+
+    // ── Nuovo flusso: elimina da Firebase Storage ──
+    if (storagePath) {
+      initAdminApp();
+      const bucket = admin.storage().bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
+      try {
+        await bucket.file(storagePath).delete();
+      } catch (e: any) {
+        // Se il file non esiste, non è un errore critico
+        if (e?.code !== 404) throw e;
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    // ── Flusso legacy: elimina da Google Drive ──
+    if (!fileId) return NextResponse.json({ error: 'fileId o storagePath richiesto' }, { status: 400 });
 
     const accessToken = await getDriveAccessToken();
 
@@ -22,7 +39,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error('Error deleting segnalazione from Drive:', err);
+    console.error('Error deleting receipt:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

@@ -70,9 +70,25 @@ const extractDriveFileId = (url: string): string | null => {
     return match ? match[1] : null;
 };
 
-// Fire-and-forget Drive deletion
+// Fire-and-forget receipt deletion — gestisce sia Drive fileId sia Storage path
 const deleteDriveFile = (receiptUrl: string | undefined) => {
     if (!receiptUrl) return;
+
+    // Nuovo flusso: Firebase Storage path
+    if (receiptUrl.includes('storagePath=')) {
+        try {
+            const storagePath = new URLSearchParams(receiptUrl.split('?')[1] || '').get('storagePath');
+            if (!storagePath) return;
+            fetch('/api/drive/delete-segnalazione', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ storagePath }),
+            }).catch(e => console.error('Failed to delete Storage receipt:', e));
+        } catch {}
+        return;
+    }
+
+    // Flusso legacy: Drive fileId
     const fileId = extractDriveFileId(receiptUrl);
     if (!fileId) return;
     fetch('/api/drive/delete-segnalazione', {
@@ -81,6 +97,7 @@ const deleteDriveFile = (receiptUrl: string | undefined) => {
         body: JSON.stringify({ fileId }),
     }).catch(e => console.error('Failed to delete Drive receipt file:', e));
 };
+
 
 const formatDate = (date: any) => {
     const jsDate = parseDate(date);

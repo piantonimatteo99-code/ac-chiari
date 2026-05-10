@@ -15,7 +15,7 @@ import Image from 'next/image';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useUser, useStorage, useFirestore } from '@/src/firebase';
 import { getAuth } from 'firebase/auth';
-import { ref, uploadBytes, deleteObject, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, deleteObject } from "firebase/storage";
 import { collection, doc, writeBatch, arrayUnion, serverTimestamp, getDocs, query, where, runTransaction, getDoc, collectionGroup } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { Separator } from './ui/separator';
@@ -232,31 +232,10 @@ export function UploadReceiptDialog({
         setStoragePath(sPath);
         storageRef = ref(storage, sPath);
         await uploadBytes(storageRef, file);
-        let finalReceiptUrl = await getDownloadURL(storageRef);
 
-        // Upload to Google Drive
-        try {
-            const formDataDrive = new FormData();
-            formDataDrive.append('file', file);
-            // Nome file = causale (es. "ACR - 010526XXXX")
-            formDataDrive.append('name', causaleCompleta);
-            // Una cartella per ogni raccolta coinvolta nel pagamento
-            const uniqueRaccolte = Array.from(
-                new Map(paymentItems.map(i => [i.raccoltaId, i.raccoltaNome])).values()
-            );
-            const todayFormatted = format(new Date(), 'dd-MM-yyyy');
-            const folderNames = uniqueRaccolte.map(nome => `${nome} - ${todayFormatted}`);
-            formDataDrive.append('folderNames', JSON.stringify(folderNames));
-            const driveRes = await fetch('/api/drive/upload-pagamento', { method: 'POST', body: formDataDrive });
-            const driveData = await driveRes.json();
-            if (driveData.file?.id) {
-                // URL proxy autenticato — il file Drive rimane privato
-                finalReceiptUrl = `/api/drive/view-receipt?fileId=${driveData.file.id}`;
-                deleteObject(storageRef).catch(e => console.error("Error deleting temp storage file:", e));
-            }
-        } catch (driveErr) {
-            console.error("Errore salvataggio in Drive:", driveErr);
-        }
+        // Usa URL proxy autenticato — il file resta in Firebase Storage (non su Drive)
+        // Solo admin/educatori loggati nell'app possono visualizzarlo
+        const finalReceiptUrl = `/api/drive/view-receipt?storagePath=${encodeURIComponent(sPath)}`;
 
         const batch = writeBatch(firestore);
         const paymentInfo: any = {
