@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
 import { doc, updateDoc, collection, collectionGroup, query, where } from 'firebase/firestore';
+import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import { MembriRaccoltaList, type UnifiedMember } from '@/components/membri-raccolta-list';
 import type { UserData } from '@/src/hooks/use-user-data';
 import type { MovimentoContante } from '@/app/(app)/contabilita/pagamenti-contanti/page';
@@ -120,6 +121,12 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
     }, [firestore]);
     const { data: importedMembersData, isLoading: isLoadingImported } = useCollection<any>(importedMembersQuery);
 
+    const groupsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'gruppi');
+    }, [firestore]);
+    const { data: groupsData } = useCollection<Group>(groupsQuery);
+
 
     const allMembers = useMemo(() => {
         if (!membersData && !usersData) return [];
@@ -159,13 +166,21 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
             });
         });
 
+        // Mappa ghostId -> Group ricavata dai memberIds dei gruppi
+        const ghostGroupMap = new Map<string, Group>();
+        groupsData?.forEach(group => {
+            (group.memberIds ?? []).forEach(mid => ghostGroupMap.set(mid, group));
+        });
+
         importedMembersData?.forEach(imported => {
+            if (imported.matchedWith) return; // già matchato, non mostrarlo come ghost
+            const resolvedGroup = ghostGroupMap.get(imported.id);
             addToList({
                 id: imported.id,
                 nome: imported.nome || '',
                 cognome: imported.cognome || '',
-                groupId: undefined,
-                groupName: imported.gruppo || '',
+                groupId: resolvedGroup?.id,
+                groupName: resolvedGroup?.name || imported.gruppo || '',
                 familyId: undefined,
                 isPlaceholder: true,
                 ...imported
@@ -174,7 +189,7 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
         
         return combinedList;
 
-    }, [usersData, membersData, importedMembersData]);
+    }, [usersData, membersData, importedMembersData, groupsData]);
 
     const targetGroupMembers = useMemo(() => {
         const targetGroupIds = new Set(raccolta.gruppiId);
