@@ -2,9 +2,33 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Regola permissiva per permettere all'app di leggere i risultati dall'estensione Gemini
+    // Regola base: tutti i documenti richiedono autenticazione
     match /{document=**} {
       allow read, write: if request.auth != null;
+    }
+
+    // ── Moduli (forms) ────────────────────────────────────────────────────────
+    // Lettura pubblica dei moduli attivi (per la pagina /f/[formId])
+    match /forms/{formId} {
+      allow read: if resource.data.isPublic == true
+                     && resource.data.status == 'active';
+      allow read, write: if request.auth != null;
+    }
+
+    // ── Risposte ai moduli ────────────────────────────────────────────────────
+    // Chiunque può creare una risposta (anche non autenticato)
+    // La lettura è riservata agli utenti autenticati (creatori del form)
+    match /form_responses/{responseId} {
+      allow create: if true;
+      allow read, update, delete: if request.auth != null;
+    }
+
+    // ── Righe raccolta automatica ─────────────────────────────────────────────
+    // Chiunque può creare una riga (post-compilazione anonima)
+    // La lettura è riservata agli utenti autenticati
+    match /form_collection_rows/{rowId} {
+      allow create: if true;
+      allow read, update, delete: if request.auth != null;
     }
   }
 }

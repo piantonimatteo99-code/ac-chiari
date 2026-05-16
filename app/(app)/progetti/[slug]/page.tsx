@@ -35,6 +35,7 @@ import { AcquistiList } from '@/components/acquisti-list';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ProjectFormsSection } from '@/components/form-builder/project-forms-section';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const formatEventDate = (date: any) => {
@@ -566,6 +567,7 @@ export default function ProgettoDettaglioPage() {
         { id: 'gruppi',     label: 'Gruppi',     disabled: !canEdit },
         { id: 'piano',      label: 'Piano Impegni' },
         { id: 'acquisti',   label: 'Acquisti' },
+        { id: 'moduli',     label: 'Moduli' },
         { id: 'documenti',  label: 'Documenti' },
         { id: 'foto',       label: 'Foto' },
         { id: 'messaggi',   label: 'Messaggi',   disabled: !canEdit },
@@ -694,6 +696,11 @@ export default function ProgettoDettaglioPage() {
 
                             <SectionCard id="foto" icon={Image} title="Foto">
                                 <PhotoManager {...photoManagerProps} />
+                            </SectionCard>
+
+                            <SectionCard id="moduli" icon={ClipboardList} title="Moduli"
+                                description="Crea moduli personalizzati da condividere via link">
+                                <ProjectFormsSection projectId={progetto.id} canEdit={canEdit} />
                             </SectionCard>
 
                             {canEdit && (
@@ -830,6 +837,19 @@ export default function ProgettoDettaglioPage() {
                     )}
 
                     {folderTab === 'acquisti' && <AcquistiList projectId={progetto.id} canEdit={canEdit} />}
+                    {folderTab === 'moduli' && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <ClipboardList className="h-5 w-5 text-primary" />Moduli
+                                </CardTitle>
+                                <CardDescription>Crea e gestisci moduli personalizzati da condividere via link.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ProjectFormsSection projectId={progetto.id} canEdit={canEdit} />
+                            </CardContent>
+                        </Card>
+                    )}
                     {folderTab === 'documenti' && <DocumentManager {...docManagerProps} />}
                     {folderTab === 'foto' && <PhotoManager {...photoManagerProps} />}
                     {folderTab === 'messaggi' && <MessagePlanner {...messagePlannerProps} />}
