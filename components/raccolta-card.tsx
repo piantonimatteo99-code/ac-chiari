@@ -248,10 +248,38 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
     } | null>(null);
     const [isDialogProcessing, setIsDialogProcessing] = useState(false);
 
+    // ── Calcolo importo ghost con sconto fratelli retroattivo ──────────────────
+    const calculateGhostPaymentAmount = (ghostId: string, phase: 'caparra' | 'saldo'): number => {
+        const ghost = allMembers.find(m => m.id === ghostId);
+        const faseData = phase === 'caparra' ? raccolta.faseCaparra : raccolta.faseSaldo;
+        const fullPrice = parseFloat(faseData?.importo) || 0;
+
+        // Se non c'è sconto fratelli attivo o il ghost non ha familyId virtuale, prezzo pieno
+        if (!ghost?.familyId || !faseData?.tariffaFratelliAttiva) return fullPrice;
+
+        const discountedPrice = parseFloat(faseData.importoTariffaFratelli || '0') || fullPrice;
+
+        // Conta i fratelli ghost dello stesso indirizzo già pagati (non il ghost corrente)
+        const paidIds = new Set(
+            phase === 'caparra' ? (raccolta.caparraPaidIds ?? []) : (raccolta.saldoPaidIds ?? [])
+        );
+        const paidSiblingsCount = allMembers.filter(m =>
+            m.isPlaceholder && m.familyId === ghost.familyId && m.id !== ghostId && paidIds.has(m.id)
+        ).length;
+
+        // Formula retroattiva:
+        // n=0 (primo a pagare): prezzo pieno
+        // n=1 (secondo): (2 × scontato) - pieno
+        // n≥2 (terzo+): scontato
+        if (paidSiblingsCount === 0) return fullPrice;
+        if (paidSiblingsCount === 1) return Math.max(0, 2 * discountedPrice - fullPrice);
+        return discountedPrice;
+    };
+
     const handleRequestGhostAction = (ghostId: string, ghostName: string, phase: GhostAction, currentValue: boolean) => {
-        const amount =
-            phase === 'caparra' ? (parseFloat(raccolta.faseCaparra?.importo) || 0) :
-            phase === 'saldo'   ? (parseFloat(raccolta.faseSaldo?.importo) || 0) : 0;
+        const amount = (phase === 'caparra' || phase === 'saldo')
+            ? calculateGhostPaymentAmount(ghostId, phase)
+            : 0;
         setGhostDialog({ ghostId, ghostName, phase, currentValue, amount });
     };
 
@@ -263,13 +291,12 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         });
     };
 
-    const handleGhostMarkPaid = async (ghostId: string, phase: 'caparra' | 'saldo', paid: boolean) => {
+    const handleGhostMarkPaid = async (ghostId: string, phase: 'caparra' | 'saldo', paid: boolean, importoOverride?: number) => {
         if (!firestore) return;
         const raccoltaRef = doc(firestore, 'raccolte', raccolta.id);
         const field = phase === 'caparra' ? 'caparraPaidIds' : 'saldoPaidIds';
-        const importo = phase === 'caparra'
-            ? (parseFloat(raccolta.faseCaparra?.importo) || 0)
-            : (parseFloat(raccolta.faseSaldo?.importo) || 0);
+        // Usa importo calcolato con sconto fratelli (o quello standard)
+        const importo = importoOverride ?? calculateGhostPaymentAmount(ghostId, phase);
 
         const batch = writeBatch(firestore);
 
@@ -320,12 +347,12 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         if (!ghostDialog) return;
         setIsDialogProcessing(true);
         try {
-            const { ghostId, phase, currentValue } = ghostDialog;
+            const { ghostId, phase, currentValue, amount } = ghostDialog;
             const newValue = !currentValue;
             if (phase === 'conferma') {
                 await handleGhostConfirm(ghostId, newValue);
             } else {
-                await handleGhostMarkPaid(ghostId, phase, newValue);
+                await handleGhostMarkPaid(ghostId, phase, newValue, newValue ? amount : undefined);
             }
             setGhostDialog(null);
         } finally {
@@ -590,6 +617,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                         canManageGhosts={canManageGhosts}
                         myEducatorGroupIds={myEducatorGroupIds}
                         onRequestGhostAction={handleRequestGhostAction}
+                        getGhostAmount={calculateGhostPaymentAmount}
                     />
                 </div>
             </AccordionContent>

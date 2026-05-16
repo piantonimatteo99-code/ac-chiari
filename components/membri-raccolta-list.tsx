@@ -32,6 +32,7 @@ interface MembriRaccoltaListProps {
   canManageGhosts?: boolean;
   myEducatorGroupIds?: Set<string>;
   onRequestGhostAction?: (ghostId: string, ghostName: string, phase: 'conferma' | 'caparra' | 'saldo', currentValue: boolean) => void;
+  getGhostAmount?: (ghostId: string, phase: 'caparra' | 'saldo') => number;
 }
 
 
@@ -50,7 +51,7 @@ type ColumnVisibility = {
 type PaymentStatus = 'tutti' | 'pagato' | 'da_pagare';
 
 
-export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, isLoading, canManageGhosts, myEducatorGroupIds, onRequestGhostAction }: MembriRaccoltaListProps) {
+export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, isLoading, canManageGhosts, myEducatorGroupIds, onRequestGhostAction, getGhostAmount }: MembriRaccoltaListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
@@ -402,7 +403,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                 >
                                   {hasPaidCaparra
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
-                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Registra caparra</>}
+                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Caparra {getGhostAmount ? `€${getGhostAmount(member.id, 'caparra').toFixed(2)}` : ''}</>}
                                 </Button>
                               ) : (
                                 renderPaymentCell(member.id, 'caparra')
@@ -420,7 +421,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                 >
                                   {hasPaidSaldo
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
-                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Registra saldo</>}
+                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Saldo {getGhostAmount ? `€${getGhostAmount(member.id, 'saldo').toFixed(2)}` : ''}</>}
                                 </Button>
                               ) : (
                                 renderPaymentCell(member.id, 'saldo')
