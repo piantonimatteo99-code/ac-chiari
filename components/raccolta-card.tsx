@@ -241,9 +241,12 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
         if (!firestore) return;
         const raccoltaRef = doc(firestore, 'raccolte', raccolta.id);
         const field = phase === 'caparra' ? 'caparraPaidIds' : 'saldoPaidIds';
-        await updateDoc(raccoltaRef, {
+        const update: Record<string, any> = {
             [field]: paid ? arrayUnion(ghostId) : arrayRemove(ghostId),
-        });
+        };
+        // Auto-conferma quando si dichiara pagato (permette di saltare il passo conferma)
+        if (paid) update.confermatiIds = arrayUnion(ghostId);
+        await updateDoc(raccoltaRef, update);
     };
 
     const calculateTotals = (faseKey: 'faseConferma' | 'faseCaparra' | 'faseSaldo') => {

@@ -400,7 +400,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         )}
                         {columnVisibility.caparra && faseCaparra.attiva && (
                              <TableCell className="text-center">
-                              {canActOnThisGhost && isConfirmed ? (
+                              {canActOnThisGhost ? (
                                 <Button
                                   size="sm" variant={hasPaidCaparra ? 'default' : 'outline'}
                                   className={`h-7 px-2 text-xs ${hasPaidCaparra ? 'bg-green-600 hover:bg-green-700' : ''}`}
@@ -418,7 +418,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         )}
                         {columnVisibility.saldo && faseSaldo.attiva && (
                            <TableCell className="text-center">
-                              {canActOnThisGhost && isConfirmed ? (
+                              {canActOnThisGhost ? (
                                 <Button
                                   size="sm" variant={hasPaidSaldo ? 'default' : 'outline'}
                                   className={`h-7 px-2 text-xs ${hasPaidSaldo ? 'bg-green-600 hover:bg-green-700' : ''}`}
