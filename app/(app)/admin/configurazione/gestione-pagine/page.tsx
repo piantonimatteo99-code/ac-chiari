@@ -20,11 +20,12 @@ export interface PagePermission {
   path: string;
   label: string;
   visible: boolean;
+  visibleToAllEducators: boolean;
   requiresEducatorRoleCheck: boolean;
   requiresGroupAssignmentCheck: boolean;
 }
 
-const ALL_PAGES: Omit<PagePermission, 'visible' | 'requiresEducatorRoleCheck' | 'requiresGroupAssignmentCheck'>[] = [
+const ALL_PAGES: Omit<PagePermission, 'visible' | 'visibleToAllEducators' | 'requiresEducatorRoleCheck' | 'requiresGroupAssignmentCheck'>[] = [
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard' },
   { id: 'progetti', label: 'Progetti', path: '/progetti' },
   { id: 'iscrizioni', label: 'Iscrizioni', path: '/iscrizioni' },
@@ -209,6 +210,7 @@ export default function GestionePaginePage() {
           const newPermission: PagePermission = {
             ...page,
             visible: true,
+            visibleToAllEducators: false,
             requiresEducatorRoleCheck,
             requiresGroupAssignmentCheck: page.id === 'miei-gruppi',
           };
@@ -230,7 +232,7 @@ export default function GestionePaginePage() {
 
   const handlePermissionChange = async (
     pageId: string,
-    field: 'visible' | 'requiresEducatorRoleCheck' | 'requiresGroupAssignmentCheck',
+    field: 'visible' | 'visibleToAllEducators' | 'requiresEducatorRoleCheck' | 'requiresGroupAssignmentCheck',
     value: boolean,
   ) => {
     if (!firestore) return;
@@ -314,13 +316,14 @@ export default function GestionePaginePage() {
               <TableRow>
                 <TableHead>Pagina</TableHead>
                 <TableHead className="text-center w-[120px]">Visibile</TableHead>
-                <TableHead className="text-center w-[250px]">Visibile solo a Educatori con Ruolo Specifico</TableHead>
-                <TableHead className="text-center w-[250px]">Visibile solo a Educatori assegnati a un Gruppo</TableHead>
+                <TableHead className="text-center w-[220px]">Visibile Educatori</TableHead>
+                <TableHead className="text-center w-[220px]">Visibile solo a Educatori con Ruolo Specifico</TableHead>
+                <TableHead className="text-center w-[220px]">Visibile solo a Educatori assegnati a un Gruppo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={4} className="text-center">Caricamento...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center">Caricamento...</TableCell></TableRow>
               ) : (
                 ALL_PAGES.map((page) => {
                   const pagePermissions = permissionsMap.get(page.id);
@@ -339,6 +342,13 @@ export default function GestionePaginePage() {
                         <Switch
                           checked={pagePermissions?.visible ?? true}
                           onCheckedChange={(isChecked) => handlePermissionChange(page.id, 'visible', isChecked)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Checkbox
+                          checked={pagePermissions?.visibleToAllEducators || false}
+                          onCheckedChange={(isChecked) => handlePermissionChange(page.id, 'visibleToAllEducators', !!isChecked)}
+                          disabled={!pagePermissions?.visible}
                         />
                       </TableCell>
                       <TableCell className="text-center">
@@ -369,6 +379,8 @@ export default function GestionePaginePage() {
       </Card>
 
       <CardDescription className="p-1 text-sm">
+        <b>Visibile Educatori:</b> Se spuntata, la pagina è visibile a tutti gli utenti con il ruolo educatore, indipendentemente da ruoli specifici o gruppi assegnati.
+        <br />
         <b>Visibile solo a Educatori con Ruolo Specifico:</b> Se spuntata, la pagina è visibile agli educatori solo se un loro ruolo specifico (gestito in &quot;Ruoli Educatori&quot;) ne concede l&apos;accesso.
         <br />
         <b>Visibile solo a Educatori assegnati a un Gruppo:</b> Se spuntata, la pagina è visibile agli educatori solo se sono assegnati ad almeno un gruppo (gestito in &quot;Tutti i Gruppi&quot;).

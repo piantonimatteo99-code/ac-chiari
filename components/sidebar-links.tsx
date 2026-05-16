@@ -319,6 +319,15 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     
     const userIsEducator = userData.roles?.includes('educatore');
 
+    // Visibile a tutti gli educatori (indipendentemente da ruolo specifico o gruppo)
+    if (setting.visibleToAllEducators) {
+        if (userIsEducator) {
+            return { visible: true, reason: 'Visibile: Accesso concesso a tutti gli Educatori' };
+        } else {
+            return { visible: false, reason: 'Nascosto: Visibile solo agli Educatori' };
+        }
+    }
+
     if (setting.requiresGroupAssignmentCheck) {
         if (userIsEducator && myGroups && myGroups.length > 0) {
             return { visible: true, reason: 'Visibile: Educatore assegnato a un gruppo' };
