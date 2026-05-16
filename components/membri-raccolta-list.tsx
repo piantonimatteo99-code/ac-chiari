@@ -9,7 +9,7 @@ import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem } from './ui/dropdown-menu';
-import { Settings, Filter, CheckCircle2, XCircle, Hourglass, FileText, AlertTriangle } from 'lucide-react';
+import { Settings, Filter, CheckCircle2, XCircle, Hourglass, FileText, AlertTriangle, UserCheck, UserX, Banknote } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import Link from 'next/link';
 
@@ -28,6 +28,11 @@ interface MembriRaccoltaListProps {
   targetGroupMembers: UnifiedMember[];
   allMembers: UnifiedMember[]; // All members from all families
   isLoading: boolean;
+  // Educator ghost management
+  canManageGhosts?: boolean;
+  myEducatorGroupIds?: Set<string>;
+  onGhostConfirm?: (ghostId: string, confirm: boolean) => Promise<void>;
+  onGhostMarkPaid?: (ghostId: string, phase: 'caparra' | 'saldo', paid: boolean) => Promise<void>;
 }
 
 
@@ -46,7 +51,13 @@ type ColumnVisibility = {
 type PaymentStatus = 'tutti' | 'pagato' | 'da_pagare';
 
 
-export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, isLoading }: MembriRaccoltaListProps) {
+export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, isLoading, canManageGhosts, myEducatorGroupIds, onGhostConfirm, onGhostMarkPaid }: MembriRaccoltaListProps) {
+  const [processingGhost, setProcessingGhost] = useState<string | null>(null);
+
+  const handleGhostAction = async (fn: () => Promise<void>, ghostId: string) => {
+    setProcessingGhost(ghostId);
+    try { await fn(); } finally { setProcessingGhost(null); }
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
@@ -342,21 +353,27 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
             {filteredMembers.length > 0 ? (
               filteredMembers.map(member => {
                  const isConfirmed = confermatiIds?.includes(member.id) ?? false;
+                 const hasPaidCaparra = caparraPaidIds?.includes(member.id) ?? false;
+                 const hasPaidSaldo = saldoPaidIds?.includes(member.id) ?? false;
                  const totalAmount = calculateTotal(member);
                  const paidAmount = calculatePaidTotal(member);
+
+                 // Educator can manage this ghost if they're admin OR if they educate the ghost's group
+                 const canActOnThisGhost = member.isPlaceholder && canManageGhosts &&
+                   (myEducatorGroupIds?.has(member.groupId ?? '') || !myEducatorGroupIds?.size);
 
                  return (
                     <TableRow key={member.id}>
                         {columnVisibility.nomeCognome && (
                             <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     {member.nome} {member.cognome}
                                     {member.isPlaceholder && (
                                         <Badge
                                          variant="outline"
                                          className="text-[10px] text-yellow-600 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 px-1.5 py-0 h-4 ml-1 whitespace-nowrap"
                                         >
-                                         Da confermare
+                                         Ghost
                                         </Badge>
                                     )}
                                 </div>
@@ -365,17 +382,56 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         {columnVisibility.gruppo && <TableCell>{member.groupName}</TableCell>}
                         {columnVisibility.conferma && faseConferma.attiva && (
                             <TableCell className="text-center">
-                                {isConfirmed ? <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" /> : <XCircle className="h-5 w-5 text-destructive mx-auto" />}
+                              {canActOnThisGhost ? (
+                                <Button
+                                  size="sm" variant={isConfirmed ? 'default' : 'outline'}
+                                  className={`h-7 px-2 text-xs ${isConfirmed ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                  disabled={processingGhost === member.id}
+                                  onClick={() => handleGhostAction(() => onGhostConfirm!(member.id, !isConfirmed), member.id)}
+                                >
+                                  {isConfirmed
+                                    ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Confermato</>
+                                    : <><UserCheck className="h-3.5 w-3.5 mr-1" />Conferma</>}
+                                </Button>
+                              ) : (
+                                isConfirmed ? <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" /> : <XCircle className="h-5 w-5 text-destructive mx-auto" />
+                              )}
                             </TableCell>
                         )}
                         {columnVisibility.caparra && faseCaparra.attiva && (
                              <TableCell className="text-center">
-                                {renderPaymentCell(member.id, 'caparra')}
+                              {canActOnThisGhost && isConfirmed ? (
+                                <Button
+                                  size="sm" variant={hasPaidCaparra ? 'default' : 'outline'}
+                                  className={`h-7 px-2 text-xs ${hasPaidCaparra ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                  disabled={processingGhost === member.id}
+                                  onClick={() => handleGhostAction(() => onGhostMarkPaid!(member.id, 'caparra', !hasPaidCaparra), member.id)}
+                                >
+                                  {hasPaidCaparra
+                                    ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
+                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Dichiara</>}
+                                </Button>
+                              ) : (
+                                renderPaymentCell(member.id, 'caparra')
+                              )}
                             </TableCell>
                         )}
                         {columnVisibility.saldo && faseSaldo.attiva && (
                            <TableCell className="text-center">
-                                {renderPaymentCell(member.id, 'saldo')}
+                              {canActOnThisGhost && isConfirmed ? (
+                                <Button
+                                  size="sm" variant={hasPaidSaldo ? 'default' : 'outline'}
+                                  className={`h-7 px-2 text-xs ${hasPaidSaldo ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                  disabled={processingGhost === member.id}
+                                  onClick={() => handleGhostAction(() => onGhostMarkPaid!(member.id, 'saldo', !hasPaidSaldo), member.id)}
+                                >
+                                  {hasPaidSaldo
+                                    ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
+                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Dichiara</>}
+                                </Button>
+                              ) : (
+                                renderPaymentCell(member.id, 'saldo')
+                              )}
                             </TableCell>
                         )}
                         {columnVisibility.pagato && <TableCell className="text-right tabular-nums">€ {paidAmount.toFixed(2)}</TableCell>}

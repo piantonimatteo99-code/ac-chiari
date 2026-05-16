@@ -12,8 +12,9 @@ import { MoreVertical, CheckCircle2, XCircle, Archive, Pencil, ArchiveRestore } 
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
-import { doc, updateDoc, collection, collectionGroup, query, where } from 'firebase/firestore';
+import { doc, updateDoc, collection, collectionGroup, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
+import { useUserData } from '@/src/hooks/use-user-data';
 import { MembriRaccoltaList, type UnifiedMember } from '@/components/membri-raccolta-list';
 import type { UserData } from '@/src/hooks/use-user-data';
 import type { MovimentoContante } from '@/app/(app)/contabilita/pagamenti-contanti/page';
@@ -96,6 +97,7 @@ const formatDate = (date: any) => {
 
 export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
     const firestore = useFirestore();
+    const { userData } = useUserData();
 
     const membersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -175,13 +177,21 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
         importedMembersData?.forEach(imported => {
             if (imported.matchedWith) return; // già matchato, non mostrarlo come ghost
             const resolvedGroup = ghostGroupMap.get(imported.id);
+
+            // familyId virtuale basato sull'indirizzo → sconto fratelli per ghost stessa famiglia
+            const addressKey = [imported.via, imported.numeroCivico, imported.citta]
+                .map((s: string) => (s || '').toLowerCase().trim().replace(/\s+/g, ''))
+                .filter(Boolean)
+                .join('_');
+            const virtualFamilyId = addressKey ? `ghost:${addressKey}` : undefined;
+
             addToList({
                 id: imported.id,
                 nome: imported.nome || '',
                 cognome: imported.cognome || '',
                 groupId: resolvedGroup?.id,
                 groupName: resolvedGroup?.name || imported.gruppo || '',
-                familyId: undefined,
+                familyId: virtualFamilyId,
                 isPlaceholder: true,
                 ...imported
             });
@@ -200,6 +210,41 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
 
 
     const isLoading = isLoadingMembers || isLoadingUsers || isLoadingMovimentiContanti;
+
+    // ── Rilevamento educatore e suoi gruppi ──────────────────────────────────
+    const isAdmin = userData?.roles?.includes('admin') ?? false;
+    const isEducatore = userData?.roles?.includes('educatore') ?? false;
+    const currentUserId = userData?.id ?? '';
+
+    // Gruppi in cui l'utente corrente è educatore
+    const myEducatorGroupIds = useMemo(() => {
+        if (!groupsData || !currentUserId) return new Set<string>();
+        return new Set(
+            groupsData
+                .filter(g => (g.educatorIds ?? []).includes(currentUserId))
+                .map(g => g.id)
+        );
+    }, [groupsData, currentUserId]);
+
+    const canManageGhosts = isAdmin || isEducatore;
+
+    // ── Handler azioni ghost ─────────────────────────────────────────────────
+    const handleGhostConfirm = async (ghostId: string, confirm: boolean) => {
+        if (!firestore) return;
+        const raccoltaRef = doc(firestore, 'raccolte', raccolta.id);
+        await updateDoc(raccoltaRef, {
+            confermatiIds: confirm ? arrayUnion(ghostId) : arrayRemove(ghostId),
+        });
+    };
+
+    const handleGhostMarkPaid = async (ghostId: string, phase: 'caparra' | 'saldo', paid: boolean) => {
+        if (!firestore) return;
+        const raccoltaRef = doc(firestore, 'raccolte', raccolta.id);
+        const field = phase === 'caparra' ? 'caparraPaidIds' : 'saldoPaidIds';
+        await updateDoc(raccoltaRef, {
+            [field]: paid ? arrayUnion(ghostId) : arrayRemove(ghostId),
+        });
+    };
 
     const calculateTotals = (faseKey: 'faseConferma' | 'faseCaparra' | 'faseSaldo') => {
         let denominator = 0;
@@ -454,6 +499,10 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
                         targetGroupMembers={targetGroupMembers}
                         allMembers={allMembers}
                         isLoading={isLoading}
+                        canManageGhosts={canManageGhosts}
+                        myEducatorGroupIds={myEducatorGroupIds}
+                        onGhostConfirm={handleGhostConfirm}
+                        onGhostMarkPaid={handleGhostMarkPaid}
                     />
                 </div>
             </AccordionContent>
