@@ -451,46 +451,55 @@ export default function UtentiRegistratiPage() {
   const handleConfirmMatch = async (pair: MatchPair) => {
     if (!firestore) return;
     setIsConfirming(true);
+    setError(null);
     try {
       const batch = writeBatch(firestore);
       const gruppoPlaceholderLower = (pair.placeholder.gruppo ?? '').toLowerCase().trim();
       const matchingGroup = groups.find(g => g.name.toLowerCase().trim() === gruppoPlaceholderLower);
       const realDocRef = doc(firestore, pair.realMember.docPath);
 
+      // Aggiorna sempre il documento del membro reale (anche senza gruppo)
+      // Batch secondario per le operazioni che potrebbero collidere (stesso doc nel batch principale)
+      const batch2 = writeBatch(firestore);
+      let hasBatch2Ops = false;
+
       if (matchingGroup) {
         batch.update(realDocRef, {
           groupId: matchingGroup.id,
           groupName: matchingGroup.name,
         });
-        const groupDocRef = doc(firestore, 'gruppi', matchingGroup.id);
-        batch.update(groupDocRef, { 
+        // arrayUnion nel batch principale
+        batch.update(doc(firestore, 'gruppi', matchingGroup.id), {
           memberIds: arrayUnion(pair.realMember.id),
         });
-      }
-
-      // If the placeholder was in a group, we should remove its ID from that group
-      const placeholderGroup = groups.find(g => g.name.toLowerCase().trim() === gruppoPlaceholderLower);
-      if (placeholderGroup) {
-        batch.update(doc(firestore, 'gruppi', placeholderGroup.id), {
-          memberIds: arrayRemove(pair.placeholder.id)
+        // arrayRemove in batch separato (stesso doc → conflitto nel batch unico)
+        batch2.update(doc(firestore, 'gruppi', matchingGroup.id), {
+          memberIds: arrayRemove(pair.placeholder.id),
         });
+        hasBatch2Ops = true;
       }
 
       // --- 1. Migrazione Presenze (Attendances) ---
-      const partQuery = query(collectionGroup(firestore, 'partecipanti'), where('membroId', '==', pair.placeholder.id));
-      const partSnap = await getDocs(partQuery);
-      partSnap.docs.forEach((d) => {
-        const oldRef = d.ref;
-        const newRef = doc(oldRef.parent, pair.realMember.id);
-        const data = d.data() as any;
-        batch.set(newRef, {
-           ...data,
-           membroId: pair.realMember.id,
-           nome: pair.realMember.nome,
-           cognome: pair.realMember.cognome
+      // NOTA: richiede indice COLLECTION_GROUP su 'partecipanti' per campo 'membroId'
+      try {
+        const partQuery = query(collectionGroup(firestore, 'partecipanti'), where('membroId', '==', pair.placeholder.id));
+        const partSnap = await getDocs(partQuery);
+        partSnap.docs.forEach((d) => {
+          const oldRef = d.ref;
+          const newRef = doc(oldRef.parent, pair.realMember.id);
+          const data = d.data() as any;
+          batch.set(newRef, {
+             ...data,
+             membroId: pair.realMember.id,
+             nome: pair.realMember.nome,
+             cognome: pair.realMember.cognome
+          });
+          batch.delete(oldRef);
         });
-        batch.delete(oldRef);
-      });
+      } catch (presErr) {
+        // Se l'indice non esiste ancora, saltiamo la migrazione presenze senza bloccare il match
+        console.warn('Migrazione presenze saltata (indice mancante?):', presErr);
+      }
 
       // --- 2. Migrazione Movimenti in Contanti ---
       const movQuery = query(collection(firestore, 'movimenti-contanti'), where('membroId', '==', pair.placeholder.id));
@@ -553,17 +562,21 @@ export default function UtentiRegistratiPage() {
       });
 
       // --- 4. Propagazione indirizzo al nucleo familiare (se assente) ---
-      // Se il placeholder aveva un indirizzo e la famiglia del membro reale
-      // non ha ancora una città registrata, lo copiamo automaticamente.
-      // In questo modo il nucleo diventa identificabile per lo sconto al tesseramento.
+      // Estrai il familyId correttamente dal docPath:
+      // - per utenti diretti:         users/{uid}                     → familyId = realMember.id
+      // - per membri del nucleo:      famiglie/{familyId}/membri/{id} → familyId = segmento [1]
       const { via, numeroCivico, citta, provincia, cap } = pair.placeholder;
       if (citta) {
         try {
-          const familyDocRef = doc(firestore, 'famiglie', pair.realMember.id);
+          const pathSegments = pair.realMember.docPath.split('/');
+          // Se il path ha 4 segmenti è un sotto-documento: famiglie/{familyId}/membri/{memberId}
+          const resolvedFamilyId = pathSegments.length === 4 && pathSegments[0] === 'famiglie'
+            ? pathSegments[1]
+            : pair.realMember.id;
+          const familyDocRef = doc(firestore, 'famiglie', resolvedFamilyId);
           const familySnap = await getDoc(familyDocRef);
           const existingCitta = familySnap.exists() ? familySnap.data()?.citta : null;
           if (!existingCitta) {
-            // setDoc con merge: crea il documento se non esiste, aggiorna solo i campi mancanti
             await setDoc(familyDocRef, {
               via: via || '',
               numeroCivico: numeroCivico || '',
@@ -572,9 +585,8 @@ export default function UtentiRegistratiPage() {
               cap: cap || '',
             }, { merge: true });
           }
-        } catch {
-          // Se il membro è un sub-doc (famiglie/*/membri) e non un utente diretto,
-          // l'operazione potrebbe fallire: in tal caso lo ignoriamo silenziosamente.
+        } catch (addrErr) {
+          console.warn('Propagazione indirizzo saltata:', addrErr);
         }
       }
 
@@ -582,11 +594,12 @@ export default function UtentiRegistratiPage() {
       batch.delete(doc(firestore, 'imported-members', pair.placeholder.id));
 
       await batch.commit();
+      if (hasBatch2Ops) await batch2.commit();
       setConfirmingMatch(null);
       await loadData();
-    } catch (e) {
-      console.error(e);
-      alert('Errore durante la conferma del match.');
+    } catch (e: any) {
+      console.error('handleConfirmMatch error:', e);
+      setError(`Errore durante la conferma del match: ${e?.message ?? e}`);
     } finally {
       setIsConfirming(false);
     }
@@ -1194,22 +1207,30 @@ export default function UtentiRegistratiPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-muted-foreground mb-0.5">Membro Reale</p>
                   <p className="font-semibold">{confirmingMatch.realMember.nome} {confirmingMatch.realMember.cognome}</p>
-                  {confirmingMatch.realMember.docPath && (
-                    <p className="text-xs text-muted-foreground font-mono truncate">{confirmingMatch.realMember.docPath}</p>
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {confirmingMatch.realMember.docPath.startsWith('famiglie/')
+                      ? '👨‍👩‍👧 Membro nucleo familiare'
+                      : '👤 Utente registrato'}
+                  </p>
                 </div>
               </div>
-              {!groups.find(g => g.name === confirmingMatch.placeholder.gruppo) &&
+              {!groups.find(g => g.name.toLowerCase().trim() === (confirmingMatch.placeholder.gruppo ?? '').toLowerCase().trim()) &&
                confirmingMatch.placeholder.gruppo && (
                 <div className="flex items-center gap-2 text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-md px-3 py-2">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   Il gruppo &quot;{confirmingMatch.placeholder.gruppo}&quot; non è stato trovato nel sistema. Il membro verrà matchato senza assegnazione di gruppo.
                 </div>
               )}
+              {error && (
+                <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md px-3 py-2">
+                  <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmingMatch(null)}>Annulla</Button>
+            <Button variant="outline" onClick={() => { setConfirmingMatch(null); setError(null); }}>Annulla</Button>
             <Button
               onClick={() => confirmingMatch && handleConfirmMatch(confirmingMatch)}
               disabled={isConfirming}
