@@ -10,6 +10,8 @@ import { collection, query, where, collectionGroup, doc, updateDoc, arrayUnion, 
 import type { Raccolta } from '@/components/raccolta-card';
 import type { UnifiedMember } from '@/components/membri-raccolta-list';
 import type { UserData } from '@/src/hooks/use-user-data';
+import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCircle2, Loader2, ArrowRight, Info, Archive, MoreHorizontal } from 'lucide-react';
 import { useUserData } from '@/src/hooks/use-user-data';
@@ -129,6 +131,18 @@ export default function PagamentiContantiPage() {
     }, [firestore]);
     const { data: tariffe, isLoading: isLoadingTariffe } = useCollection<Tariffa>(tariffeQuery);
 
+    const importedMembersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'imported-members');
+    }, [firestore]);
+    const { data: importedMembersData } = useCollection<any>(importedMembersQuery);
+
+    const groupsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'gruppi');
+    }, [firestore]);
+    const { data: groupsData } = useCollection<Group>(groupsQuery);
+
     const allMembers = useMemo(() => {
         if (!membersData && !usersData) return [];
         const combinedList: UnifiedMember[] = [];
@@ -165,9 +179,32 @@ export default function PagamentiContantiPage() {
                 ...member
             });
         });
-        
+
+        // Ghost (imported-members)
+        const ghostGroupMap = new Map<string, Group>();
+        groupsData?.forEach(group => {
+            (group.memberIds ?? []).forEach((mid: string) => ghostGroupMap.set(mid, group));
+        });
+        importedMembersData?.forEach((imported: any) => {
+            if (imported.matchedWith) return;
+            const resolvedGroup = ghostGroupMap.get(imported.id);
+            const addressKey = [imported.via, imported.numeroCivico, imported.citta]
+                .map((s: string) => (s || '').toLowerCase().trim().replace(/\s+/g, ''))
+                .filter(Boolean).join('_');
+            addToList({
+                id: imported.id,
+                nome: imported.nome || '',
+                cognome: imported.cognome || '',
+                groupId: resolvedGroup?.id,
+                groupName: resolvedGroup?.name || imported.gruppo || '',
+                familyId: addressKey ? `ghost:${addressKey}` : undefined,
+                isPlaceholder: true,
+                ...imported,
+            });
+        });
+
         return combinedList;
-    }, [usersData, membersData]);
+    }, [usersData, membersData, importedMembersData, groupsData]);
 
     const cashiers = useMemo(() => {
         if (!usersData || !pageSettings || !accountingRoles) return [];
@@ -270,6 +307,12 @@ export default function PagamentiContantiPage() {
             [fieldToUpdate]: shouldPay ? arrayUnion(memberId) : arrayRemove(memberId)
         });
 
+        // Auto-conferma ghost al pagamento
+        const isGhost = allMembers.find(m => m.id === memberId)?.isPlaceholder ?? false;
+        if (shouldPay && isGhost) {
+            batch.update(raccoltaDocRef, { confermatiIds: arrayUnion(memberId) });
+        }
+
         if (shouldPay) {
             const movimentoRef = collection(firestore, 'movimenti-contanti');
             batch.set(doc(movimentoRef), {
@@ -371,6 +414,22 @@ export default function PagamentiContantiPage() {
             }
         });
         return counts;
+    };
+
+    // Sconto fratelli retroattivo per ghost
+    const calculateGhostPaymentAmount = (raccolta: Raccolta, ghostId: string, phase: 'caparra' | 'saldo'): number => {
+        const ghost = allMembers.find(m => m.id === ghostId);
+        const faseData = phase === 'caparra' ? raccolta.faseCaparra : raccolta.faseSaldo;
+        const fullPrice = parseFloat(faseData?.importo) || 0;
+        if (!ghost?.familyId || !faseData?.tariffaFratelliAttiva) return fullPrice;
+        const discountedPrice = parseFloat(faseData.importoTariffaFratelli || '0') || fullPrice;
+        const paidIds = new Set(phase === 'caparra' ? (raccolta.caparraPaidIds ?? []) : (raccolta.saldoPaidIds ?? []));
+        const paidSiblingsCount = allMembers.filter(m =>
+            m.isPlaceholder && m.familyId === ghost.familyId && m.id !== ghostId && paidIds.has(m.id)
+        ).length;
+        if (paidSiblingsCount === 0) return fullPrice;
+        if (paidSiblingsCount === 1) return Math.max(0, 2 * discountedPrice - fullPrice);
+        return discountedPrice;
     };
     
     const isLoading = isLoadingRaccolte || isLoadingMembers || isLoadingUsers || isLoadingCashMovements || isLoadingTariffe;
@@ -640,13 +699,18 @@ export default function PagamentiContantiPage() {
                                                 <TableBody>
                                                     {filteredMembers.length > 0 ? (
                                                         filteredMembers.map(member => {
+                                                            const isGhost = member.isPlaceholder === true;
                                                             const isConfirmed = raccolta.confermatiIds?.includes(member.id);
                                                             const isCaparraPaid = raccolta.caparraPaidIds?.includes(member.id);
                                                             const isSaldoPaid = raccolta.saldoPaidIds?.includes(member.id);
                                                             
-                                                            const caparraImporto = parseFloat(raccolta.faseCaparra.importo) || 0;
-                                                            let saldoImporto = parseFloat(raccolta.faseSaldo.importo) || 0;
-                                                            if (raccolta.faseSaldo.tariffaFratelliAttiva && member.familyId && (familyCounts[member.familyId] || 0) >= 2) {
+                                                            const caparraImporto = isGhost
+                                                                ? calculateGhostPaymentAmount(raccolta, member.id, 'caparra')
+                                                                : parseFloat(raccolta.faseCaparra.importo) || 0;
+                                                            let saldoImporto = isGhost
+                                                                ? calculateGhostPaymentAmount(raccolta, member.id, 'saldo')
+                                                                : parseFloat(raccolta.faseSaldo.importo) || 0;
+                                                            if (!isGhost && raccolta.faseSaldo.tariffaFratelliAttiva && member.familyId && (familyCounts[member.familyId] || 0) >= 2) {
                                                                 saldoImporto = parseFloat(raccolta.faseSaldo.importoTariffaFratelli || '0') || saldoImporto;
                                                             }
                                                             
@@ -659,7 +723,16 @@ export default function PagamentiContantiPage() {
 
                                                             return (
                                                                 <TableRow key={member.id}>
-                                                                    <TableCell>{member.nome} {member.cognome}</TableCell>
+                                                                    <TableCell>
+                                                                        <div className="flex items-center gap-2">
+                                                                            {member.nome} {member.cognome}
+                                                                            {isGhost && (
+                                                                                <Badge variant="outline" className="text-yellow-600 border-yellow-300 bg-yellow-50 text-[10px] px-1.5 h-4">
+                                                                                    Ghost
+                                                                                </Badge>
+                                                                            )}
+                                                                        </div>
+                                                                    </TableCell>
                                                                     <TableCell>{member.groupName}</TableCell>
                                                                     <TableCell className="font-medium">
                                                                         €{paidAmount.toFixed(2)}
@@ -675,7 +748,7 @@ export default function PagamentiContantiPage() {
                                                                                     <Checkbox
                                                                                         checked={isCaparraPaid}
                                                                                         onCheckedChange={(checked) => handlePaymentToggle(raccolta, member.id, 'caparra', !!checked, caparraImporto)}
-                                                                                        disabled={!isConfirmed || isProcessingCaparra}
+                                                                                        disabled={(!isConfirmed && !isGhost) || isProcessingCaparra}
                                                                                     />
                                                                                     <span>€{caparraImporto.toFixed(2)}</span>
                                                                                 </div>
@@ -693,7 +766,7 @@ export default function PagamentiContantiPage() {
                                                                                     <Checkbox
                                                                                         checked={isSaldoPaid}
                                                                                         onCheckedChange={(checked) => handlePaymentToggle(raccolta, member.id, 'saldo', !!checked, saldoImporto)}
-                                                                                        disabled={!isConfirmed || isProcessingSaldo}
+                                                                                        disabled={(!isConfirmed && !isGhost) || isProcessingSaldo}
                                                                                     />
                                                                                     <span>€{saldoImporto.toFixed(2)}</span>
                                                                                 </div>
