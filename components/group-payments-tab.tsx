@@ -66,6 +66,7 @@ export function GroupPaymentsTab({ groupId }: GroupPaymentsTabProps) {
           key={raccolta.id}
           raccolta={raccolta}
           onEdit={() => {}}
+          filterGroupId={groupId}
         />
       ))}
     </Accordion>

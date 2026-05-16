@@ -4,15 +4,17 @@ import { useMemo, useState } from 'react';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import type { FaseRaccolta } from '@/components/nuova-raccolta-dialog';
-import { MoreVertical, CheckCircle2, XCircle, Archive, Pencil, ArchiveRestore } from 'lucide-react';
+import { MoreVertical, CheckCircle2, XCircle, Archive, Pencil, ArchiveRestore, Banknote } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
-import { doc, updateDoc, collection, collectionGroup, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, updateDoc, collection, collectionGroup, query, where, arrayUnion, arrayRemove, writeBatch, serverTimestamp, getDocs } from 'firebase/firestore';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { MembriRaccoltaList, type UnifiedMember } from '@/components/membri-raccolta-list';
@@ -68,6 +70,8 @@ export interface Raccolta {
 interface RaccoltaCardProps {
     raccolta: Raccolta;
     onEdit: () => void;
+    /** Quando impostato, mostra solo i membri di questo gruppo specifico */
+    filterGroupId?: string;
 }
 
 const renderStatusIcon = (attiva: boolean) => {
@@ -95,7 +99,7 @@ const formatDate = (date: any) => {
     return format(jsDate, 'dd/MM/yyyy', { locale: it });
 }
 
-export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
+export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardProps) {
     const firestore = useFirestore();
     const { userData } = useUserData();
 
@@ -204,9 +208,14 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
     const targetGroupMembers = useMemo(() => {
         const targetGroupIds = new Set(raccolta.gruppiId);
         return allMembers
-            .filter(member => member.groupId && targetGroupIds.has(member.groupId))
+            .filter(member => {
+                if (!member.groupId || !targetGroupIds.has(member.groupId)) return false;
+                // Se filterGroupId è impostato, mostra solo i membri di quel gruppo
+                if (filterGroupId && member.groupId !== filterGroupId) return false;
+                return true;
+            })
             .sort((a, b) => (a.cognome || '').localeCompare(b.cognome || ''));
-    }, [allMembers, raccolta.gruppiId]);
+    }, [allMembers, raccolta.gruppiId, filterGroupId]);
 
 
     const isLoading = isLoadingMembers || isLoadingUsers || isLoadingMovimentiContanti;
@@ -228,7 +237,24 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
 
     const canManageGhosts = isAdmin || isEducatore;
 
-    // ── Handler azioni ghost ─────────────────────────────────────────────────
+    // ── Dialog pagamento ghost ────────────────────────────────────────────────
+    type GhostAction = 'conferma' | 'caparra' | 'saldo';
+    const [ghostDialog, setGhostDialog] = useState<{
+        ghostId: string;
+        ghostName: string;
+        phase: GhostAction;
+        currentValue: boolean; // stato attuale (true = già pagato/confermato)
+        amount: number;
+    } | null>(null);
+    const [isDialogProcessing, setIsDialogProcessing] = useState(false);
+
+    const handleRequestGhostAction = (ghostId: string, ghostName: string, phase: GhostAction, currentValue: boolean) => {
+        const amount =
+            phase === 'caparra' ? (parseFloat(raccolta.faseCaparra?.importo) || 0) :
+            phase === 'saldo'   ? (parseFloat(raccolta.faseSaldo?.importo) || 0) : 0;
+        setGhostDialog({ ghostId, ghostName, phase, currentValue, amount });
+    };
+
     const handleGhostConfirm = async (ghostId: string, confirm: boolean) => {
         if (!firestore) return;
         const raccoltaRef = doc(firestore, 'raccolte', raccolta.id);
@@ -241,12 +267,70 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
         if (!firestore) return;
         const raccoltaRef = doc(firestore, 'raccolte', raccolta.id);
         const field = phase === 'caparra' ? 'caparraPaidIds' : 'saldoPaidIds';
-        const update: Record<string, any> = {
-            [field]: paid ? arrayUnion(ghostId) : arrayRemove(ghostId),
-        };
-        // Auto-conferma quando si dichiara pagato (permette di saltare il passo conferma)
-        if (paid) update.confermatiIds = arrayUnion(ghostId);
-        await updateDoc(raccoltaRef, update);
+        const importo = phase === 'caparra'
+            ? (parseFloat(raccolta.faseCaparra?.importo) || 0)
+            : (parseFloat(raccolta.faseSaldo?.importo) || 0);
+
+        const batch = writeBatch(firestore);
+
+        if (paid) {
+            batch.update(raccoltaRef, {
+                [field]: arrayUnion(ghostId),
+                confermatiIds: arrayUnion(ghostId), // auto-conferma
+            });
+            // Crea un movimento contanti così appare nel Conto
+            const movRef = doc(collection(firestore, 'movimenti-contanti'));
+            batch.set(movRef, {
+                raccoltaId: raccolta.id,
+                memberId: ghostId,
+                phase,
+                importo,
+                createdAt: serverTimestamp(),
+                registeredBy: currentUserId || 'system',
+                tipo: 'raccolta',
+                isDelivered: true,
+                isDeposited: false,
+                isGhostPayment: true,
+            });
+        } else {
+            batch.update(raccoltaRef, {
+                [field]: arrayRemove(ghostId),
+            });
+        }
+
+        await batch.commit();
+
+        // Se annullo, elimino anche il movimento contanti associato
+        if (!paid) {
+            const movSnap = await getDocs(
+                query(
+                    collection(firestore, 'movimenti-contanti'),
+                    where('memberId', '==', ghostId),
+                    where('raccoltaId', '==', raccolta.id),
+                    where('phase', '==', phase)
+                )
+            );
+            const delBatch = writeBatch(firestore);
+            movSnap.forEach(d => delBatch.delete(d.ref));
+            await delBatch.commit();
+        }
+    };
+
+    const handleGhostDialogConfirm = async () => {
+        if (!ghostDialog) return;
+        setIsDialogProcessing(true);
+        try {
+            const { ghostId, phase, currentValue } = ghostDialog;
+            const newValue = !currentValue;
+            if (phase === 'conferma') {
+                await handleGhostConfirm(ghostId, newValue);
+            } else {
+                await handleGhostMarkPaid(ghostId, phase, newValue);
+            }
+            setGhostDialog(null);
+        } finally {
+            setIsDialogProcessing(false);
+        }
     };
 
     const calculateTotals = (faseKey: 'faseConferma' | 'faseCaparra' | 'faseSaldo') => {
@@ -405,6 +489,7 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
     };
 
     return (
+        <>
         <AccordionItem value={raccolta.id}>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -504,11 +589,70 @@ export function RaccoltaCard({ raccolta, onEdit }: RaccoltaCardProps) {
                         isLoading={isLoading}
                         canManageGhosts={canManageGhosts}
                         myEducatorGroupIds={myEducatorGroupIds}
-                        onGhostConfirm={handleGhostConfirm}
-                        onGhostMarkPaid={handleGhostMarkPaid}
+                        onRequestGhostAction={handleRequestGhostAction}
                     />
                 </div>
             </AccordionContent>
         </AccordionItem>
+
+        {/* ── Dialog conferma azione ghost ─────────────────────────────────── */}
+        <Dialog open={!!ghostDialog} onOpenChange={(open) => { if (!open) setGhostDialog(null); }}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>
+                        {ghostDialog?.currentValue
+                            ? ghostDialog?.phase === 'conferma' ? 'Annulla conferma' : 'Annulla pagamento'
+                            : ghostDialog?.phase === 'conferma' ? 'Conferma partecipazione' : 'Dichiara pagamento contanti'}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {ghostDialog?.currentValue
+                            ? 'Vuoi rimuovere questo stato per il membro selezionato?'
+                            : ghostDialog?.phase === 'conferma'
+                                ? 'Conferma la partecipazione del membro al progetto.'
+                                : 'Il pagamento verrà registrato come incasso in contanti e apparirà nel Conto.'}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-3 py-2">
+                    <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/40">
+                        <div>
+                            <p className="font-semibold">{ghostDialog?.ghostName}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className="text-yellow-600 border-yellow-300 bg-yellow-50 text-[10px] px-1.5 h-4">
+                                    Ghost
+                                </Badge>
+                                <span className="text-xs text-muted-foreground capitalize">
+                                    Fase: {ghostDialog?.phase}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {(ghostDialog?.phase === 'caparra' || ghostDialog?.phase === 'saldo') && ghostDialog?.amount > 0 && (
+                        <div className="flex items-center justify-between rounded-lg border p-3">
+                            <span className="text-sm text-muted-foreground">Importo</span>
+                            <span className="font-bold text-lg">€{ghostDialog.amount.toFixed(2)}</span>
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setGhostDialog(null)} disabled={isDialogProcessing}>
+                        Annulla
+                    </Button>
+                    <Button
+                        onClick={handleGhostDialogConfirm}
+                        disabled={isDialogProcessing}
+                        variant={ghostDialog?.currentValue ? 'destructive' : 'default'}
+                        className={!ghostDialog?.currentValue ? 'bg-green-600 hover:bg-green-700' : ''}
+                    >
+                        {isDialogProcessing ? 'Salvataggio...' : ghostDialog?.currentValue
+                            ? 'Rimuovi'
+                            : ghostDialog?.phase === 'conferma' ? 'Conferma partecipazione' : <><Banknote className="h-4 w-4 mr-1" />Conferma incasso €{ghostDialog?.amount.toFixed(2)}</>}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }

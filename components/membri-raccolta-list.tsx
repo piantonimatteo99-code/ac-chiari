@@ -31,8 +31,7 @@ interface MembriRaccoltaListProps {
   // Educator ghost management
   canManageGhosts?: boolean;
   myEducatorGroupIds?: Set<string>;
-  onGhostConfirm?: (ghostId: string, confirm: boolean) => Promise<void>;
-  onGhostMarkPaid?: (ghostId: string, phase: 'caparra' | 'saldo', paid: boolean) => Promise<void>;
+  onRequestGhostAction?: (ghostId: string, ghostName: string, phase: 'conferma' | 'caparra' | 'saldo', currentValue: boolean) => void;
 }
 
 
@@ -51,13 +50,7 @@ type ColumnVisibility = {
 type PaymentStatus = 'tutti' | 'pagato' | 'da_pagare';
 
 
-export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, isLoading, canManageGhosts, myEducatorGroupIds, onGhostConfirm, onGhostMarkPaid }: MembriRaccoltaListProps) {
-  const [processingGhost, setProcessingGhost] = useState<string | null>(null);
-
-  const handleGhostAction = async (fn: () => Promise<void>, ghostId: string) => {
-    setProcessingGhost(ghostId);
-    try { await fn(); } finally { setProcessingGhost(null); }
-  };
+export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, isLoading, canManageGhosts, myEducatorGroupIds, onRequestGhostAction }: MembriRaccoltaListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
@@ -384,10 +377,10 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                             <TableCell className="text-center">
                               {canActOnThisGhost ? (
                                 <Button
-                                  size="sm" variant={isConfirmed ? 'default' : 'outline'}
+                                  size="sm"
+                                  variant={isConfirmed ? 'default' : 'outline'}
                                   className={`h-7 px-2 text-xs ${isConfirmed ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                                  disabled={processingGhost === member.id}
-                                  onClick={() => handleGhostAction(() => onGhostConfirm!(member.id, !isConfirmed), member.id)}
+                                  onClick={() => onRequestGhostAction?.(member.id, `${member.nome} ${member.cognome}`, 'conferma', isConfirmed)}
                                 >
                                   {isConfirmed
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Confermato</>
@@ -402,14 +395,14 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                              <TableCell className="text-center">
                               {canActOnThisGhost ? (
                                 <Button
-                                  size="sm" variant={hasPaidCaparra ? 'default' : 'outline'}
+                                  size="sm"
+                                  variant={hasPaidCaparra ? 'default' : 'outline'}
                                   className={`h-7 px-2 text-xs ${hasPaidCaparra ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                                  disabled={processingGhost === member.id}
-                                  onClick={() => handleGhostAction(() => onGhostMarkPaid!(member.id, 'caparra', !hasPaidCaparra), member.id)}
+                                  onClick={() => onRequestGhostAction?.(member.id, `${member.nome} ${member.cognome}`, 'caparra', hasPaidCaparra)}
                                 >
                                   {hasPaidCaparra
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
-                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Dichiara</>}
+                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Registra caparra</>}
                                 </Button>
                               ) : (
                                 renderPaymentCell(member.id, 'caparra')
@@ -420,14 +413,14 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                            <TableCell className="text-center">
                               {canActOnThisGhost ? (
                                 <Button
-                                  size="sm" variant={hasPaidSaldo ? 'default' : 'outline'}
+                                  size="sm"
+                                  variant={hasPaidSaldo ? 'default' : 'outline'}
                                   className={`h-7 px-2 text-xs ${hasPaidSaldo ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                                  disabled={processingGhost === member.id}
-                                  onClick={() => handleGhostAction(() => onGhostMarkPaid!(member.id, 'saldo', !hasPaidSaldo), member.id)}
+                                  onClick={() => onRequestGhostAction?.(member.id, `${member.nome} ${member.cognome}`, 'saldo', hasPaidSaldo)}
                                 >
                                   {hasPaidSaldo
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
-                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Dichiara</>}
+                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Registra saldo</>}
                                 </Button>
                               ) : (
                                 renderPaymentCell(member.id, 'saldo')
