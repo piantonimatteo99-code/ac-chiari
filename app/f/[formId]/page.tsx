@@ -276,12 +276,14 @@ function IdentificationStep({
   answers,
   total,
   responseId,
+  collectionRowId,
   onComplete,
 }: {
   form: FormSchema;
   answers: Record<string, AnswerValue>;
   total: number;
   responseId: string;
+  collectionRowId: string | null;
   onComplete: () => void;
 }) {
   const firestore = useFirestore();
@@ -339,28 +341,21 @@ function IdentificationStep({
     phone?: string,
   ) => {
     if (!firestore || !form.generateCollection) return;
-    // È identificato se ha fornito nome + almeno un recapito (anche senza account)
     const isIdentified = !!(displayName && (email || phone || userId));
-    const row: Omit<FormCollectionRow, 'id'> = {
-      formId: form.id,
-      responseId,
-      userId,
-      displayName: displayName ?? 'Sconosciuto',
-      email,
-      summaryLines,
-      total: total > 0 ? total : undefined,
-      createdAt: serverTimestamp(),
-    };
-    await addDoc(collection(firestore, 'form_collection_rows'), row);
-    // aggiorno la risposta con i dati identificativi
-    await updateDoc(doc(firestore, 'form_responses', responseId), {
+    const identData = {
       userId: userId ?? null,
-      displayName: displayName ?? null,
+      displayName: displayName ?? 'Sconosciuto',
       email: email ?? null,
       phone: phone ?? null,
       isAnonymous: !isIdentified,
       summaryText: summaryLines.map(l => `${l.label}: ${l.value}`).join('\n'),
-    });
+    };
+    // Aggiorna la riga già creata al momento dell'invio
+    if (collectionRowId) {
+      await updateDoc(doc(firestore, 'form_collection_rows', collectionRowId), identData);
+    }
+    // Aggiorna anche la risposta
+    await updateDoc(doc(firestore, 'form_responses', responseId), identData);
   };
 
   const handleLogin = async () => {
@@ -605,6 +600,7 @@ export default function PublicFormPage() {
   const [submitError, setSubmitError] = useState('');
   const [phase, setPhase] = useState<'form' | 'identification' | 'success'>('form');
   const [savedResponseId, setSavedResponseId] = useState<string | null>(null);
+  const [savedCollectionRowId, setSavedCollectionRowId] = useState<string | null>(null);
 
   // Carica schema form
   useEffect(() => {
@@ -661,6 +657,39 @@ export default function PublicFormPage() {
       setSavedResponseId(ref.id);
 
       if (form.generateCollection) {
+        // Crea subito la riga nella raccolta (anche se l'utente non completa l'identificazione)
+        // Verrà aggiornata con nome/email nell'IdentificationStep
+        const summaryLines = form.questions
+          .map(q => {
+            const ans = answers[q.id];
+            if (ans == null) return null;
+            if (q.type === 'quantity_picker' && q.options) {
+              const quantities = ans as Record<string, number>;
+              const lines = q.options.filter(o => quantities[o.id] > 0).map(o => `${o.label} × ${quantities[o.id]}`);
+              return lines.length > 0 ? { label: q.label, value: lines.join(', ') } : null;
+            }
+            if (['single_choice','price_item','select','multiple_choice'].includes(q.type)) {
+              const ids = Array.isArray(ans) ? ans : [ans as string];
+              const val = ids.map(id => q.options?.find(o => o.id === id)?.label ?? id).join(', ');
+              return val ? { label: q.label, value: val } : null;
+            }
+            return ans !== '' && ans !== 0 ? { label: q.label, value: String(ans) } : null;
+          })
+          .filter(Boolean) as { label: string; value: string }[];
+
+        const rowRef = await addDoc(collection(firestore, 'form_collection_rows'), {
+          formId: form.id,
+          responseId: ref.id,
+          userId: null,
+          displayName: 'In attesa di identificazione',
+          email: null,
+          phone: null,
+          summaryLines,
+          total: total > 0 ? total : null,
+          isAnonymous: true,
+          createdAt: serverTimestamp(),
+        });
+        setSavedCollectionRowId(rowRef.id);
         setPhase('identification');
       } else {
         setPhase('success');
@@ -746,6 +775,7 @@ export default function PublicFormPage() {
                 answers={answers}
                 total={total}
                 responseId={savedResponseId}
+                collectionRowId={savedCollectionRowId}
                 onComplete={() => setPhase('success')}
               />
             </CardContent>
