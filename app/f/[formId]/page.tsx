@@ -35,13 +35,26 @@ import {
 function computeTotal(form: FormSchema, answers: Record<string, AnswerValue>): number {
   let total = 0;
   for (const q of form.questions) {
-    if (q.type !== 'price_item' || !q.options) continue;
-    const ans = answers[q.id];
-    if (!ans) continue;
-    const selectedIds = Array.isArray(ans) ? ans : [ans];
-    for (const optId of selectedIds) {
-      const opt = q.options.find(o => o.id === optId);
-      if (opt?.price) total += opt.price;
+    if (!q.options) continue;
+
+    if (q.type === 'price_item') {
+      const ans = answers[q.id];
+      if (!ans) continue;
+      const selectedIds = Array.isArray(ans) ? ans : [ans as string];
+      for (const optId of selectedIds) {
+        const opt = q.options.find(o => o.id === optId);
+        if (opt?.price) total += opt.price;
+      }
+    }
+
+    if (q.type === 'quantity_picker') {
+      const quantities = answers[q.id] as Record<string, number> | null;
+      if (!quantities) continue;
+      for (const opt of q.options) {
+        if (opt.price && quantities[opt.id]) {
+          total += opt.price * (quantities[opt.id] ?? 0);
+        }
+      }
     }
   }
   return total;
@@ -207,6 +220,50 @@ function QuestionField({
           })}
         </div>
       )}
+
+      {type === 'quantity_picker' && options && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-0 rounded-xl border overflow-hidden">
+            {/* Header */}
+            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/40 border-b">Voce</div>
+            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/40 border-b text-center">Quantità</div>
+            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/40 border-b text-right">Subtotale</div>
+            {/* Righe */}
+            {options.map((opt, oi) => {
+              const quantities = (value as Record<string, number>) ?? {};
+              const qty = quantities[opt.id] ?? 0;
+              const subtotal = (opt.price ?? 0) * qty;
+              return (
+                <>
+                  <div key={`label-${opt.id}`} className={`flex flex-col justify-center px-3 py-2.5 ${oi > 0 ? 'border-t' : ''}`}>
+                    <span className="text-sm font-medium">{opt.label}</span>
+                    {opt.price != null && (
+                      <span className="text-xs text-muted-foreground">€ {opt.price.toFixed(2)} / persona</span>
+                    )}
+                  </div>
+                  <div key={`qty-${opt.id}`} className={`flex items-center justify-center gap-1.5 px-2 py-2.5 ${oi > 0 ? 'border-t' : ''}`}>
+                    <button
+                      type="button"
+                      className="w-7 h-7 rounded-full border flex items-center justify-center text-base font-bold hover:bg-muted transition-colors disabled:opacity-30"
+                      disabled={qty <= 0}
+                      onClick={() => onChange({ ...quantities, [opt.id]: Math.max(0, qty - 1) })}
+                    >−</button>
+                    <span className="w-6 text-center text-sm font-semibold tabular-nums">{qty}</span>
+                    <button
+                      type="button"
+                      className="w-7 h-7 rounded-full border flex items-center justify-center text-base font-bold hover:bg-muted transition-colors"
+                      onClick={() => onChange({ ...quantities, [opt.id]: qty + 1 })}
+                    >+</button>
+                  </div>
+                  <div key={`sub-${opt.id}`} className={`flex items-center justify-end px-3 py-2.5 tabular-nums text-sm font-semibold ${oi > 0 ? 'border-t' : ''} ${subtotal > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                    € {subtotal.toFixed(2)}
+                  </div>
+                </>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -246,17 +303,30 @@ function IdentificationStep({
     return form.questions
       .map(q => {
         const ans = answers[q.id];
-        if (!ans && ans !== 0) return null;
+        if (ans == null) return null;
+
         let valueStr = '';
-        if (q.type === 'single_choice' || q.type === 'price_item' || q.type === 'select') {
+
+        if (q.type === 'quantity_picker' && q.options) {
+          // Mostra solo le voci con quantità > 0: "Menù adulti × 3, Menù bambini × 2"
+          const quantities = ans as Record<string, number>;
+          const lines = q.options
+            .filter(o => quantities[o.id] > 0)
+            .map(o => `${o.label} × ${quantities[o.id]}`);
+          if (lines.length === 0) return null;
+          valueStr = lines.join(', ');
+        } else if (
+          q.type === 'single_choice' || q.type === 'price_item' ||
+          q.type === 'select' || q.type === 'multiple_choice'
+        ) {
           const ids = Array.isArray(ans) ? ans : [ans as string];
           valueStr = ids.map(id => q.options?.find(o => o.id === id)?.label ?? id).join(', ');
-        } else if (q.type === 'multiple_choice') {
-          const ids = Array.isArray(ans) ? ans : [ans as string];
-          valueStr = ids.map(id => q.options?.find(o => o.id === id)?.label ?? id).join(', ');
+          if (!valueStr) return null;
         } else {
+          if (ans === '' || ans === 0) return null;
           valueStr = String(ans);
         }
+
         return { label: q.label, value: valueStr };
       })
       .filter(Boolean) as { label: string; value: string }[];
@@ -573,16 +643,18 @@ export default function PublicFormPage() {
 
     setIsSubmitting(true);
     try {
-      const payload: Omit<FormResponse, 'id'> = {
+      // Firestore non accetta undefined — usiamo null per i campi opzionali
+      const payload = {
         formId: form.id,
         projectId: form.projectId,
-        userId: undefined,
-        displayName: undefined,
-        email: undefined,
+        userId: null,
+        displayName: null,
+        email: null,
+        phone: null,
         isAnonymous: true,
         answers,
-        total: total > 0 ? total : undefined,
-        summaryText: undefined,
+        total: total > 0 ? total : null,
+        summaryText: null,
         submittedAt: serverTimestamp(),
       };
       const ref = await addDoc(collection(firestore, 'form_responses'), payload);

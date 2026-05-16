@@ -19,6 +19,7 @@ import {
   ClipboardList, Settings, Sparkles,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { AiFormGeneratorDialog } from './ai-form-generator-dialog';
 
 const DEFAULT_QUESTION = (): FormQuestion => ({
   id: nanoid(8),
@@ -51,9 +52,23 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
   const [savedFormId, setSavedFormId] = useState<string | null>(existingForm?.id ?? null);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'domande' | 'impostazioni'>('domande');
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
 
   const addQuestion = () => {
     setQuestions(qs => [...qs, DEFAULT_QUESTION()]);
+  };
+
+  // Carica lo schema generato dall'AI nel builder (dopo approvazione)
+  const handleAiApprove = (schema: Partial<FormSchema>) => {
+    if (schema.title) setTitle(schema.title);
+    if (schema.description) setDescription(schema.description);
+    if (schema.questions && schema.questions.length > 0) {
+      // Assicura che ogni domanda abbia un ID valido
+      setQuestions(schema.questions.map(q => ({ ...q, id: q.id || nanoid(8) })));
+    }
+    if (schema.generateCollection !== undefined) setGenerateCollection(schema.generateCollection);
+    if (schema.collectionTitle) setCollectionTitle(schema.collectionTitle);
+    setActiveTab('domande');
   };
 
   const updateQuestion = useCallback((index: number, q: FormQuestion) => {
@@ -160,7 +175,17 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Pulsante AI */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-8 border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
+            onClick={() => setAiDialogOpen(true)}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Genera con AI
+          </Button>
           {savedFormId && (
             <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={copyLink}>
               {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -366,6 +391,13 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
           </Card>
         </div>
       )}
+
+      {/* ── Dialog AI generator ── */}
+      <AiFormGeneratorDialog
+        open={aiDialogOpen}
+        onOpenChange={setAiDialogOpen}
+        onApprove={handleAiApprove}
+      />
     </div>
   );
 }

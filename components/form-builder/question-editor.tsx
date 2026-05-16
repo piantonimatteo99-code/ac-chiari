@@ -20,23 +20,24 @@ import {
 import {
   GripVertical, Trash2, Plus, X, ChevronUp, ChevronDown,
   Type, AlignLeft, CircleDot, CheckSquare, Hash, ListOrdered,
-  Mail, Phone, Tag,
+  Mail, Phone, Tag, LayoutGrid,
 } from 'lucide-react';
 import type { FormQuestion, QuestionType, QuestionOption } from '@/src/types/form-types';
 
 const QUESTION_TYPES: { value: QuestionType; label: string; icon: React.ElementType }[] = [
-  { value: 'text',            label: 'Testo breve',         icon: Type },
-  { value: 'textarea',        label: 'Testo lungo',         icon: AlignLeft },
-  { value: 'single_choice',   label: 'Scelta singola',      icon: CircleDot },
-  { value: 'multiple_choice', label: 'Scelta multipla',     icon: CheckSquare },
-  { value: 'number',          label: 'Numero',              icon: Hash },
-  { value: 'select',          label: 'Menu a tendina',      icon: ListOrdered },
-  { value: 'email',           label: 'Email',               icon: Mail },
-  { value: 'phone',           label: 'Telefono',            icon: Phone },
-  { value: 'price_item',      label: 'Voce con prezzo',     icon: Tag },
+  { value: 'text',             label: 'Testo breve',            icon: Type },
+  { value: 'textarea',         label: 'Testo lungo',            icon: AlignLeft },
+  { value: 'single_choice',    label: 'Scelta singola',         icon: CircleDot },
+  { value: 'multiple_choice',  label: 'Scelta multipla',        icon: CheckSquare },
+  { value: 'number',           label: 'Numero',                 icon: Hash },
+  { value: 'select',           label: 'Menu a tendina',         icon: ListOrdered },
+  { value: 'email',            label: 'Email',                  icon: Mail },
+  { value: 'phone',            label: 'Telefono',               icon: Phone },
+  { value: 'price_item',       label: 'Voce con prezzo',        icon: Tag },
+  { value: 'quantity_picker',  label: 'Quantità per opzione',   icon: LayoutGrid },
 ];
 
-const HAS_OPTIONS: QuestionType[] = ['single_choice', 'multiple_choice', 'select', 'price_item'];
+const HAS_OPTIONS: QuestionType[] = ['single_choice', 'multiple_choice', 'select', 'price_item', 'quantity_picker'];
 
 interface Props {
   question: FormQuestion;

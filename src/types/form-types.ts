@@ -1,15 +1,16 @@
 // ─── Form Builder Types ─────────────────────────────────────────────────────
 
 export type QuestionType =
-  | 'text'           // risposta aperta breve
-  | 'textarea'       // risposta aperta lunga
-  | 'single_choice'  // risposta singola (radio)
-  | 'multiple_choice'// risposta multipla (checkbox)
-  | 'number'         // numero (es. quanti partecipanti)
-  | 'select'         // menu a tendina
-  | 'email'          // email con validazione
-  | 'phone'          // telefono
-  | 'price_item';    // voce con prezzo selezionabile (calcola totale)
+  | 'text'             // risposta aperta breve
+  | 'textarea'         // risposta aperta lunga
+  | 'single_choice'    // risposta singola (radio)
+  | 'multiple_choice'  // risposta multipla (checkbox)
+  | 'number'           // numero (es. quanti partecipanti)
+  | 'select'           // menu a tendina
+  | 'email'            // email con validazione
+  | 'phone'            // telefono
+  | 'price_item'       // voce con prezzo selezionabile (calcola totale)
+  | 'quantity_picker'; // voce con quantità per opzione (es. 3 menù adulti + 2 bambini)
 
 export interface QuestionOption {
   id: string;
@@ -47,7 +48,7 @@ export interface FormSchema {
 
 // ─── Form Response Types ────────────────────────────────────────────────────
 
-export type AnswerValue = string | string[] | number | null;
+export type AnswerValue = string | string[] | number | Record<string, number> | null;
 
 export interface FormResponse {
   id: string;
