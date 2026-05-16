@@ -305,7 +305,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                 [field]: arrayUnion(ghostId),
                 confermatiIds: arrayUnion(ghostId), // auto-conferma
             });
-            // Crea un movimento contanti così appare nel Conto
+            // Crea un movimento contanti così appare nel Conto e nel riepilogo contanti da consegnare
             const movRef = doc(collection(firestore, 'movimenti-contanti'));
             batch.set(movRef, {
                 raccoltaId: raccolta.id,
@@ -315,7 +315,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                 createdAt: serverTimestamp(),
                 registeredBy: currentUserId || 'system',
                 tipo: 'raccolta',
-                isDelivered: true,
+                isDelivered: false,   // da consegnare al cassiere
                 isDeposited: false,
                 isGhostPayment: true,
             });
