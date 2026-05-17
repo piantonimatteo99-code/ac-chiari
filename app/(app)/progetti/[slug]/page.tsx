@@ -717,18 +717,26 @@ export default function ProgettoDettaglioPage() {
 
                     {/* ── ISCRIZIONI page ────────────────────────────────── */}
                     {compactPage === 'iscrizioni' && (
-                        <SectionCard icon={Users} title="Iscrizioni"
-                            description="Riepilogo e gestione iscrizioni"
-                            action={
-                                <Link href={`/progetti/${slug}/iscrizioni`}>
-                                    <Button size="sm" variant="outline" className="gap-1.5">
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                        Gestisci completo
-                                    </Button>
-                                </Link>
-                            }>
-                            <IscrizioniSummary showLink={false} />
-                        </SectionCard>
+                        isLoadingRaccolta ? (
+                            <p className="text-sm text-muted-foreground">Caricamento raccolta...</p>
+                        ) : raccoltaData ? (
+                            <Accordion type="single" collapsible className="w-full">
+                                <RaccoltaCard raccolta={raccoltaData} onEdit={() => setIsRaccoltaDialogOpen(true)} />
+                            </Accordion>
+                        ) : (
+                            <SectionCard icon={Users} title="Iscrizioni" description="Gestione iscrizioni del progetto">
+                                {canEdit ? (
+                                    <div className="flex items-center gap-3 p-3 border border-dashed rounded-lg">
+                                        <p className="text-sm text-muted-foreground flex-1">Nessuna raccolta fondi collegata a questo progetto.</p>
+                                        <Button size="sm" variant="outline" onClick={() => setIsRaccoltaDialogOpen(true)}>
+                                            <PlusCircle className="mr-2 h-3.5 w-3.5" />Crea Raccolta
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">Nessuna raccolta fondi collegata.</p>
+                                )}
+                            </SectionCard>
+                        )
                     )}
                 </div>
             )}
