@@ -374,34 +374,18 @@ function IdentificationStep({
             const projectData = projectSnap.data();
             const raccoltaId = projectData.raccoltaId as string | undefined;
             if (raccoltaId) {
-              // Aggiunge l'utente ai confermati → compare in Iscrizioni
+              // Solo confermato: il pagamento avviene tramite il flusso normale (bonifico/contanti)
               const raccoltaUpdate: Record<string, any> = {
                 confermatiIds: arrayUnion(u.uid),
               };
-              // Se il form ha un totale → saldo pagato e movimento contanti
+              // Salva l'importo personalizzato del form per mostrarlo in Iscrizioni
               if (total > 0) {
-                raccoltaUpdate.saldoPaidIds = arrayUnion(u.uid);
-                // Crea un movimento contanti così il totale appare nel Conto
-                await addDoc(collection(firestore, 'movimenti-contanti'), {
-                  raccoltaId,
-                  memberId: u.uid,
-                  phase: 'saldo',
-                  importo: total,
-                  note: `Pagamento da modulo: ${form.title}`,
-                  createdAt: serverTimestamp(),
-                  registeredBy: u.uid,
-                  tipo: 'raccolta',
-                  isDelivered: true,
-                  isDeposited: false,
-                  isFormPayment: true,
-                  formId: form.id,
-                });
+                raccoltaUpdate[`formCustomAmounts.${u.uid}`] = total;
               }
               await updateDoc(doc(firestore, 'raccolte', raccoltaId), raccoltaUpdate);
             }
           }
         } catch (e) {
-          // Non bloccare il flusso se la raccolta non esiste o non è collegata
           console.warn('[Form login] Impossibile aggiornare raccolta progetto:', e);
         }
       }

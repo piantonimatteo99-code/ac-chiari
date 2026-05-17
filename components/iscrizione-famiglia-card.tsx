@@ -145,13 +145,15 @@ export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionCha
         const baseSaldo = parseFloat(raccolta.faseSaldo.importo) || 0;
         const scontoFratelliAttivo = raccolta.faseSaldo.tariffaFratelliAttiva && familyMemberCount >= 2;
         const importoSaldoFratelli = parseFloat(raccolta.faseSaldo.importoTariffaFratelli || '0') || baseSaldo;
+        // Usa l'importo personalizzato del form se disponibile
+        const customSaldo = (raccolta as any).formCustomAmounts?.[memberId] as number | undefined;
 
         if (selections.has('caparra') && raccolta.faseCaparra.attiva && !raccolta.faseCaparra.conclusa && !raccolta.caparraPaidIds?.includes(memberId)) {
             caparra = baseCaparra;
         }
 
         if (selections.has('saldo') && raccolta.faseSaldo.attiva && !raccolta.faseSaldo.conclusa && !raccolta.saldoPaidIds?.includes(memberId)) {
-            saldo = scontoFratelliAttivo ? importoSaldoFratelli : baseSaldo;
+            saldo = customSaldo ?? (scontoFratelliAttivo ? importoSaldoFratelli : baseSaldo);
         }
         
         return { caparra, saldo, totale: caparra + saldo };
@@ -253,18 +255,20 @@ export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionCha
             const baseSaldo = parseFloat(raccolta.faseSaldo.importo) || 0;
             const scontoFratelliAttivo = raccolta.faseSaldo.tariffaFratelliAttiva && familyMemberCount >= 2;
             const importoSaldoFratelli = parseFloat(raccolta.faseSaldo.importoTariffaFratelli || '0') || baseSaldo;
+            // Importo personalizzato da modulo (sovrascrive il saldo fisso della raccolta)
+            const customSaldo = (raccolta as any).formCustomAmounts?.[member.id] as number | undefined;
+            const isFromForm = phase === 'saldo' && customSaldo != null;
             
             let amountToShow: number | null = null;
             if (phase === 'caparra') amountToShow = baseCaparra;
-            else amountToShow = scontoFratelliAttivo ? importoSaldoFratelli : baseSaldo;
+            else amountToShow = customSaldo ?? (scontoFratelliAttivo ? importoSaldoFratelli : baseSaldo);
             
             const payment = raccolta.paymentDetails?.[phase]?.[member.id];
 
             let content;
             if (isPaid) {
-                const amountPaid = phase === 'caparra' ? baseCaparra : (scontoFratelliAttivo ? importoSaldoFratelli : baseSaldo);
+                const amountPaid = phase === 'caparra' ? baseCaparra : (customSaldo ?? (scontoFratelliAttivo ? importoSaldoFratelli : baseSaldo));
                  if (payment) {
-                    // Mostra icona file solo se la ricevuta esiste ancora (non eliminata post-approvazione)
                     content = (
                         <div className="flex items-center justify-start text-green-600 gap-2 h-full">
                             <CheckCircle2 className="h-5 w-5" />
@@ -280,7 +284,17 @@ export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionCha
             } else if (isConcluded || !isSelectable) {
                 content = <div className={cn("flex items-center justify-start gap-2 h-full", !isSelectable && "opacity-50")}><Checkbox checked={false} disabled={true} /><span className="text-sm text-muted-foreground">{amountToShow > 0 ? `€${amountToShow.toFixed(2)}` : ''}</span></div>;
             } else {
-                 content = <div className="flex items-center justify-start gap-2 h-full"><Checkbox checked={isSelected} onCheckedChange={() => toggleStandardSelection(member.id, phase)} disabled={!isSelectable} /><span className="text-sm">{amountToShow > 0 ? `€${amountToShow.toFixed(2)}` : ''}</span></div>;
+                 content = (
+                    <div className="flex items-center justify-start gap-2 h-full">
+                        <Checkbox checked={isSelected} onCheckedChange={() => toggleStandardSelection(member.id, phase)} disabled={!isSelectable} />
+                        <span className="text-sm">{amountToShow > 0 ? `€${amountToShow.toFixed(2)}` : ''}</span>
+                        {isFromForm && (
+                            <Badge variant="outline" className="text-[10px] px-1 h-4 border-blue-300 text-blue-600">
+                                Da modulo
+                            </Badge>
+                        )}
+                    </div>
+                );
             }
             return <TableCell className="text-left">{content}</TableCell>;
         };
