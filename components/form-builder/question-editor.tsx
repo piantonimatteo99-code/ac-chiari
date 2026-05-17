@@ -203,11 +203,14 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
             </div>
           )}
 
-          {/* Opzioni (choice/select/price_item) */}
+          {/* Opzioni (choice/select/price_item/quantity_picker) */}
           {HAS_OPTIONS.includes(question.type) && (
             <div className="space-y-2">
               <Label className="text-xs">
-                Opzioni {question.type === 'price_item' && '(con prezzo €)'}
+                Opzioni
+                {(question.type === 'price_item' || question.type === 'quantity_picker') && (
+                  <span className="ml-1 text-muted-foreground font-normal">(con prezzo € per opzione)</span>
+                )}
               </Label>
               <div className="space-y-2">
                 {(question.options ?? []).map((opt, oi) => (
@@ -220,13 +223,14 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
                       placeholder="Etichetta opzione"
                       className="h-7 text-sm flex-1"
                     />
-                    {question.type === 'price_item' && (
+                    {(question.type === 'price_item' || question.type === 'quantity_picker') && (
                       <div className="flex items-center gap-1 shrink-0">
                         <span className="text-xs text-muted-foreground">€</span>
                         <Input
                           id={`q-opt-price-${opt.id}`}
                           type="number"
                           step="0.01"
+                          min="0"
                           value={opt.price ?? ''}
                           onChange={e => updateOption(opt.id, { price: e.target.value ? Number(e.target.value) : undefined })}
                           placeholder="0.00"

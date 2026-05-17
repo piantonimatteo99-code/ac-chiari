@@ -2,7 +2,7 @@
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
-import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
 import { signInWithEmailAndPassword, onAuthStateChanged, type User } from 'firebase/auth';
 import { useFirestore } from '@/src/firebase';
 import { getAuth } from 'firebase/auth';
@@ -359,12 +359,53 @@ function IdentificationStep({
   };
 
   const handleLogin = async () => {
-    if (!auth || !email || !password) return;
+    if (!auth || !email || !password || !firestore) return;
     setIsLoading(true);
     setError('');
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const u = cred.user;
+
+      // ── Aggiorna la raccolta del progetto collegato al form ──
+      if (form.projectId) {
+        try {
+          const projectSnap = await getDoc(doc(firestore, 'progetti', form.projectId));
+          if (projectSnap.exists()) {
+            const projectData = projectSnap.data();
+            const raccoltaId = projectData.raccoltaId as string | undefined;
+            if (raccoltaId) {
+              // Aggiunge l'utente ai confermati → compare in Iscrizioni
+              const raccoltaUpdate: Record<string, any> = {
+                confermatiIds: arrayUnion(u.uid),
+              };
+              // Se il form ha un totale → saldo pagato e movimento contanti
+              if (total > 0) {
+                raccoltaUpdate.saldoPaidIds = arrayUnion(u.uid);
+                // Crea un movimento contanti così il totale appare nel Conto
+                await addDoc(collection(firestore, 'movimenti-contanti'), {
+                  raccoltaId,
+                  memberId: u.uid,
+                  phase: 'saldo',
+                  importo: total,
+                  note: `Pagamento da modulo: ${form.title}`,
+                  createdAt: serverTimestamp(),
+                  registeredBy: u.uid,
+                  tipo: 'raccolta',
+                  isDelivered: true,
+                  isDeposited: false,
+                  isFormPayment: true,
+                  formId: form.id,
+                });
+              }
+              await updateDoc(doc(firestore, 'raccolte', raccoltaId), raccoltaUpdate);
+            }
+          }
+        } catch (e) {
+          // Non bloccare il flusso se la raccolta non esiste o non è collegata
+          console.warn('[Form login] Impossibile aggiornare raccolta progetto:', e);
+        }
+      }
+
       await saveCollectionRow(u.uid, u.displayName ?? u.email ?? undefined, u.email ?? undefined);
       setStep('done');
       setTimeout(onComplete, 1800);
@@ -388,8 +429,37 @@ function IdentificationStep({
     setIsLoading(true);
     setError('');
     try {
-      // isAnonymous = false: l'utente si è identificato con i propri dati
       await saveCollectionRow(undefined, extName.trim(), extEmail.trim() || undefined, extPhone.trim() || undefined);
+
+      // ── Per esterni con totale: crea un movimento nella raccolta del progetto ──
+      if (firestore && form.projectId && total > 0) {
+        try {
+          const projectSnap = await getDoc(doc(firestore, 'progetti', form.projectId));
+          if (projectSnap.exists()) {
+            const raccoltaId = projectSnap.data().raccoltaId as string | undefined;
+            if (raccoltaId) {
+              await addDoc(collection(firestore, 'movimenti-contanti'), {
+                raccoltaId,
+                memberId: null,
+                phase: 'saldo',
+                importo: total,
+                note: `Esterno: ${extName.trim()}${extEmail.trim() ? ` <${extEmail.trim()}>` : ''}${extPhone.trim() ? ` ☎${extPhone.trim()}` : ''} — modulo: ${form.title}`,
+                createdAt: serverTimestamp(),
+                registeredBy: 'form-external',
+                tipo: 'raccolta',
+                isDelivered: false,
+                isDeposited: false,
+                isFormPayment: true,
+                isExternalUser: true,
+                formId: form.id,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('[Form external] Impossibile registrare movimento raccolta:', e);
+        }
+      }
+
       setStep('done');
       setTimeout(onComplete, 1800);
     } catch (e) {
