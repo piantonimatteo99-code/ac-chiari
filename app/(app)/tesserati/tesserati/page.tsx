@@ -201,12 +201,15 @@ export default function TesseratiSubPage() {
         groupName: deleteField()
     });
 
-    // 2. If the member is in a group, remove them from it
+    // 2. If the member is in a group, remove them from it — only if the group doc still exists
     if (member.groupId) {
         const groupDocRef = doc(firestore, 'gruppi', member.groupId);
-        batch.update(groupDocRef, {
-            memberIds: arrayRemove(member.id)
-        });
+        const groupSnap = await getDoc(groupDocRef);
+        if (groupSnap.exists()) {
+            batch.update(groupDocRef, {
+                memberIds: arrayRemove(member.id)
+            });
+        }
     }
 
     try {
@@ -231,10 +234,14 @@ export default function TesseratiSubPage() {
 
     const batch = writeBatch(firestore);
 
+    // Remove from group only if the group document still exists (handles stale groupId)
     const groupDocRef = doc(firestore, 'gruppi', member.groupId);
-    batch.update(groupDocRef, {
-      memberIds: arrayRemove(member.id)
-    });
+    const groupSnap = await getDoc(groupDocRef);
+    if (groupSnap.exists()) {
+        batch.update(groupDocRef, {
+            memberIds: arrayRemove(member.id)
+        });
+    }
 
     batch.update(memberDocRef, {
         groupId: deleteField(),
@@ -250,7 +257,7 @@ export default function TesseratiSubPage() {
   };
 
   const handleChangeGroup = async (member: UnifiedMember, newGroupId: string, newGroupName: string) => {
-    if (!firestore || !member.id || !member.groupId || newGroupId === member.groupId) return;
+    if (!firestore || !member.id || newGroupId === member.groupId) return;
 
     const memberDocRef = await getMemberDocRef(member.id);
     if (!memberDocRef) {
@@ -260,9 +267,14 @@ export default function TesseratiSubPage() {
 
     const batch = writeBatch(firestore);
 
-    // 1. Remove from old group
-    const oldGroupDocRef = doc(firestore, 'gruppi', member.groupId);
-    batch.update(oldGroupDocRef, { memberIds: arrayRemove(member.id) });
+    // 1. Remove from old group — only if the document still exists (handles stale/deleted groupId)
+    if (member.groupId) {
+        const oldGroupDocRef = doc(firestore, 'gruppi', member.groupId);
+        const oldGroupSnap = await getDoc(oldGroupDocRef);
+        if (oldGroupSnap.exists()) {
+            batch.update(oldGroupDocRef, { memberIds: arrayRemove(member.id) });
+        }
+    }
 
     // 2. Add to new group
     const newGroupDocRef = doc(firestore, 'gruppi', newGroupId);
@@ -278,7 +290,7 @@ export default function TesseratiSubPage() {
         await batch.commit();
     } catch (error) {
         console.error("Error changing group with batch write:", error);
-        alert(`Si è verificato un errore during lo spostamento del gruppo: ${error}`);
+        alert(`Si è verificato un errore durante lo spostamento del gruppo: ${error}`);
     }
   };
 
