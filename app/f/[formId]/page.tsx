@@ -366,27 +366,72 @@ function IdentificationStep({
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const u = cred.user;
 
-      // ── Aggiorna la raccolta del progetto collegato al form ──
+      // ── Aggiorna o crea la raccolta del progetto collegato al form ──
       if (form.projectId) {
         try {
-          const projectSnap = await getDoc(doc(firestore, 'progetti', form.projectId));
+          // Legge il profilo utente per ottenere il suo groupId
+          const [projectSnap, userSnap] = await Promise.all([
+            getDoc(doc(firestore, 'progetti', form.projectId)),
+            getDoc(doc(firestore, 'users', u.uid)),
+          ]);
+
+          const userGroupId = userSnap.exists() ? (userSnap.data().groupId as string | undefined) : undefined;
+
           if (projectSnap.exists()) {
             const projectData = projectSnap.data();
-            const raccoltaId = projectData.raccoltaId as string | undefined;
-            if (raccoltaId) {
-              // Solo confermato: il pagamento avviene tramite il flusso normale (bonifico/contanti)
-              const raccoltaUpdate: Record<string, any> = {
-                confermatiIds: arrayUnion(u.uid),
+            let raccoltaId = projectData.raccoltaId as string | undefined;
+
+            if (!raccoltaId) {
+              // ── Crea raccolta automaticamente dal form ──
+              const newRaccolta = {
+                nome: form.collectionTitle || form.title,
+                tipo: 'standard',
+                gruppiId: userGroupId ? [userGroupId] : [],
+                accettaBonifico: true,
+                accettaContanti: false,
+                iban: '',
+                beneficiario: '',
+                // Solo la fase saldo è attiva: mostra l'importo da pagare
+                faseConferma: { attiva: false, importo: '0', dataFine: null, conclusa: false },
+                faseCaparra: { attiva: false, importo: '0', dataFine: null, conclusa: false },
+                faseSaldo: {
+                  attiva: true,
+                  importo: '0', // importo fisso = 0, sovrascitto da formCustomAmounts per utente
+                  dataFine: null,
+                  conclusa: false,
+                  tariffaFratelliAttiva: false,
+                  importoTariffaFratelli: '',
+                },
+                archived: false,
+                confermatiIds: [],
+                caparraPaidIds: [],
+                saldoPaidIds: [],
+                tesseratiIds: [],
+                createdAt: serverTimestamp(),
+                fromFormId: form.id, // traccia l'origine
               };
-              // Salva l'importo personalizzato del form per mostrarlo in Iscrizioni
-              if (total > 0) {
-                raccoltaUpdate[`formCustomAmounts.${u.uid}`] = total;
-              }
-              await updateDoc(doc(firestore, 'raccolte', raccoltaId), raccoltaUpdate);
+              const raccoltaRef = await addDoc(collection(firestore, 'raccolte'), newRaccolta);
+              raccoltaId = raccoltaRef.id;
+              // Collega la raccolta al progetto
+              await updateDoc(doc(firestore, 'progetti', form.projectId), { raccoltaId });
             }
+
+            // Aggiorna la raccolta esistente (o appena creata)
+            const raccoltaUpdate: Record<string, any> = {
+              confermatiIds: arrayUnion(u.uid),
+            };
+            // Assicura che il gruppo dell'utente sia incluso
+            if (userGroupId) {
+              raccoltaUpdate.gruppiId = arrayUnion(userGroupId);
+            }
+            // Salva l'importo personalizzato del form
+            if (total > 0) {
+              raccoltaUpdate[`formCustomAmounts.${u.uid}`] = total;
+            }
+            await updateDoc(doc(firestore, 'raccolte', raccoltaId), raccoltaUpdate);
           }
         } catch (e) {
-          console.warn('[Form login] Impossibile aggiornare raccolta progetto:', e);
+          console.warn('[Form login] Errore aggiornamento raccolta:', e);
         }
       }
 
