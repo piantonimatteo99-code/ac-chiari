@@ -59,14 +59,23 @@ export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionCha
     const firestore = useFirestore();
     const isFromForm = !!(raccolta as any).fromFormId;
     const relevantMembers = useMemo(() => {
+        let members: UnifiedMember[];
         // Raccolta da modulo: mostra chi è nei confermatiIds anche senza gruppo
         if (isFromForm) {
-            return familyMembers.filter(member =>
+            members = familyMembers.filter(member =>
                 (member.groupId && raccolta.gruppiId.includes(member.groupId)) ||
                 raccolta.confermatiIds?.includes(member.id)
             );
+        } else {
+            members = familyMembers.filter(member => member.groupId && raccolta.gruppiId.includes(member.groupId));
         }
-        return familyMembers.filter(member => member.groupId && raccolta.gruppiId.includes(member.groupId));
+        // Deduplica per ID (evita righe doppie se l'utente compare sia come userData sia come membro)
+        const seen = new Set<string>();
+        return members.filter(m => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+        });
     }, [familyMembers, raccolta.gruppiId, raccolta.confermatiIds, isFromForm]);
 
     const [selectedStandardMembers, setSelectedStandardMembers] = useState<Record<string, Set<PaymentPhase>>>(
