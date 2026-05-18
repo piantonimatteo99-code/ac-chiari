@@ -193,6 +193,9 @@ export default function UtentiRegistratiPage() {
   // Delete confirmation
   const [deletingPlaceholder, setDeletingPlaceholder] = useState<ImportedMember | null>(null);
 
+  // Ghost search
+  const [ghostSearch, setGhostSearch] = useState('');
+
   // ── Family Linking state ───────────────────────────────────────────────────
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
   const [familyLinkSearch, setFamilyLinkSearch] = useState('');
@@ -303,6 +306,18 @@ export default function UtentiRegistratiPage() {
     const matchedIds = new Set(matches.map(m => m.placeholder.id));
     return importedMembers.filter(m => !matchedIds.has(m.id));
   }, [importedMembers, matches]);
+
+  const filteredGhosts = useMemo(() => {
+    const q = ghostSearch.toLowerCase().trim();
+    if (!q) return unmatchedPlaceholders;
+    return unmatchedPlaceholders.filter(m =>
+      m.nome.toLowerCase().includes(q) ||
+      m.cognome.toLowerCase().includes(q) ||
+      (m.gruppo ?? '').toLowerCase().includes(q) ||
+      (m.citta ?? '').toLowerCase().includes(q) ||
+      (m.codiceFiscale ?? '').toLowerCase().includes(q)
+    );
+  }, [unmatchedPlaceholders, ghostSearch]);
 
   const filteredRealMembersForManual = useMemo(() => {
      if (!manualMatchSearch) return realMembers;
@@ -993,13 +1008,24 @@ export default function UtentiRegistratiPage() {
           <div className="flex items-center gap-3">
             <CardTitle>Placeholder Importati senza Corrispondenza</CardTitle>
             {!isLoading && (
-              <Badge variant="secondary">{unmatchedPlaceholders.length}</Badge>
+              <Badge variant="secondary">
+                {ghostSearch ? `${filteredGhosts.length} / ${unmatchedPlaceholders.length}` : unmatchedPlaceholders.length}
+              </Badge>
             )}
           </div>
           <CardDescription>
             Ragazzi importati dal database iniziale per i quali non è ancora stata trovata
             una registrazione corrispondente nell'app.
           </CardDescription>
+          <div className="relative mt-2 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Cerca per nome, cognome, gruppo, città..."
+              value={ghostSearch}
+              onChange={e => setGhostSearch(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -1022,14 +1048,14 @@ export default function UtentiRegistratiPage() {
                   <TableCell colSpan={8} className="text-center py-8">Caricamento...</TableCell>
                 </TableRow>
               )}
-              {!isLoading && unmatchedPlaceholders.length === 0 && (
+              {!isLoading && filteredGhosts.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    Nessun placeholder da mostrare.
+                    {ghostSearch ? 'Nessun risultato per la ricerca.' : 'Nessun placeholder da mostrare.'}
                   </TableCell>
                 </TableRow>
               )}
-              {!isLoading && unmatchedPlaceholders.map(m => (
+              {!isLoading && filteredGhosts.map(m => (
                 <TableRow key={m.id}>
                   <TableCell className="font-medium">{m.nome}</TableCell>
                   <TableCell>{m.cognome}</TableCell>
