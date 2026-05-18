@@ -57,9 +57,17 @@ const getTariffaForMember = (member: UnifiedMember, tariffe: Tariffa[]): Tariffa
 
 export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionChange, tariffe }: IscrizioneFamigliaCardProps) {
     const firestore = useFirestore();
-    const relevantMembers = useMemo(() => 
-        familyMembers.filter(member => member.groupId && raccolta.gruppiId.includes(member.groupId)), 
-    [familyMembers, raccolta.gruppiId]);
+    const isFromForm = !!(raccolta as any).fromFormId;
+    const relevantMembers = useMemo(() => {
+        // Raccolta da modulo: mostra chi è nei confermatiIds anche senza gruppo
+        if (isFromForm) {
+            return familyMembers.filter(member =>
+                (member.groupId && raccolta.gruppiId.includes(member.groupId)) ||
+                raccolta.confermatiIds?.includes(member.id)
+            );
+        }
+        return familyMembers.filter(member => member.groupId && raccolta.gruppiId.includes(member.groupId));
+    }, [familyMembers, raccolta.gruppiId, raccolta.confermatiIds, isFromForm]);
 
     const [selectedStandardMembers, setSelectedStandardMembers] = useState<Record<string, Set<PaymentPhase>>>(
         () => Object.fromEntries(relevantMembers.map(m => [m.id, new Set<PaymentPhase>()]))

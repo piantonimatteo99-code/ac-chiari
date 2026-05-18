@@ -58,6 +58,7 @@ export default function IscrizioniPage() {
         return query(collection(firestore, 'raccolte'), where('archived', '!=', true));
     }, [firestore]);
     const { data: raccolte, isLoading: isLoadingRaccolte } = useCollection<Raccolta>(raccolteQuery);
+    const currentUserId = user?.uid;
 
     const membriQuery = useMemoFirebase(() => {
         if (!firestore || !resolvedFamilyId) return null;
@@ -111,26 +112,30 @@ export default function IscrizioniPage() {
         const familyGroupIds = new Set(userAndFamily.map(member => member.groupId).filter(Boolean));
 
         return raccolte.filter(raccolta => {
-            const inGroup = raccolta.gruppiId.some(groupId => familyGroupIds.has(groupId));
-            if (!inGroup) return false;
-
-            if (raccolta.tipo === 'tesseramento') {
-                return true;
-            }
-
             const activePhases = [
                 raccolta.faseConferma,
                 raccolta.faseCaparra,
                 raccolta.faseSaldo
             ].filter(fase => fase.attiva);
 
-            if (activePhases.length === 0) {
-                return false;
+            const hasActivePhase = activePhases.length > 0 && activePhases.some(fase => !fase.conclusa);
+            if (!hasActivePhase) return false;
+
+            // Raccolta creata automaticamente da modulo:
+            // mostra se l'utente corrente è nei confermatiIds (indipendentemente dal gruppo)
+            const isFromForm = !!(raccolta as any).fromFormId;
+            if (isFromForm && currentUserId && raccolta.confermatiIds?.includes(currentUserId)) {
+                return true;
             }
 
-            return activePhases.some(fase => !fase.conclusa);
+            const inGroup = raccolta.gruppiId.some(groupId => familyGroupIds.has(groupId));
+            if (!inGroup) return false;
+
+            if (raccolta.tipo === 'tesseramento') return true;
+
+            return true;
         });
-    }, [raccolte, userAndFamily]);
+    }, [raccolte, userAndFamily, currentUserId]);
     
     const { totalDue, membersToPayCount, paymentItems, relevantRaccolteForDialog } = useMemo(() => {
         let total = 0;
@@ -230,19 +235,31 @@ export default function IscrizioniPage() {
             {!isLoading && relevantRaccolte.length > 0 && (
                 <div className="space-y-8">
                     {relevantRaccolte.map(raccolta => {
-                        const familyMembersForRaccolta = userAndFamily.filter(member => member.groupId && raccolta.gruppiId.includes(member.groupId));
-                        if (familyMembersForRaccolta.length === 0) return null;
+                const isFromForm = !!(raccolta as any).fromFormId;
+                let familyMembersForRaccolta = userAndFamily.filter(
+                    member => member.groupId && raccolta.gruppiId.includes(member.groupId)
+                );
 
-                        return (
-                            <IscrizioneFamigliaCard 
-                                key={raccolta.id}
-                                raccolta={raccolta}
-                                familyMembers={userAndFamily}
-                                onSelectionChange={handleSelectionChange}
-                                tariffe={tariffe}
-                            />
-                        );
-                    })}
+                // Per raccolte da modulo: se nessun membro ha il gruppo giusto
+                // (es. genitore senza groupId), includi chi è nei confermatiIds
+                if (isFromForm && familyMembersForRaccolta.length === 0) {
+                    familyMembersForRaccolta = userAndFamily.filter(
+                        member => raccolta.confermatiIds?.includes(member.id)
+                    );
+                }
+
+                if (familyMembersForRaccolta.length === 0) return null;
+
+                return (
+                    <IscrizioneFamigliaCard 
+                        key={raccolta.id}
+                        raccolta={raccolta}
+                        familyMembers={familyMembersForRaccolta}
+                        onSelectionChange={handleSelectionChange}
+                        tariffe={tariffe}
+                    />
+                );
+            })}
                 </div>
             )}
 
