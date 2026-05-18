@@ -2,7 +2,7 @@
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
-import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, serverTimestamp, updateDoc, arrayUnion, getDocs, query, where } from 'firebase/firestore';
 import { signInWithEmailAndPassword, onAuthStateChanged, type User } from 'firebase/auth';
 import { useFirestore } from '@/src/firebase';
 import { getAuth } from 'firebase/auth';
@@ -366,72 +366,51 @@ function IdentificationStep({
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const u = cred.user;
 
-      // ── Aggiorna o crea la raccolta del progetto collegato al form ──
-      if (form.projectId) {
+      // ── Cerca o crea una raccolta specifica per questo form (MAI toccare quella del progetto) ──
+      if (form.generateCollection) {
         try {
-          // Legge il profilo utente per ottenere il suo groupId
-          const [projectSnap, userSnap] = await Promise.all([
-            getDoc(doc(firestore, 'progetti', form.projectId)),
+          const [userSnap, existingRaccoltaSnap] = await Promise.all([
             getDoc(doc(firestore, 'users', u.uid)),
+            getDocs(query(collection(firestore, 'raccolte'), where('fromFormId', '==', form.id))),
           ]);
 
           const userGroupId = userSnap.exists() ? (userSnap.data().groupId as string | undefined) : undefined;
+          let raccoltaId: string;
 
-          if (projectSnap.exists()) {
-            const projectData = projectSnap.data();
-            let raccoltaId = projectData.raccoltaId as string | undefined;
-
-            if (!raccoltaId) {
-              // ── Crea raccolta automaticamente dal form ──
-              const newRaccolta = {
-                nome: form.collectionTitle || form.title,
-                tipo: 'standard',
-                gruppiId: userGroupId ? [userGroupId] : [],
-                accettaBonifico: true,
-                accettaContanti: false,
-                iban: '',
-                beneficiario: '',
-                // Solo la fase saldo è attiva: mostra l'importo da pagare
-                faseConferma: { attiva: false, importo: '0', dataFine: null, conclusa: false },
-                faseCaparra: { attiva: false, importo: '0', dataFine: null, conclusa: false },
-                faseSaldo: {
-                  attiva: true,
-                  importo: '0', // importo fisso = 0, sovrascitto da formCustomAmounts per utente
-                  dataFine: null,
-                  conclusa: false,
-                  tariffaFratelliAttiva: false,
-                  importoTariffaFratelli: '',
-                },
-                archived: false,
-                confermatiIds: [],
-                caparraPaidIds: [],
-                saldoPaidIds: [],
-                tesseratiIds: [],
-                createdAt: serverTimestamp(),
-                fromFormId: form.id, // traccia l'origine
-              };
-              const raccoltaRef = await addDoc(collection(firestore, 'raccolte'), newRaccolta);
-              raccoltaId = raccoltaRef.id;
-              // Collega la raccolta al progetto
-              await updateDoc(doc(firestore, 'progetti', form.projectId), { raccoltaId });
-            }
-
-            // Aggiorna la raccolta esistente (o appena creata)
-            const raccoltaUpdate: Record<string, any> = {
-              confermatiIds: arrayUnion(u.uid),
-            };
-            // Assicura che il gruppo dell'utente sia incluso
-            if (userGroupId) {
-              raccoltaUpdate.gruppiId = arrayUnion(userGroupId);
-            }
-            // Salva l'importo personalizzato del form
-            if (total > 0) {
-              raccoltaUpdate[`formCustomAmounts.${u.uid}`] = total;
-            }
-            await updateDoc(doc(firestore, 'raccolte', raccoltaId), raccoltaUpdate);
+          if (existingRaccoltaSnap.empty) {
+            // Crea raccolta separata per il form
+            const DEFAULT_IBAN = 'IT67Q0200854341000100216072';
+            const DEFAULT_BENEFICIARIO = 'PARROCCHIA DEI SANTI FAUSTINO E GIOVITA UNICREDIT';
+            const raccoltaRef = await addDoc(collection(firestore, 'raccolte'), {
+              nome: form.collectionTitle || form.title,
+              tipo: 'standard',
+              gruppiId: userGroupId ? [userGroupId] : [],
+              accettaBonifico: true,
+              accettaContanti: true,
+              iban: DEFAULT_IBAN,
+              beneficiario: DEFAULT_BENEFICIARIO,
+              faseConferma: { attiva: false, importo: '0', dataFine: null, conclusa: false },
+              faseCaparra: { attiva: false, importo: '0', dataFine: null, conclusa: false },
+              faseSaldo: { attiva: true, importo: '0', dataFine: null, conclusa: false, tariffaFratelliAttiva: false, importoTariffaFratelli: '' },
+              archived: false,
+              confermatiIds: [],
+              caparraPaidIds: [],
+              saldoPaidIds: [],
+              tesseratiIds: [],
+              createdAt: serverTimestamp(),
+              fromFormId: form.id,
+            });
+            raccoltaId = raccoltaRef.id;
+          } else {
+            raccoltaId = existingRaccoltaSnap.docs[0].id;
           }
+
+          const raccoltaUpdate: Record<string, any> = { confermatiIds: arrayUnion(u.uid) };
+          if (userGroupId) raccoltaUpdate.gruppiId = arrayUnion(userGroupId);
+          if (total > 0) raccoltaUpdate[`formCustomAmounts.${u.uid}`] = total;
+          await updateDoc(doc(firestore, 'raccolte', raccoltaId), raccoltaUpdate);
         } catch (e) {
-          console.warn('[Form login] Errore aggiornamento raccolta:', e);
+          console.warn('[Form login] Errore raccolta:', e);
         }
       }
 

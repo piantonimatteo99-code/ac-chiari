@@ -235,26 +235,11 @@ export default function IscrizioniPage() {
             {!isLoading && relevantRaccolte.length > 0 && (
                 <div className="space-y-8">
                     {relevantRaccolte.map(raccolta => {
-                const isFromForm = !!(raccolta as any).fromFormId;
-                let familyMembersForRaccolta = userAndFamily.filter(
-                    member => member.groupId && raccolta.gruppiId.includes(member.groupId)
-                );
-
-                // Per raccolte da modulo: se nessun membro ha il gruppo giusto
-                // (es. genitore senza groupId), includi chi è nei confermatiIds
-                if (isFromForm && familyMembersForRaccolta.length === 0) {
-                    familyMembersForRaccolta = userAndFamily.filter(
-                        member => raccolta.confermatiIds?.includes(member.id)
-                    );
-                }
-
-                if (familyMembersForRaccolta.length === 0) return null;
-
                 return (
                     <IscrizioneFamigliaCard 
                         key={raccolta.id}
                         raccolta={raccolta}
-                        familyMembers={familyMembersForRaccolta}
+                        familyMembers={userAndFamily}
                         onSelectionChange={handleSelectionChange}
                         tariffe={tariffe}
                     />
