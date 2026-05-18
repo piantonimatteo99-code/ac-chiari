@@ -16,10 +16,11 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Plus, Save, Eye, Loader2, Link2, Copy, Check,
-  ClipboardList, Settings, Sparkles,
+  ClipboardList, Settings, Sparkles, Banknote, Calendar,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { AiFormGeneratorDialog } from './ai-form-generator-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 
 const DEFAULT_QUESTION = (): FormQuestion => ({
   id: nanoid(8),
@@ -48,6 +49,21 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
   const [allowAnonymous, setAllowAnonymous] = useState(existingForm?.allowAnonymous ?? true);
   const [generateCollection, setGenerateCollection] = useState(existingForm?.generateCollection ?? false);
   const [collectionTitle, setCollectionTitle] = useState(existingForm?.collectionTitle ?? '');
+  // Pagamento
+  const DEFAULT_IBAN = 'IT67Q0200854341000100216072';
+  const DEFAULT_BENEFICIARIO = 'PARROCCHIA DEI SANTI FAUSTINO E GIOVITA UNICREDIT – AG. CHIARI';
+  const [accettaBonifico, setAccettaBonifico] = useState(existingForm?.accettaBonifico ?? true);
+  const [accettaContanti, setAccettaContanti] = useState(existingForm?.accettaContanti ?? false);
+  const [iban, setIban] = useState(existingForm?.iban ?? DEFAULT_IBAN);
+  const [beneficiario, setBeneficiario] = useState(existingForm?.beneficiario ?? DEFAULT_BENEFICIARIO);
+  // Scadenza
+  const parseCloseAt = (val: any): Date | undefined => {
+    if (!val) return undefined;
+    if (val?.toDate) return val.toDate();
+    if (val instanceof Date) return val;
+    return undefined;
+  };
+  const [closeAt, setCloseAt] = useState<Date | undefined>(parseCloseAt(existingForm?.closeAt));
   const [isSaving, setIsSaving] = useState(false);
   const [savedFormId, setSavedFormId] = useState<string | null>(existingForm?.id ?? null);
   const [copied, setCopied] = useState(false);
@@ -120,6 +136,11 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
         allowAnonymous,
         generateCollection,
         collectionTitle: generateCollection ? (collectionTitle.trim() || title.trim()) : null,
+        accettaBonifico,
+        accettaContanti,
+        iban: accettaBonifico ? iban : null,
+        beneficiario: accettaBonifico ? beneficiario : null,
+        closeAt: closeAt ?? null,
         status,
         updatedAt: serverTimestamp(),
       };
@@ -386,6 +407,93 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
                     </ul>
                   </div>
                 </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ── Card Pagamento ── */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Banknote className="h-4 w-4 text-green-600" />
+                Metodi di pagamento accettati
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Usati per la raccolta automatica in Iscrizioni
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Accetta bonifico</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Pagamento tramite bonifico bancario</p>
+                </div>
+                <Switch id="form-bonifico" checked={accettaBonifico} onCheckedChange={setAccettaBonifico} />
+              </div>
+              {accettaBonifico && (
+                <div className="space-y-3 pl-3 border-l-2 border-muted">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">IBAN</Label>
+                    <Input
+                      id="form-iban"
+                      value={iban}
+                      onChange={e => setIban(e.target.value.toUpperCase())}
+                      placeholder="IT00X0000000000000000000000"
+                      className="h-8 text-sm font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Beneficiario</Label>
+                    <Input
+                      id="form-beneficiario"
+                      value={beneficiario}
+                      onChange={e => setBeneficiario(e.target.value)}
+                      placeholder="Es. Parrocchia di San Pancrazio"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Accetta contanti</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Pagamento in contanti al momento</p>
+                </div>
+                <Switch id="form-contanti" checked={accettaContanti} onCheckedChange={setAccettaContanti} />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ── Card Scadenza ── */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-blue-600" />
+                Scadenza accettazione risposte
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Il modulo verrà chiuso automaticamente dopo questa data. Sarà possibile riaprirlo manualmente.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Data ultima per le risposte</Label>
+                <DatePicker date={closeAt} setDate={setCloseAt} />
+              </div>
+              {closeAt && (
+                <p className="text-xs text-muted-foreground">
+                  Il modulo si chiuderà automaticamente il {closeAt.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })}.
+                </p>
+              )}
+              {closeAt && (
+                <button
+                  type="button"
+                  className="text-xs text-destructive hover:underline"
+                  onClick={() => setCloseAt(undefined)}
+                >
+                  Rimuovi scadenza
+                </button>
               )}
             </CardContent>
           </Card>

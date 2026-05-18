@@ -41,6 +41,13 @@ export interface FormSchema {
   allowAnonymous: boolean;  // se si può compilare senza account
   generateCollection: boolean; // "Genera raccolta automatica"
   collectionTitle?: string; // titolo della raccolta generata
+  // Impostazioni pagamento (usate per la raccolta automatica)
+  accettaBonifico?: boolean;
+  accettaContanti?: boolean;
+  iban?: string;
+  beneficiario?: string;
+  // Scadenza: chiude automaticamente il form dopo questa data
+  closeAt?: any;            // Firestore Timestamp o null
   status: 'draft' | 'active' | 'closed';
   createdAt: any;
   updatedAt: any;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-  collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp,
+  collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, deleteDoc,
 } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/src/firebase';
 import type { FormSchema } from '@/src/types/form-types';
@@ -13,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   ClipboardList, Plus, ChevronRight, Eye, EyeOff,
-  BarChart2, Edit2, Copy, Check, Link2,
+  BarChart2, Edit2, Copy, Check, Link2, Trash2,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { format } from 'date-fns';
@@ -62,6 +62,13 @@ export function ProjectFormsSection({ projectId, canEdit }: Props) {
       updatedAt: serverTimestamp(),
     });
     toast({ title: newStatus === 'active' ? 'Modulo aperto' : 'Modulo chiuso' });
+  };
+
+  const handleDelete = async (form: FormSchema) => {
+    if (!firestore) return;
+    if (!window.confirm(`Eliminare definitivamente il modulo "${form.title}"? L'azione è irreversibile.`)) return;
+    await deleteDoc(doc(firestore, 'forms', form.id));
+    toast({ title: 'Modulo eliminato' });
   };
 
   const formatDate = (ts: any) => {
@@ -230,6 +237,15 @@ export function ProjectFormsSection({ projectId, canEdit }: Props) {
                         {form.status === 'active'
                           ? <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
                           : <Eye className="h-3.5 w-3.5 text-muted-foreground" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 hover:text-destructive"
+                        title="Elimina modulo"
+                        onClick={() => handleDelete(form)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
                     </>
                   )}

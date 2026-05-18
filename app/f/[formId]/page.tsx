@@ -378,17 +378,15 @@ function IdentificationStep({
           let raccoltaId: string;
 
           if (existingRaccoltaSnap.empty) {
-            // Crea raccolta separata per il form
-            const DEFAULT_IBAN = 'IT67Q0200854341000100216072';
-            const DEFAULT_BENEFICIARIO = 'PARROCCHIA DEI SANTI FAUSTINO E GIOVITA UNICREDIT';
+            // Crea raccolta separata per il form usando le sue impostazioni di pagamento
             const raccoltaRef = await addDoc(collection(firestore, 'raccolte'), {
               nome: form.collectionTitle || form.title,
               tipo: 'standard',
               gruppiId: userGroupId ? [userGroupId] : [],
-              accettaBonifico: true,
-              accettaContanti: true,
-              iban: DEFAULT_IBAN,
-              beneficiario: DEFAULT_BENEFICIARIO,
+              accettaBonifico: form.accettaBonifico ?? true,
+              accettaContanti: form.accettaContanti ?? false,
+              iban: form.iban ?? 'IT67Q0200854341000100216072',
+              beneficiario: form.beneficiario ?? 'PARROCCHIA DEI SANTI FAUSTINO E GIOVITA UNICREDIT',
               faseConferma: { attiva: false, importo: '0', dataFine: null, conclusa: false },
               faseCaparra: { attiva: false, importo: '0', dataFine: null, conclusa: false },
               faseSaldo: { attiva: true, importo: '0', dataFine: null, conclusa: false, tariffaFratelliAttiva: false, importoTariffaFratelli: '' },
@@ -689,6 +687,18 @@ export default function PublicFormPage() {
         if (!snap.exists()) { setNotFound(true); return; }
         const data = { id: snap.id, ...snap.data() } as FormSchema;
         if (data.status === 'closed') { setNotFound(true); return; }
+
+        // Controlla se la scadenza è passata: chiude automaticamente il form
+        if (data.closeAt && data.status === 'active') {
+          const closeDate = data.closeAt.toDate ? data.closeAt.toDate() : new Date(data.closeAt);
+          if (closeDate < new Date()) {
+            // Auto-chiude il form in Firestore
+            await updateDoc(doc(firestore, 'forms', formId), { status: 'closed', updatedAt: serverTimestamp() });
+            setNotFound(true);
+            return;
+          }
+        }
+
         setForm(data);
       } catch {
         setNotFound(true);
