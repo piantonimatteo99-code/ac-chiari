@@ -16,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2, Pencil, ExternalLink, MapPin, Phone, Mail, Users, Sun, Snowflake, Info, Search } from 'lucide-react';
+import { Plus, Trash2, Pencil, ExternalLink, MapPin, Phone, Mail, Users, Sun, Snowflake, Info, Search, X } from 'lucide-react';
 
 export interface Casa {
   id: string;
@@ -181,13 +181,24 @@ export default function TabCase() {
   const [editingCasa, setEditingCasa] = useState<Casa | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [filterStagione, setFilterStagione] = useState<'tutti' | 'estate' | 'inverno'>('tutti');
+  const [filterPostiMin, setFilterPostiMin] = useState<number>(0);
 
-  const filtered_list = search.trim()
-    ? case_list.filter(c =>
-        [c.nome, c.luogo, c.telefonoContatto, c.mailContatto, c.note]
-          .join(' ').toLowerCase().includes(search.toLowerCase())
-      )
-    : case_list;
+  const hasActiveFilters = filterStagione !== 'tutti' || filterPostiMin > 0;
+
+  const resetFilters = () => {
+    setSearch('');
+    setFilterStagione('tutti');
+    setFilterPostiMin(0);
+  };
+
+  const filtered_list = case_list.filter(c => {
+    if (search.trim() && ![c.nome, c.luogo, c.telefonoContatto, c.mailContatto, c.note].join(' ').toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterStagione === 'estate' && !c.utilizzabileEstate) return false;
+    if (filterStagione === 'inverno' && !c.utilizzabileInverno) return false;
+    if (filterPostiMin > 0 && (c.maxPosti ?? 0) < filterPostiMin) return false;
+    return true;
+  });
 
   const saveCasa = async (data: Partial<Casa>, id?: string) => {
     if (!firestore || !user) return;
@@ -216,16 +227,8 @@ export default function TabCase() {
 
   return (
     <div className="space-y-4">
+      {/* Top bar */}
       <div className="flex items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cerca struttura..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-8"
-          />
-        </div>
         <h2 className="text-xl font-semibold">Case / Strutture</h2>
         {isAdmin && (
           <Dialog open={openAdd} onOpenChange={setOpenAdd}>
@@ -238,6 +241,65 @@ export default function TabCase() {
             </DialogContent>
           </Dialog>
         )}
+      </div>
+
+      {/* Search + Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cerca per nome, luogo, contatto..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+
+        {/* Stagione */}
+        <div className="flex items-center rounded-lg border overflow-hidden">
+          <button
+            onClick={() => setFilterStagione('tutti')}
+            className={`px-3 py-1.5 text-sm transition-colors ${
+              filterStagione === 'tutti' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+            }`}
+          >Tutti</button>
+          <button
+            onClick={() => setFilterStagione('estate')}
+            className={`px-3 py-1.5 text-sm flex items-center gap-1 border-l transition-colors ${
+              filterStagione === 'estate' ? 'bg-amber-500 text-white' : 'hover:bg-muted'
+            }`}
+          ><Sun className="h-3.5 w-3.5" />Estate</button>
+          <button
+            onClick={() => setFilterStagione('inverno')}
+            className={`px-3 py-1.5 text-sm flex items-center gap-1 border-l transition-colors ${
+              filterStagione === 'inverno' ? 'bg-sky-500 text-white' : 'hover:bg-muted'
+            }`}
+          ><Snowflake className="h-3.5 w-3.5" />Inverno</button>
+        </div>
+
+        {/* Posti minimi */}
+        <Select value={String(filterPostiMin)} onValueChange={v => setFilterPostiMin(Number(v))}>
+          <SelectTrigger className="w-40">
+            <Users className="h-3.5 w-3.5 mr-1" />
+            <SelectValue placeholder="Posti minimi" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0">Qualsiasi capienza</SelectItem>
+            <SelectItem value="30">&ge; 30 posti</SelectItem>
+            <SelectItem value="50">&ge; 50 posti</SelectItem>
+            <SelectItem value="80">&ge; 80 posti</SelectItem>
+            <SelectItem value="100">&ge; 100 posti</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Reset */}
+        {(hasActiveFilters || search) && (
+          <Button variant="ghost" size="sm" onClick={resetFilters} className="gap-1 text-muted-foreground">
+            <X className="h-3.5 w-3.5" />Reset
+          </Button>
+        )}
+
+        <span className="text-xs text-muted-foreground ml-auto">{filtered_list.length} / {case_list.length} strutture</span>
       </div>
 
       <Card>
