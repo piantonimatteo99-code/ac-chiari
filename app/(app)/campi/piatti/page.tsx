@@ -97,7 +97,7 @@ function IngredienteRow({
   };
 
   return (
-    <div className="grid grid-cols-[minmax(0,6.5rem)_3.5rem_4rem_6.5rem_2rem] gap-1.5 items-center">
+    <div className="grid grid-cols-[1fr_5rem_5.5rem_7rem_2rem] gap-2 items-center">
       {/* Nome con autocomplete */}
       <div className="relative" ref={wrapRef}>
         <Input
@@ -208,7 +208,13 @@ function PiattoForm({
     const extra = extraAllergeni.split(',').map(s => s.trim()).filter(Boolean);
     const allergeniNote = [...Array.from(checkedAllergeni), ...extra].join(', ');
     const noteFinale = [allergeniNote, noteLibere].filter(Boolean).join(' | ');
-    await onSave({ nome, categoria, porzioniBase, note: noteFinale, ingredienti });
+    // Firestore rejects undefined values — strip them from each ingrediente
+    const ingredientiClean = ingredienti.map(ing => {
+      const clean: any = { nome: ing.nome, quantitaPerPersona: ing.quantitaPerPersona, unita: ing.unita };
+      if (ing.prezzoPerUnita !== undefined && !isNaN(ing.prezzoPerUnita)) clean.prezzoPerUnita = ing.prezzoPerUnita;
+      return clean;
+    });
+    await onSave({ nome, categoria, porzioniBase, note: noteFinale, ingredienti: ingredientiClean });
     setSaving(false);
     onClose();
   };
@@ -261,7 +267,7 @@ function PiattoForm({
             </p>
           )}
         {ingredienti.length > 0 && (
-          <div className="grid grid-cols-[minmax(0,6.5rem)_3.5rem_4rem_6.5rem_2rem] gap-1.5 text-xs text-muted-foreground px-0.5 mb-1">
+          <div className="grid grid-cols-[1fr_5rem_5.5rem_7rem_2rem] gap-2 text-xs text-muted-foreground px-0.5 mb-1">
             <span>Ingrediente</span><span>Qtà</span><span>Unità</span><span>Prezzo</span><span />
           </div>
         )}
