@@ -97,7 +97,7 @@ function IngredienteRow({
   };
 
   return (
-    <div className="grid grid-cols-[1fr_5rem_5.5rem_7rem_2rem] gap-2 items-center">
+    <div className="grid grid-cols-[1fr_4.5rem_5rem_6.5rem_2rem] gap-2 items-center">
       {/* Nome con autocomplete */}
       <div className="relative" ref={wrapRef}>
         <Input
@@ -267,7 +267,7 @@ function PiattoForm({
             </p>
           )}
         {ingredienti.length > 0 && (
-          <div className="grid grid-cols-[1fr_5rem_5.5rem_7rem_2rem] gap-2 text-xs text-muted-foreground px-0.5 mb-1">
+          <div className="grid grid-cols-[1fr_4.5rem_5rem_6.5rem_2rem] gap-2 text-xs text-muted-foreground px-0.5 mb-1">
             <span>Ingrediente</span><span>Qtà</span><span>Unità</span><span>Prezzo</span><span />
           </div>
         )}
@@ -628,7 +628,7 @@ export default function PiattiPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={o => { if (!o) { setEditingPiatto(null); } setFormOpen(o); }}>
-        <DialogContent className="sm:max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
+        <DialogContent className="sm:max-w-3xl max-h-[88vh] flex flex-col overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <CookingPot className="h-5 w-5" />
