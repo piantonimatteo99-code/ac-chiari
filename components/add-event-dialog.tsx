@@ -27,6 +27,20 @@ import { it as itLocale } from 'date-fns/locale';
 import { Separator } from './ui/separator';
 import { slugify } from '@/lib/utils';
 import { ConfirmationDialog } from './confirmation-dialog';
+import { isSameDay } from 'date-fns';
+
+/** Adds 1 hour to a HH:mm string; returns new time and whether it crossed midnight. */
+function addOneHour(time: string): { time: string; nextDay: boolean } {
+  const [h, m] = time.split(':').map(Number);
+  const totalMinutes = h * 60 + m + 60;
+  const nextDay = totalMinutes >= 24 * 60;
+  const newH = Math.floor(totalMinutes / 60) % 24;
+  const newM = totalMinutes % 60;
+  return {
+    time: `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`,
+    nextDay,
+  };
+}
 
 export type TipoCampo = 'campo_elementari' | 'campo_medie' | 'campo_estivo';
 
@@ -182,6 +196,19 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
             setEndDate(startDate);
         }
     }, [startDate, endDate]);
+
+    // Auto-update end time to startTime + 1h when start time changes (non-allDay events)
+    useEffect(() => {
+        if (allDay) return;
+        const { time: newEndTime, nextDay } = addOneHour(startTime);
+        setEndTime(newEndTime);
+        if (nextDay && startDate) {
+            const nextDate = new Date(startDate);
+            nextDate.setDate(nextDate.getDate() + 1);
+            setEndDate(nextDate);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [startTime, allDay]);
     
     const handleGroupToggle = (groupId: string, isChecked: boolean) => {
         setSelectedGroups(prev => 
@@ -517,7 +544,15 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                                 <Label htmlFor="end-date">Fine</Label>
                                 <div className="grid grid-cols-[1fr_auto] gap-2">
                                     <DatePicker date={endDate} setDate={setEndDate} disabled={startDate ? { before: startDate } : undefined} />
-                                    {!allDay && <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-[120px]"/>}
+                                    {!allDay && (
+                                      <Input
+                                        type="time"
+                                        value={endTime}
+                                        onChange={(e) => setEndTime(e.target.value)}
+                                        min={startDate && endDate && isSameDay(startDate, endDate) ? startTime : undefined}
+                                        className="w-[120px]"
+                                      />
+                                    )}
                                 </div>
                             </div>
                         </div>
