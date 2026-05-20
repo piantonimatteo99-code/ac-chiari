@@ -255,34 +255,38 @@ export function NotificationBell() {
             )}
           >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-            <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-sm">Notifiche</span>
-              {unreadCount > 0 && tab === 'notifiche' && (
-                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{unreadCount} nuove</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              {unreadCount > 0 && tab === 'notifiche' && (
-                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={markAllAsRead}>
-                  <CheckCheck className="h-3 w-3" /> Tutte lette
-                </Button>
-              )}
-              {notifiche.length > 0 && tab === 'notifiche' && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={deleteAllNotifiche}
-                >
-                  <Trash2 className="h-3 w-3" /> Elimina tutte
-                </Button>
-              )}
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(false)}>
+          <div className="flex flex-col px-4 py-2.5 border-b bg-muted/30 gap-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-primary" />
+                <span className="font-semibold text-sm">Notifiche</span>
+                {unreadCount > 0 && tab === 'notifiche' && (
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{unreadCount} nuove</Badge>
+                )}
+              </div>
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setOpen(false)}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
+            {tab === 'notifiche' && (unreadCount > 0 || notifiche.length > 0) && (
+              <div className="flex items-center gap-1">
+                {unreadCount > 0 && (
+                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground px-2" onClick={markAllAsRead}>
+                    <CheckCheck className="h-3 w-3" /> Tutte lette
+                  </Button>
+                )}
+                {notifiche.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 px-2"
+                    onClick={deleteAllNotifiche}
+                  >
+                    <Trash2 className="h-3 w-3" /> Elimina tutte
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Tabs */}
@@ -395,7 +399,6 @@ export function NotificationBell() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <p className="text-sm font-medium leading-tight">{def.label}</p>
-                                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">DEFAULT ON</span>
                               </div>
                               <p className="text-[11px] text-muted-foreground mt-0.5">
                                 <Moon className="h-2.5 w-2.5 inline mr-0.5 -mt-px" />
@@ -423,7 +426,6 @@ export function NotificationBell() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <p className="text-sm font-medium leading-tight">{def.label}</p>
-                                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">DEFAULT ON</span>
                               </div>
                               <p className="text-[11px] text-muted-foreground mt-0.5">
                                 <Sun className="h-2.5 w-2.5 inline mr-0.5 -mt-px" />
