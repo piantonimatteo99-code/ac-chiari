@@ -55,6 +55,13 @@
         { "fieldPath": "projectId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "eventi",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "startDate", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

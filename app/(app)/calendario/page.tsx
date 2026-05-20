@@ -284,12 +284,30 @@ export default function CalendarioPage() {
     return groups?.find(g => g.id === selectedGroup)?.name ?? 'Gruppo';
   }, [selectedGroup, groups]);
 
-  // Merge app events with Google Calendar events
+  // Merge app events with Google Calendar events, deduplicating events
+  // that were pushed to GCal from the app (same title + start time ±2 min).
   const allEvents = useMemo<CalendarEvent[]>(() => {
     const appEvents: CalendarEvent[] = filteredEvents.map(e => ({ ...e, isGoogleCalendar: false as const }));
     if (!googleCalendar.isConnected) return appEvents;
     const gcalEvents = selectedGroup === 'tutti' ? googleCalendar.events : [];
-    return [...appEvents, ...gcalEvents];
+
+    // Build a set of "title|startMinute" keys from app events for fast dedup lookup
+    const appEventKeys = new Set<string>();
+    appEvents.forEach(e => {
+      const start = e.startDate instanceof Date ? e.startDate : (e.startDate as any)?.toDate ? (e.startDate as any).toDate() : new Date(e.startDate as any);
+      // Round to nearest 2-minute bucket to tolerate minor timezone rounding
+      const bucket = Math.round(start.getTime() / (2 * 60 * 1000));
+      appEventKeys.add(`${(e.title ?? '').trim().toLowerCase()}|${bucket}`);
+    });
+
+    const uniqueGcalEvents = gcalEvents.filter(ev => {
+      const start = ev.startDate instanceof Date ? ev.startDate : new Date(ev.startDate as any);
+      const bucket = Math.round(start.getTime() / (2 * 60 * 1000));
+      const key = `${(ev.title ?? '').trim().toLowerCase()}|${bucket}`;
+      return !appEventKeys.has(key);
+    });
+
+    return [...appEvents, ...uniqueGcalEvents];
   }, [filteredEvents, googleCalendar.isConnected, googleCalendar.events, selectedGroup]);
 
   const handleEditEvent = (event: CalendarEvent) => {

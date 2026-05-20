@@ -102,8 +102,8 @@ async function processReminders(type: 'sera' | 'mezzogiorno'): Promise<NextRespo
 
     // ── Trova eventi nella finestra ──────────────────────────────────────────
     const eventiSnap = await adminDb.collection('eventi')
-      .where('start', '>=', Timestamp.fromDate(windowStart))
-      .where('start', '<=', Timestamp.fromDate(windowEnd))
+      .where('startDate', '>=', Timestamp.fromDate(windowStart))
+      .where('startDate', '<=', Timestamp.fromDate(windowEnd))
       .get();
 
     if (eventiSnap.empty) {
@@ -116,7 +116,7 @@ async function processReminders(type: 'sera' | 'mezzogiorno'): Promise<NextRespo
     for (const eventoDoc of eventiSnap.docs) {
       const evento = eventoDoc.data() as any;
       const eventoTitolo: string = evento.title ?? evento.nome ?? 'Evento';
-      const eventoStart: Timestamp = evento.start;
+      const eventoStart: Timestamp = evento.startDate;
       const groupIds: string[] = Array.isArray(evento.groupIds)
         ? evento.groupIds
         : evento.groupId
