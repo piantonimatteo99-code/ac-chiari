@@ -16,3 +16,12 @@ env:
     secret: smtp-password
     availability:
       - RUNTIME
+  - variable: GEMMAFLOW_SMTP_USER
+    value: piantonimatteo.99@gmail.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: GEMMAFLOW_SMTP_PASSWORD
+    secret: gemmaflow-smtp-password
+    availability:
+      - RUNTIME

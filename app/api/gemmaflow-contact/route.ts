@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Controlla SMTP ──────────────────────────────────────────────────────
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD;
+    const smtpUser = process.env.GEMMAFLOW_SMTP_USER;
+    const smtpPassword = process.env.GEMMAFLOW_SMTP_PASSWORD;
 
     if (!smtpUser || !smtpPassword) {
       console.error('[gemmaflow-contact] SMTP non configurato');
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     await transporter.sendMail({
       from: `"gemmaflow.it" <${smtpUser}>`,
-      to: 'piantonimatteo.99@gmail.com',
+      to: smtpUser,   // piantonimatteo.99@gmail.com riceve a se stesso
       replyTo: email,
       subject: `[gemmaflow.it] Nuova richiesta di contatto da ${name}`,
       html: htmlBody,
