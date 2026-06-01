@@ -12,7 +12,7 @@ function capitalizeFirst(value: string) {
 }
 
 // Types that should NOT be auto-capitalized (email, password, url, search behave differently)
-const NO_CAPITALIZE_TYPES = ['email', 'password', 'url'];
+const NO_CAPITALIZE_TYPES = ['email', 'password', 'url', 'date', 'number', 'tel'];
 // Auto-capitalize only applies to plain text inputs
 const shouldCapitalize = (type: string | undefined) =>
   !type || (!NO_CAPITALIZE_TYPES.includes(type));

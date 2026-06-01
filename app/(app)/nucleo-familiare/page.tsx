@@ -22,6 +22,12 @@ import { useUserData } from '@/src/hooks/use-user-data';
 import { ConfirmationDialog } from '@/components/confirmation-dialog';
 
 
+export interface PersonaAutorizzata {
+  nome: string;
+  cognome: string;
+  telefono?: string;
+}
+
 export interface Membro {
   id: string;
   nome: string;
@@ -40,6 +46,9 @@ export interface Membro {
   consensoFoto?: boolean;
   consensoSocial?: boolean;
   linkedUserId?: string;
+  // Campi per minorenni
+  personaAutorizzata?: PersonaAutorizzata[];
+  puoRientrareInAutonomia?: boolean;
 }
 
 export default function NucleoFamiliarePage() {

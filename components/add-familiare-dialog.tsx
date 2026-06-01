@@ -13,12 +13,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { useFirestore } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, setDoc } from 'firebase/firestore';
-import type { Membro as MembroBase } from '@/app/(app)/nucleo-familiare/page';
+import type { Membro as MembroBase, PersonaAutorizzata } from '@/app/(app)/nucleo-familiare/page';
 import { User } from 'firebase/auth';
 import { UserData } from '@/src/hooks/use-user-data';
 import { triggerNotification } from '@/lib/trigger-notification';
+import { PlusCircle, Trash2, UserCheck } from 'lucide-react';
 
 
 type Membro = Omit<MembroBase, 'id'>;
@@ -40,7 +42,9 @@ const initialMembroState: Membro = {
   telefonoPrincipale: '',
   telefonoSecondario: '',
   allergie: '',
-  consenso: true,  // Consenso foto + social, spuntato di default
+  consenso: true,
+  personaAutorizzata: [],
+  puoRientrareInAutonomia: false,
 };
 
 const initialAnagraficaState = {
@@ -51,21 +55,28 @@ const initialAnagraficaState = {
     cap: '',
 };
 
-const capitalizeWords = (str: string) => {
-  if (!str) return '';
-  return str.replace(/\b\w/g, char => char.toUpperCase());
-};
+const emptyPersona = (): PersonaAutorizzata => ({ nome: '', cognome: '', telefono: '' });
+
+function calcIsMinorenne(dataNascita: string): boolean {
+  if (!dataNascita) return false;
+  const today = new Date();
+  const birth = new Date(dataNascita);
+  const age = today.getFullYear() - birth.getFullYear() -
+    (today < new Date(today.getFullYear(), birth.getMonth(), birth.getDate()) ? 1 : 0);
+  return age < 18;
+}
 
 export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, userData }: AddFamiliareDialogProps) {
   const firestore = useFirestore();
   
-  const [membroData, setMembroData] = useState(initialMembroState);
+  const [membroData, setMembroData] = useState<Membro>(initialMembroState);
   const [anagraficaData, setAnagraficaData] = useState(initialAnagraficaState);
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const isEditing = membroToEdit != null;
-  // For users linked to another family via PIN, familyId ≠ user.uid
   const famigliaId = userData?.familyId || user.uid;
+  const isMinorenne = calcIsMinorenne(membroData.dataNascita);
 
   useEffect(() => {
     if (isOpen) {
@@ -79,8 +90,9 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
           telefonoPrincipale: membroToEdit.telefonoPrincipale || '',
           telefonoSecondario: membroToEdit.telefonoSecondario || '',
           allergie: membroToEdit.allergie || '',
-          // Backward compat: if old record had consensoFoto or new consenso field
           consenso: membroToEdit.consenso ?? (membroToEdit.consensoFoto !== false && membroToEdit.consensoSocial !== false),
+          personaAutorizzata: membroToEdit.personaAutorizzata || [],
+          puoRientrareInAutonomia: membroToEdit.puoRientrareInAutonomia ?? false,
         });
       } else {
         setMembroData(initialMembroState);
@@ -99,6 +111,7 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
       }
 
       setError(null);
+      setIsSaving(false);
     }
   }, [membroToEdit, isEditing, isOpen, userData]);
   
@@ -133,9 +146,42 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
     }
   };
 
+  // ─── Gestione persone autorizzate ────────────────────────────────────────────
+
+  const handleAddPersona = () => {
+    setMembroData(prev => ({
+      ...prev,
+      personaAutorizzata: [...(prev.personaAutorizzata || []), emptyPersona()],
+    }));
+  };
+
+  const handleRemovePersona = (index: number) => {
+    setMembroData(prev => ({
+      ...prev,
+      personaAutorizzata: (prev.personaAutorizzata || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const handlePersonaChange = (index: number, field: keyof PersonaAutorizzata, value: string) => {
+    setMembroData(prev => {
+      const updated = [...(prev.personaAutorizzata || [])];
+      updated[index] = {
+        ...updated[index],
+        [field]: field === 'nome' || field === 'cognome'
+          ? value.length > 0 ? value.charAt(0).toUpperCase() + value.slice(1) : ''
+          : value,
+      };
+      return { ...prev, personaAutorizzata: updated };
+    });
+  };
+
+  // ─── Close ───────────────────────────────────────────────────────────────────
+
   const handleClose = () => {
     onOpenChange(false);
   };
+
+  // ─── Submit ──────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
     setError(null);
@@ -154,9 +200,19 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
         return;
     }
 
+    setIsSaving(true);
 
     try {
-      // L'ID del documento famiglia è l'UID dell'utente
+      // Payload membro: includi campi minorenne solo se minorenne
+      const membroPayload: any = {
+        ...membroData,
+      };
+      if (!isMinorenne) {
+        delete membroPayload.personaAutorizzata;
+        delete membroPayload.puoRientrareInAutonomia;
+      }
+
+      // Aggiorna documento famiglia
       const famigliaDocRef = doc(firestore, 'famiglie', famigliaId);
       const famigliaPayload = {
         ...anagraficaData,
@@ -164,29 +220,23 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
         emailCapofamiglia: user.email,
         updatedAt: serverTimestamp(),
       };
-      // Usiamo set con merge per creare o aggiornare il documento famiglia
       await setDoc(famigliaDocRef, famigliaPayload, { merge: true });
 
-      // Update address on user's own profile (always user.uid, not familyId)
+      // Aggiorna indirizzo sul profilo utente
       const userDocRef = doc(firestore, 'users', user.uid);
       await setDoc(userDocRef, { ...anagraficaData }, { merge: true });
 
       if (isEditing && membroToEdit) {
-        // Se stiamo modificando, aggiorniamo il documento del membro esistente
         const membroDocRef = doc(firestore, 'famiglie', famigliaId, 'membri', membroToEdit.id);
-        await updateDoc(membroDocRef, {
-            ...membroData,
-        });
+        await updateDoc(membroDocRef, { ...membroPayload });
       } else {
-        // Se stiamo aggiungendo, creiamo un nuovo documento nella sottocollezione membri
         const membriCollectionRef = collection(firestore, 'famiglie', famigliaId, 'membri');
         await addDoc(membriCollectionRef, {
-            ...membroData,
+            ...membroPayload,
             createdAt: serverTimestamp(),
             archived: false,
         });
 
-        // Notifica per gli amministratori (verifica match)
         triggerNotification({
           eventType: 'nuovo_utente',
           title: "Nuovo Utente Registrato",
@@ -196,10 +246,33 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
         });
       }
 
+      // ── Invia email riepilogo anagrafico ──────────────────────────────────
+      try {
+        const idToken = await user.getIdToken();
+        await fetch('/api/send-member-summary-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            familyHeadId: famigliaId,
+            membroData: membroPayload,
+            anagraficaData,
+            isEdit: isEditing,
+          }),
+        });
+      } catch (emailErr) {
+        // L'errore email non blocca il salvataggio
+        console.warn('[dialog] Invio email riepilogo fallito (non bloccante):', emailErr);
+      }
+
       handleClose();
     } catch (err) {
       console.error(err);
-      setError('Si è verificato un errore during il salvataggio.');
+      setError('Si è verificato un errore durante il salvataggio.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -316,16 +389,114 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
                 <Input id="telefonoSecondario" value={membroData.telefonoSecondario} onChange={handleChange} />
                 </div>
             </div>
+
+            {/* ── Sezione minorenni: persone autorizzate al ritiro ────────────── */}
+            {isMinorenne && (
+              <div className="border-t pt-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-medium">Ritiro al termine degli incontri</p>
+                </div>
+
+                {/* Toggle autonomia */}
+                <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+                  <div>
+                    <p className="text-sm font-medium">Può rientrare a casa in autonomia</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Il ragazzo è autorizzato a tornare a casa da solo al termine degli incontri.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={membroData.puoRientrareInAutonomia ?? false}
+                    onCheckedChange={(checked) =>
+                      setMembroData(prev => ({ ...prev, puoRientrareInAutonomia: checked }))
+                    }
+                  />
+                </div>
+
+                {/* Lista persone autorizzate */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      Persone autorizzate a prelevare il ragazzo
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddPersona}
+                      className="h-7 text-xs"
+                    >
+                      <PlusCircle className="h-3 w-3 mr-1" />
+                      Aggiungi
+                    </Button>
+                  </div>
+
+                  {(membroData.personaAutorizzata || []).length === 0 && (
+                    <p className="text-xs text-muted-foreground italic text-center py-2 rounded-lg border border-dashed">
+                      Nessuna persona autorizzata aggiunta.
+                    </p>
+                  )}
+
+                  {(membroData.personaAutorizzata || []).map((persona, index) => (
+                    <div key={index} className="rounded-lg border p-3 space-y-2 bg-background">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-muted-foreground">Persona {index + 1}</p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          onClick={() => handleRemovePersona(index)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="grid gap-1">
+                          <Label className="text-xs">Nome</Label>
+                          <Input
+                            value={persona.nome}
+                            onChange={e => handlePersonaChange(index, 'nome', e.target.value)}
+                            placeholder="Mario"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-xs">Cognome</Label>
+                          <Input
+                            value={persona.cognome}
+                            onChange={e => handlePersonaChange(index, 'cognome', e.target.value)}
+                            placeholder="Rossi"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Telefono (opzionale)</Label>
+                        <Input
+                          value={persona.telefono || ''}
+                          onChange={e => handlePersonaChange(index, 'telefono', e.target.value)}
+                          placeholder="333 1234567"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             </div>
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-destructive px-1">{error}</p>}
         <DialogFooter className='pt-4 border-t'>
-          <Button variant="outline" onClick={handleClose}>Annulla</Button>
-          <Button type="submit" onClick={handleSubmit}>Salva</Button>
+          <Button variant="outline" onClick={handleClose} disabled={isSaving}>Annulla</Button>
+          <Button type="submit" onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? 'Salvataggio...' : 'Salva'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
-    
