@@ -167,14 +167,10 @@ function buildMemberSummaryHtml(
         <div style="border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
           <table style="width:100%;border-collapse:collapse;">
             <tbody>
-              ${row('Rientro autonomo', '')}
+              ${row('Rientro autonomo', autonomiaLabel)}
             </tbody>
           </table>
-          <div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;display:flex;gap:8px;">
-            <span style="font-size:13px;color:#6b7280;font-weight:600;width:40%;">Rientro autonomo</span>
-            <span style="font-size:13px;">${autonomiaLabel}</span>
-          </div>
-          <p style="margin:10px 14px 6px;font-size:12px;color:#6b7280;font-weight:600;">Persone autorizzate al ritiro</p>
+          <p style="margin:12px 14px 6px;font-size:12px;color:#6b7280;font-weight:600;">Persone autorizzate al ritiro</p>
           ${personeRows}
         </div>
       </div>`;
@@ -187,11 +183,12 @@ function buildMemberSummaryHtml(
       <div style="margin-top:24px;">
         <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">🚶 Ritiro al termine degli incontri</p>
         <div style="border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
-          <div style="padding:10px 14px;display:flex;gap:12px;align-items:center;">
-            <span style="font-size:13px;color:#6b7280;font-weight:600;">Rientro autonomo</span>
-            <span style="font-size:13px;">${autonomiaLabel}</span>
-          </div>
-          <p style="margin:0 14px 10px;font-size:12px;color:#9ca3af;font-style:italic;">Nessuna persona autorizzata indicata.</p>
+          <table style="width:100%;border-collapse:collapse;">
+            <tbody>
+              ${row('Rientro autonomo', autonomiaLabel)}
+            </tbody>
+          </table>
+          <p style="margin:10px 14px;font-size:12px;color:#9ca3af;font-style:italic;">Nessuna persona autorizzata indicata.</p>
         </div>
       </div>`;
   }
@@ -253,14 +250,25 @@ function buildMemberSummaryHtml(
         </div>
       </div>
 
-      <!-- Salute & Consensi -->
+      <!-- Salute -->
       <div style="margin-top:24px;">
-        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">⚕️ Salute & Consensi</p>
+        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">⚕️ Salute</p>
         <div style="border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
           <table style="width:100%;border-collapse:collapse;">
             <tbody>
               ${row('Allergie / Intolleranze', membro.allergie || 'Nessuna')}
-              ${row('Foto & Social', consensoLabel)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Consensi -->
+      <div style="margin-top:24px;">
+        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">📸 Foto & Social</p>
+        <div style="border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tbody>
+              ${row('Consenso Foto & Social', consensoLabel)}
             </tbody>
           </table>
         </div>
