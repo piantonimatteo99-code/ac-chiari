@@ -84,3 +84,112 @@ export async function pushEventToUser(
     throw new Error(`Errore creazione evento per ${userId}: ${errText}`);
   }
 }
+
+/** Find an event on the user's primary calendar matching title, start date and allDay status. */
+export async function findEventOnUserCalendar(
+  userId: string,
+  event: { title: string; startDate: string; allDay: boolean }
+): Promise<string | null> {
+  const accessToken = await getAccessToken(userId);
+
+  // Search window: 24h before to 24h after
+  const startD = new Date(event.startDate);
+  const timeMin = new Date(startD.getTime() - 24 * 60 * 60 * 1000);
+  const timeMax = new Date(startD.getTime() + 24 * 60 * 60 * 1000);
+
+  const calendarUrl = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
+  calendarUrl.searchParams.set('timeMin', timeMin.toISOString());
+  calendarUrl.searchParams.set('timeMax', timeMax.toISOString());
+  calendarUrl.searchParams.set('singleEvents', 'true');
+  calendarUrl.searchParams.set('maxResults', '100');
+
+  const res = await fetch(calendarUrl.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error(`findEventOnUserCalendar error for user ${userId}: ${errText}`);
+    return null;
+  }
+
+  const data = await res.json();
+  const items = data.items || [];
+  const targetTitle = (event.title || '').trim().toLowerCase();
+
+  for (const item of items) {
+    const itemTitle = (item.summary || '').trim().toLowerCase();
+    if (itemTitle !== targetTitle) continue;
+
+    if (event.allDay) {
+      const targetDateStr = event.startDate.split('T')[0];
+      const itemDateStr = item.start?.date;
+      if (itemDateStr === targetDateStr) {
+        return item.id;
+      }
+    } else {
+      const targetTime = new Date(event.startDate).getTime();
+      const itemTime = item.start?.dateTime ? new Date(item.start.dateTime).getTime() : null;
+      if (itemTime && Math.abs(itemTime - targetTime) <= 5 * 60 * 1000) {
+        return item.id;
+      }
+    }
+  }
+
+  return null;
+}
+
+/** Update an existing Google Calendar event. */
+export async function updateEventForUser(
+  userId: string,
+  googleEventId: string,
+  event: { title: string; description?: string; startDate: string; endDate: string; allDay: boolean }
+): Promise<void> {
+  const accessToken = await getAccessToken(userId);
+
+  const googleEvent: any = {
+    summary: event.title,
+    description: event.description || '',
+  };
+
+  if (event.allDay) {
+    const startStr = new Date(event.startDate).toISOString().split('T')[0];
+    const endD = new Date(event.endDate);
+    endD.setDate(endD.getDate() + 1);
+    const endStr = endD.toISOString().split('T')[0];
+    googleEvent.start = { date: startStr };
+    googleEvent.end = { date: endStr };
+  } else {
+    googleEvent.start = { dateTime: new Date(event.startDate).toISOString(), timeZone: 'Europe/Rome' };
+    googleEvent.end = { dateTime: new Date(event.endDate).toISOString(), timeZone: 'Europe/Rome' };
+  }
+
+  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(googleEvent),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Errore aggiornamento evento per ${userId}: ${errText}`);
+  }
+}
+
+/** Delete an existing Google Calendar event. */
+export async function deleteEventForUser(
+  userId: string,
+  googleEventId: string
+): Promise<void> {
+  const accessToken = await getAccessToken(userId);
+
+  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok && res.status !== 410 && res.status !== 404) {
+    const errText = await res.text();
+    throw new Error(`Errore eliminazione evento per ${userId}: ${errText}`);
+  }
+}

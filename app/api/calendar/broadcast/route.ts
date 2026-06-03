@@ -1,34 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initAdminApp } from '@/lib/firebase-admin';
-import { pushEventToUser } from '@/lib/google-calendar-utils';
+import {
+  pushEventToUser,
+  findEventOnUserCalendar,
+  updateEventForUser,
+  deleteEventForUser
+} from '@/lib/google-calendar-utils';
 
 /**
  * POST /api/calendar/broadcast
- * Pushes an event to ALL users who:
- *  1. Have Google Calendar connected
- *  2. Have at least one of the event's groupIds in their syncGroupIds
- *
- * Body: {
- *   groupIds: string[],      — groups this event belongs to
- *   title: string,
- *   description?: string,
- *   startDate: string,       — ISO string
- *   endDate: string,
- *   allDay: boolean,
- *   creatorUserId?: string,  — excluded if they handled their own sync separately
- * }
- *
- * Returns: { pushed: number, skipped: number, errors: string[] }
+ * Pushes, updates, or deletes an event on Google Calendars of subscribed users.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { groupIds, title, description, startDate, endDate, allDay, creatorUserId } = body;
-
-    if (!groupIds?.length || !title || !startDate || !endDate) {
-      return NextResponse.json({ error: 'groupIds, title, startDate, endDate sono obbligatori' }, { status: 400 });
-    }
+    const { action, groupIds, title, description, startDate, endDate, allDay, creatorUserId, oldEvent, newEvent } = body;
 
     initAdminApp();
     const db = getFirestore();
@@ -39,21 +26,112 @@ export async function POST(request: NextRequest) {
       .where('connected', '==', true)
       .get();
 
-    const groupIdSet = new Set<string>(groupIds);
-    const event = { title, description, startDate, endDate, allDay };
-
     let pushed = 0;
+    let updated = 0;
+    let deleted = 0;
     let skipped = 0;
     const errors: string[] = [];
+
+    // --- CASE A: DELETE ACTION ---
+    if (action === 'delete') {
+      if (!groupIds?.length || !title || !startDate) {
+        return NextResponse.json({ error: 'groupIds, title, startDate sono obbligatori per delete' }, { status: 400 });
+      }
+
+      const groupIdSet = new Set<string>(groupIds);
+      const eventToDelete = { title, startDate, allDay: !!allDay };
+
+      await Promise.all(
+        subsSnap.docs.map(async (docSnap) => {
+          const { uid, syncGroupIds } = docSnap.data() as { uid: string; syncGroupIds: string[] };
+
+          const shouldSync = (syncGroupIds ?? []).some(gid => groupIdSet.has(gid));
+          if (!shouldSync) { skipped++; return; }
+
+          try {
+            const gcalEventId = await findEventOnUserCalendar(uid, eventToDelete);
+            if (gcalEventId) {
+              await deleteEventForUser(uid, gcalEventId);
+              deleted++;
+            } else {
+              skipped++;
+            }
+          } catch (err: any) {
+            errors.push(`${uid}: ${err.message}`);
+          }
+        })
+      );
+
+      return NextResponse.json({ deleted, skipped, errors });
+    }
+
+    // --- CASE B: UPDATE ACTION ---
+    if (action === 'update') {
+      if (!oldEvent || !newEvent) {
+        return NextResponse.json({ error: 'oldEvent e newEvent sono obbligatori per update' }, { status: 400 });
+      }
+
+      const oldGroupIdSet = new Set<string>(oldEvent.groupIds || []);
+      const newGroupIdSet = new Set<string>(newEvent.groupIds || []);
+
+      await Promise.all(
+        subsSnap.docs.map(async (docSnap) => {
+          const { uid, syncGroupIds } = docSnap.data() as { uid: string; syncGroupIds: string[] };
+
+          const wasSynced = (syncGroupIds ?? []).some(gid => oldGroupIdSet.has(gid));
+          const shouldSync = (syncGroupIds ?? []).some(gid => newGroupIdSet.has(gid));
+
+          try {
+            if (wasSynced && shouldSync) {
+              // Action: Update
+              const gcalEventId = await findEventOnUserCalendar(uid, oldEvent);
+              if (gcalEventId) {
+                await updateEventForUser(uid, gcalEventId, newEvent);
+                updated++;
+              } else {
+                // If not found, fall back to push (create)
+                await pushEventToUser(uid, newEvent);
+                pushed++;
+              }
+            } else if (wasSynced && !shouldSync) {
+              // Action: Delete (un-subscribed from group or group removed from event)
+              const gcalEventId = await findEventOnUserCalendar(uid, oldEvent);
+              if (gcalEventId) {
+                await deleteEventForUser(uid, gcalEventId);
+                deleted++;
+              } else {
+                skipped++;
+              }
+            } else if (!wasSynced && shouldSync) {
+              // Action: Create (subscribed or group added)
+              await pushEventToUser(uid, newEvent);
+              pushed++;
+            } else {
+              skipped++;
+            }
+          } catch (err: any) {
+            errors.push(`${uid}: ${err.message}`);
+          }
+        })
+      );
+
+      return NextResponse.json({ pushed, updated, deleted, skipped, errors });
+    }
+
+    // --- CASE C: CREATE ACTION (default backward compatible) ---
+    if (!groupIds?.length || !title || !startDate || !endDate) {
+      return NextResponse.json({ error: 'groupIds, title, startDate, endDate sono obbligatori' }, { status: 400 });
+    }
+
+    const groupIdSet = new Set<string>(groupIds);
+    const event = { title, description, startDate, endDate, allDay: !!allDay };
 
     await Promise.all(
       subsSnap.docs.map(async (docSnap) => {
         const { uid, syncGroupIds } = docSnap.data() as { uid: string; syncGroupIds: string[] };
 
-        // Skip creator (they handle their own sync, or they opted out)
         if (uid === creatorUserId) { skipped++; return; }
 
-        // Check if any of the user's sync groups match the event's groups
         const shouldSync = (syncGroupIds ?? []).some(gid => groupIdSet.has(gid));
         if (!shouldSync) { skipped++; return; }
 

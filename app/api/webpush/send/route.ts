@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import webpush from 'web-push';
+import { getWebpush } from '@/lib/webpush';
 import { initAdminApp, adminDb } from '@/lib/firebase-admin';
-
-webpush.setVapidDetails(
-  process.env.WEBPUSH_SUBJECT!,
-  process.env.NEXT_PUBLIC_WEBPUSH_PUBLIC_KEY!,
-  process.env.WEBPUSH_PRIVATE_KEY!
-);
 
 /**
  * POST /api/webpush/send
@@ -47,7 +41,7 @@ export async function POST(req: NextRequest) {
       snapshot.docs.map(async (docSnap) => {
         const { subscription, endpoint } = docSnap.data();
         try {
-          await webpush.sendNotification(subscription, payload);
+          await getWebpush().sendNotification(subscription, payload);
         } catch (err: any) {
           // 410 Gone = subscription expired/revoked — clean it up
           if (err.statusCode === 410 || err.statusCode === 404) {

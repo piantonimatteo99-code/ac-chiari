@@ -290,16 +290,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                     });
                 }
 
-                await batch.commit();
 
-                // Trigger notifica broadcast
-                const startFormatted = format(finalStartDate, 'd MMMM yyyy', { locale: itLocale });
-                triggerNotification({
-                  eventType: 'evento_modificato',
-                  title: `📅 Impegno modificato: ${title}`,
-                  body: `L'impegno "${title}" è stato aggiornato (${startFormatted}).`,
-                  href: '/calendario',
-                });
 
             } else {
                 // --- CREATE LOGIC ---

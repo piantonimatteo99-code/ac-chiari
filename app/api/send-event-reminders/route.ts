@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminMessaging, initAdminApp } from '@/lib/firebase-admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import webpush from 'web-push';
-
-webpush.setVapidDetails(
-  process.env.WEBPUSH_SUBJECT!,
-  process.env.NEXT_PUBLIC_WEBPUSH_PUBLIC_KEY!,
-  process.env.WEBPUSH_PRIVATE_KEY!
-);
+import { getWebpush } from '@/lib/webpush';
 
 /**
  * GET  /api/send-event-reminders?type=sera|mezzogiorno
@@ -79,26 +73,65 @@ async function processReminders(type: 'sera' | 'mezzogiorno'): Promise<NextRespo
       ? 'evento_promemoria_sera'
       : 'evento_promemoria_mezzogiorno';
 
-    const now = new Date();
+    // Helper function to parse long offset (e.g. GMT+02:00 or GMT-05:00) into minutes
+    function parseOffset(tzName: string): number {
+      if (tzName === 'GMT') return 0;
+      const match = tzName.match(/GMT([+-])(\d{1,2}):?(\d{2})?/);
+      if (!match) return 0;
+      const sign = match[1] === '+' ? 1 : -1;
+      const hours = parseInt(match[2], 10);
+      const minutes = match[3] ? parseInt(match[3], 10) : 0;
+      return sign * (hours * 60 + minutes);
+    }
 
-    // Calcola la finestra di eventi da cercare
-    let windowStart: Date;
-    let windowEnd: Date;
+    // Helper function to construct a UTC date that represents the given local components in Rome time
+    function getRomeTimeInUTC(year: number, month: number, day: number, hours: number, minutes: number, seconds: number, ms: number = 0): Date {
+      const utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds, ms));
+      const tzFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Europe/Rome',
+        timeZoneName: 'longOffset'
+      });
+      const parts = tzFormatter.formatToParts(utcDate);
+      const tzName = parts.find(p => p.type === 'timeZoneName')!.value;
+      const offsetMinutes = parseOffset(tzName);
+      return new Date(utcDate.getTime() - offsetMinutes * 60 * 1000);
+    }
+
+    // Helper to get Rome current date components
+    function getRomeCurrentDateComponents(): { year: number, month: number, day: number } {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Europe/Rome',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+      });
+      const parts = formatter.formatToParts(new Date());
+      const year = parseInt(parts.find(p => p.type === 'year')!.value);
+      const month = parseInt(parts.find(p => p.type === 'month')!.value);
+      const day = parseInt(parts.find(p => p.type === 'day')!.value);
+      return { year, month, day };
+    }
+
+    let targetYear: number;
+    let targetMonth: number;
+    let targetDay: number;
 
     if (type === 'sera') {
-      // Sera: cerca eventi che iniziano domani (il giorno dopo)
-      windowStart = new Date(now);
-      windowStart.setDate(windowStart.getDate() + 1);
-      windowStart.setHours(0, 0, 0, 0);
-      windowEnd = new Date(windowStart);
-      windowEnd.setHours(23, 59, 59, 999);
+      const todayComp = getRomeCurrentDateComponents();
+      const todayUTC = new Date(Date.UTC(todayComp.year, todayComp.month - 1, todayComp.day));
+      const tomorrowUTC = new Date(todayUTC.getTime() + 24 * 60 * 60 * 1000);
+      targetYear = tomorrowUTC.getUTCFullYear();
+      targetMonth = tomorrowUTC.getUTCMonth() + 1;
+      targetDay = tomorrowUTC.getUTCDate();
     } else {
-      // Mezzogiorno: cerca eventi che iniziano oggi
-      windowStart = new Date(now);
-      windowStart.setHours(0, 0, 0, 0);
-      windowEnd = new Date(now);
-      windowEnd.setHours(23, 59, 59, 999);
+      const todayComp = getRomeCurrentDateComponents();
+      targetYear = todayComp.year;
+      targetMonth = todayComp.month;
+      targetDay = todayComp.day;
     }
+
+    const windowStart = getRomeTimeInUTC(targetYear, targetMonth, targetDay, 0, 0, 0, 0);
+    const windowEnd = getRomeTimeInUTC(targetYear, targetMonth, targetDay, 23, 59, 59, 999);
 
     // ── Trova eventi nella finestra ──────────────────────────────────────────
     const eventiSnap = await adminDb.collection('eventi')
@@ -214,7 +247,7 @@ async function processReminders(type: 'sera' | 'mezzogiorno'): Promise<NextRespo
           await Promise.allSettled(
             wpSnap.docs.map(async d => {
               try {
-                await webpush.sendNotification(d.data().subscription, wpPayload);
+                await getWebpush().sendNotification(d.data().subscription, wpPayload);
                 totalSent++;
               } catch (err: any) {
                 if (err.statusCode === 410 || err.statusCode === 404) await d.ref.delete();

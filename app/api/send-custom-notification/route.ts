@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminMessaging, initAdminApp } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import webpush from 'web-push';
+import { getWebpush } from '@/lib/webpush';
 import * as admin from 'firebase-admin';
-
-webpush.setVapidDetails(
-  process.env.WEBPUSH_SUBJECT!,
-  process.env.NEXT_PUBLIC_WEBPUSH_PUBLIC_KEY!,
-  process.env.WEBPUSH_PRIVATE_KEY!
-);
 
 /**
  * POST /api/send-custom-notification
@@ -135,7 +129,7 @@ export async function POST(req: NextRequest) {
         allWPDocs.map(async (docSnap) => {
           const { subscription } = docSnap.data();
           try {
-            await webpush.sendNotification(subscription, wpPayload);
+            await getWebpush().sendNotification(subscription, wpPayload);
           } catch (err: any) {
             if (err.statusCode === 410 || err.statusCode === 404) {
               await docSnap.ref.delete();

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy — AC Chiari",
   description: "Informativa sulla privacy dell'applicazione gestionale AC Chiari – Azione Cattolica di Chiari.",
+  robots: { index: true, follow: true },
 };
 
 export default function PrivacyPage() {
@@ -10,7 +11,7 @@ export default function PrivacyPage() {
     <main className="min-h-screen bg-white text-gray-800 px-6 py-12 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-2 text-blue-800">Privacy Policy</h1>
       <p className="text-sm text-gray-500 mb-8">
-        Ultimo aggiornamento: 3 maggio 2025
+        Ultimo aggiornamento: 24 maggio 2026
       </p>
 
       <section className="mb-8">
@@ -150,7 +151,7 @@ export default function PrivacyPage() {
         <p>
           I dati personali <strong>non vengono venduti, ceduti o comunicati a terze parti</strong>,
           ad eccezione dei fornitori di servizi tecnici strettamente necessari al funzionamento
-          dell'applicazione (Firebase/Google Cloud per l'archiviazione dati, Vercel per l'hosting).
+          dell'applicazione: Firebase/Google Cloud per l'archiviazione dati e l'hosting.
           Tali fornitori trattano i dati esclusivamente come responsabili del trattamento e in conformità
           con le rispettive privacy policy.
         </p>
@@ -197,16 +198,6 @@ export default function PrivacyPage() {
           Email:{" "}
           <a href="mailto:azionecattolicachiari@gmail.com" className="text-blue-600 underline">
             azionecattolicachiari@gmail.com
-          </a>
-          <br />
-          Applicazione:{" "}
-          <a
-            href="https://azionecattolicachiari.vercel.app"
-            className="text-blue-600 underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            azionecattolicachiari.vercel.app
           </a>
         </p>
       </footer>
