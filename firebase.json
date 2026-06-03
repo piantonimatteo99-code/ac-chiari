@@ -23,8 +23,11 @@
       "ignore": [
         "node_modules",
         ".git",
+        ".next",
         "*.local",
-        "firebase-debug.*.log"
+        "firebase-debug.*.log",
+        "build.log",
+        "scratch"
       ]
     }
   ]
