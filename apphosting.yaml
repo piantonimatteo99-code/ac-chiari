@@ -5,6 +5,7 @@ runConfig:
   memoryMiB: 512
   concurrency: 80
   maxInstances: 2
+  nodeVersion: "20"
 
 env:
   - variable: SMTP_USER
