@@ -330,7 +330,7 @@ export default function CalendarioPage() {
   
   const handleAddNew = () => {
     setEditingEvent(null);
-    setInitialDate(null);
+    setInitialDate(selectedDate);
     setIsDialogOpen(true);
   };
 

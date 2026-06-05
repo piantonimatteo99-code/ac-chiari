@@ -21,6 +21,7 @@ import { Textarea } from './ui/textarea';
 import { Switch } from './ui/switch';
 import { Loader2, Trash2 } from 'lucide-react';
 import { useGoogleCalendar } from '@/src/hooks/use-google-calendar';
+import { useAuth } from '@/src/firebase';
 import { triggerNotification } from '@/lib/trigger-notification';
 import { format } from 'date-fns';
 import { it as itLocale } from 'date-fns/locale';
@@ -108,6 +109,7 @@ interface AddEventDialogProps {
 
 export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate }: AddEventDialogProps) {
     const firestore = useFirestore();
+    const auth = useAuth();
     const isEditing = !!eventToEdit;
 
     // Event state
@@ -290,7 +292,42 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                     });
                 }
 
+                await batch.commit();
 
+                // Sync update with Google Calendar (fire-and-forget with auth token)
+                auth.currentUser?.getIdToken().then(token =>
+                    fetch('/api/calendar/broadcast', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({
+                            action: 'update',
+                            oldEvent: {
+                                title: eventToEdit.title,
+                                startDate: eventToEdit.startDate?.toDate ? eventToEdit.startDate.toDate().toISOString() : new Date(eventToEdit.startDate).toISOString(),
+                                endDate: eventToEdit.endDate?.toDate ? eventToEdit.endDate.toDate().toISOString() : new Date(eventToEdit.endDate).toISOString(),
+                                allDay: eventToEdit.allDay,
+                                groupIds: eventToEdit.groupIds,
+                            },
+                            newEvent: {
+                                title,
+                                description: description || notes,
+                                startDate: finalStartDate.toISOString(),
+                                endDate: finalEndDate.toISOString(),
+                                allDay,
+                                groupIds: selectedGroups,
+                            }
+                        })
+                    })
+                ).catch(console.error);
+
+                // Trigger notifica broadcast
+                const startFormatted = format(finalStartDate, 'd MMMM yyyy', { locale: itLocale });
+                triggerNotification({
+                  eventType: 'evento_modificato',
+                  title: `📅 Impegno modificato: ${title}`,
+                  body: `L'impegno "${title}" è stato aggiornato (${startFormatted}).`,
+                  href: '/calendario',
+                });
 
             } else {
                 // --- CREATE LOGIC ---
@@ -456,6 +493,21 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
             }
             
             await batch.commit();
+
+            // Sync delete with Google Calendar (fire-and-forget with auth token)
+            auth.currentUser?.getIdToken().then(token =>
+                fetch('/api/calendar/broadcast', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({
+                        action: 'delete',
+                        groupIds: eventToEdit.groupIds,
+                        title: eventToEdit.title,
+                        startDate: eventToEdit.startDate?.toDate ? eventToEdit.startDate.toDate().toISOString() : new Date(eventToEdit.startDate).toISOString(),
+                        allDay: eventToEdit.allDay,
+                    })
+                })
+            ).catch(console.error);
 
             // Trigger notifica eliminazione evento
             triggerNotification({

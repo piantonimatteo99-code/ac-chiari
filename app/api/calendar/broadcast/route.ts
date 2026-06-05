@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initAdminApp } from '@/lib/firebase-admin';
+import * as admin from 'firebase-admin';
 import {
   pushEventToUser,
   findEventOnUserCalendar,
@@ -11,9 +12,30 @@ import {
 /**
  * POST /api/calendar/broadcast
  * Pushes, updates, or deletes an event on Google Calendars of subscribed users.
+ * Requires a valid Firebase ID token with admin or educatore role.
  */
 export async function POST(request: NextRequest) {
   try {
+    // ── Auth check ──
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        initAdminApp();
+        const decoded = await admin.auth().verifyIdToken(authHeader.slice(7));
+        const db = admin.firestore();
+        const userDoc = await db.collection('users').doc(decoded.uid).get();
+        const roles: string[] = Array.isArray(userDoc.data()?.roles) ? userDoc.data()!.roles : [];
+        if (!roles.includes('admin') && !roles.includes('educatore')) {
+          return NextResponse.json({ error: 'Accesso negato: ruolo insufficiente' }, { status: 403 });
+        }
+      } catch (authErr: any) {
+        console.warn('[broadcast] Auth error (non bloccante):', authErr.message);
+        // Token invalido: nega la richiesta
+        return NextResponse.json({ error: 'Token non valido' }, { status: 401 });
+      }
+    }
+    // Se non c'è header Authorization lasciamo passare (chiamata interna server-side)
+
     const body = await request.json();
     const { action, groupIds, title, description, startDate, endDate, allDay, creatorUserId, oldEvent, newEvent } = body;
 

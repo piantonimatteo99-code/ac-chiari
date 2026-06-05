@@ -1,6 +1,27 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { initAdminApp } from '@/lib/firebase-admin';
 
+/**
+ * Format a UTC ISO timestamp as a YYYY-MM-DD string in the Europe/Rome timezone.
+ * This avoids off-by-one errors when the server runs in UTC but events are
+ * created/displayed in Italy (UTC+1 or UTC+2 in summer).
+ */
+function toRomeDateString(isoOrDate: string | Date): string {
+  const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome' }).format(d);
+}
+
+/**
+ * Return the YYYY-MM-DD string for the day *after* the given local date string.
+ * Used to produce Google Calendar's exclusive end-date for all-day events.
+ */
+function nextLocalDay(localDateStr: string): string {
+  const [y, m, d] = localDateStr.split('-').map(Number);
+  // Build a UTC noon timestamp for that date, then add one day
+  const next = new Date(Date.UTC(y, m - 1, d + 1));
+  return next.toISOString().split('T')[0];
+}
+
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
 
@@ -62,15 +83,13 @@ export async function pushEventToUser(
   };
 
   if (event.allDay) {
-    const startStr = new Date(event.startDate).toISOString().split('T')[0];
-    const endD = new Date(event.endDate);
-    endD.setDate(endD.getDate() + 1);
-    const endStr = endD.toISOString().split('T')[0];
+    const startStr = toRomeDateString(event.startDate);
+    const endStr   = nextLocalDay(toRomeDateString(event.endDate));
     googleEvent.start = { date: startStr };
-    googleEvent.end = { date: endStr };
+    googleEvent.end   = { date: endStr };
   } else {
     googleEvent.start = { dateTime: new Date(event.startDate).toISOString(), timeZone: 'Europe/Rome' };
-    googleEvent.end = { dateTime: new Date(event.endDate).toISOString(), timeZone: 'Europe/Rome' };
+    googleEvent.end   = { dateTime: new Date(event.endDate).toISOString(), timeZone: 'Europe/Rome' };
   }
 
   const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
@@ -122,7 +141,8 @@ export async function findEventOnUserCalendar(
     if (itemTitle !== targetTitle) continue;
 
     if (event.allDay) {
-      const targetDateStr = event.startDate.split('T')[0];
+      // Compare using the Rome-local date so the lookup matches what was pushed
+      const targetDateStr = toRomeDateString(event.startDate);
       const itemDateStr = item.start?.date;
       if (itemDateStr === targetDateStr) {
         return item.id;
@@ -153,15 +173,13 @@ export async function updateEventForUser(
   };
 
   if (event.allDay) {
-    const startStr = new Date(event.startDate).toISOString().split('T')[0];
-    const endD = new Date(event.endDate);
-    endD.setDate(endD.getDate() + 1);
-    const endStr = endD.toISOString().split('T')[0];
+    const startStr = toRomeDateString(event.startDate);
+    const endStr   = nextLocalDay(toRomeDateString(event.endDate));
     googleEvent.start = { date: startStr };
-    googleEvent.end = { date: endStr };
+    googleEvent.end   = { date: endStr };
   } else {
     googleEvent.start = { dateTime: new Date(event.startDate).toISOString(), timeZone: 'Europe/Rome' };
-    googleEvent.end = { dateTime: new Date(event.endDate).toISOString(), timeZone: 'Europe/Rome' };
+    googleEvent.end   = { dateTime: new Date(event.endDate).toISOString(), timeZone: 'Europe/Rome' };
   }
 
   const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
