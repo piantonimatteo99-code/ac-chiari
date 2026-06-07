@@ -12,17 +12,19 @@ function getRedirectUri(request: NextRequest): string {
   return `${proto}://${host}/api/drive/callback`;
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
 
   if (error) {
-    return NextResponse.redirect(new URL(`/admin/configurazione?drive_error=${error}`, request.url));
+    return NextResponse.redirect(new URL(`/admin/configurazione?drive_error=${error}`, BASE_URL));
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL('/admin/configurazione?drive_error=no_code', request.url));
+    return NextResponse.redirect(new URL('/admin/configurazione?drive_error=no_code', BASE_URL));
   }
 
   try {
@@ -56,9 +58,9 @@ export async function GET(request: NextRequest) {
       updatedAt: new Date(),
     }, { merge: true });
 
-    return NextResponse.redirect(new URL('/admin/configurazione/integrazione-drive?drive_connected=true', request.url));
+    return NextResponse.redirect(new URL('/admin/configurazione/integrazione-drive?drive_connected=true', BASE_URL));
   } catch (err: any) {
     console.error('Drive OAuth callback error:', err);
-    return NextResponse.redirect(new URL(`/admin/configurazione?drive_error=${encodeURIComponent(err.message)}`, request.url));
+    return NextResponse.redirect(new URL(`/admin/configurazione?drive_error=${encodeURIComponent(err.message)}`, BASE_URL));
   }
 }

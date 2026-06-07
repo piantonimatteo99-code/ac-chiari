@@ -12,6 +12,8 @@ function getRedirectUri(request: NextRequest): string {
   return `${proto}://${host}/api/calendar/callback`;
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
@@ -19,11 +21,11 @@ export async function GET(request: NextRequest) {
   const userId = searchParams.get('state'); // User ID passed via state param
 
   if (error) {
-    return NextResponse.redirect(new URL(`/calendario?calendar_error=${error}`, request.url));
+    return NextResponse.redirect(new URL(`/calendario?calendar_error=${error}`, BASE_URL));
   }
 
   if (!code || !userId) {
-    return NextResponse.redirect(new URL('/calendario?calendar_error=no_code', request.url));
+    return NextResponse.redirect(new URL('/calendario?calendar_error=no_code', BASE_URL));
   }
 
   try {
@@ -68,11 +70,11 @@ export async function GET(request: NextRequest) {
       syncGroupIds: existingSub.exists ? (existingSub.data()?.syncGroupIds ?? []) : [],
     }, { merge: true });
 
-    return NextResponse.redirect(new URL('/calendario?calendar_connected=true', request.url));
+    return NextResponse.redirect(new URL('/calendario?calendar_connected=true', BASE_URL));
   } catch (err: any) {
     console.error('Calendar OAuth callback error:', err);
     return NextResponse.redirect(
-      new URL(`/calendario?calendar_error=${encodeURIComponent(err.message)}`, request.url)
+      new URL(`/calendario?calendar_error=${encodeURIComponent(err.message)}`, BASE_URL)
     );
   }
 }
