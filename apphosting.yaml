@@ -60,3 +60,59 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Google OAuth (Calendar + Drive)
+  - variable: GOOGLE_CLIENT_ID
+    secret: google-client-id
+    availability:
+      - RUNTIME
+  - variable: GOOGLE_CLIENT_SECRET
+    secret: google-client-secret
+    availability:
+      - RUNTIME
+  - variable: GOOGLE_CALENDAR_REDIRECT_URI
+    value: https://acchiari.gemmaflow.it/api/calendar/callback
+    availability:
+      - RUNTIME
+  - variable: GOOGLE_REDIRECT_URI
+    value: https://acchiari.gemmaflow.it/api/drive/callback
+    availability:
+      - RUNTIME
+  # Gemini AI
+  - variable: GEMINI_API_KEY
+    secret: gemini-api-key
+    availability:
+      - RUNTIME
+  # Web Push (VAPID)
+  - variable: WEBPUSH_PRIVATE_KEY
+    secret: webpush-private-key
+    availability:
+      - RUNTIME
+  - variable: WEBPUSH_SUBJECT
+    value: mailto:azionecattolicachiari@gmail.com
+    availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_WEBPUSH_PUBLIC_KEY
+    value: BKHS9-JtifxhnINuknioCJtDXpi8mFGr-iiR--v1ZoweihuvZkHj3-NjDTMnJ2ZljYFAMa66EsxUsSfYkGwL28U
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_VAPID_KEY
+    value: BMnPueaRQDizG9v_tk0gwWAaGvCteWx354a9y3ezdoU26T17V89AVyn5_dZMczrReXNiO88UhpAKhqxRV1JO-YA
+    availability:
+      - BUILD
+      - RUNTIME
+  # App base URL
+  - variable: NEXT_PUBLIC_BASE_URL
+    value: https://acchiari.gemmaflow.it
+    availability:
+      - BUILD
+      - RUNTIME
+  # Security secrets
+  - variable: RESET_SECRET
+    secret: reset-secret
+    availability:
+      - RUNTIME
+  - variable: CRON_SECRET
+    secret: cron-secret
+    availability:
+      - RUNTIME
