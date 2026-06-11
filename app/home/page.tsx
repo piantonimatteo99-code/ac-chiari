@@ -246,8 +246,8 @@ export default function HomePage() {
         /* ── RESET & BASE ── */
         .ac-landing {
           font-family: var(--font-sans, 'Nunito', sans-serif);
-          background: #0a0f1e;
-          color: #e2e8f0;
+          background: hsl(40 33% 98%);
+          color: hsl(220 35% 18%);
           min-height: 100vh;
         }
 
@@ -256,9 +256,9 @@ export default function HomePage() {
           position: sticky;
           top: 0;
           z-index: 50;
-          background: rgba(10, 15, 30, 0.85);
+          background: hsl(40 33% 98% / 0.9);
           backdrop-filter: blur(16px);
-          border-bottom: 1px solid rgba(255,255,255,0.06);
+          border-bottom: 1px solid hsl(38 20% 88%);
         }
         .ac-nav-inner {
           max-width: 1100px;
@@ -273,17 +273,17 @@ export default function HomePage() {
         .ac-brand-name {
           font-size: 1.1rem;
           font-weight: 800;
-          color: #fff;
+          color: hsl(220 35% 18%);
           letter-spacing: -0.3px;
         }
         .ac-nav-links { display: flex; align-items: center; gap: 1rem; }
         .ac-nav-link {
           font-size: 0.9rem;
-          color: #94a3b8;
+          color: hsl(220 15% 52%);
           text-decoration: none;
           transition: color .2s;
         }
-        .ac-nav-link:hover { color: #fff; }
+        .ac-nav-link:hover { color: hsl(220 35% 18%); }
 
         /* ── BUTTONS ── */
         .ac-btn {
@@ -300,22 +300,23 @@ export default function HomePage() {
         }
         .ac-btn-lg { padding: 0.8rem 1.75rem; font-size: 1rem; }
         .ac-btn-primary {
-          background: linear-gradient(135deg, #2563eb, #7c3aed);
+          background: hsl(218 55% 58%);
           color: #fff;
-          box-shadow: 0 4px 20px rgba(37,99,235,0.35);
+          box-shadow: 0 4px 18px hsl(218 55% 58% / 0.35);
         }
         .ac-btn-primary:hover {
           transform: translateY(-2px);
-          box-shadow: 0 8px 30px rgba(37,99,235,0.5);
+          background: hsl(218 55% 50%);
+          box-shadow: 0 8px 28px hsl(218 55% 58% / 0.45);
         }
         .ac-btn-outline {
-          border: 1.5px solid rgba(255,255,255,0.2);
-          color: #e2e8f0;
-          background: transparent;
+          border: 1.5px solid hsl(38 20% 88%);
+          color: hsl(220 35% 18%);
+          background: hsl(38 40% 99%);
         }
-        .ac-btn-outline:hover { border-color: #2563eb; color: #60a5fa; }
-        .ac-btn-ghost { color: #94a3b8; background: transparent; }
-        .ac-btn-ghost:hover { color: #e2e8f0; }
+        .ac-btn-outline:hover { border-color: hsl(218 55% 58%); color: hsl(218 55% 50%); }
+        .ac-btn-ghost { color: hsl(220 15% 52%); background: transparent; }
+        .ac-btn-ghost:hover { color: hsl(220 35% 18%); }
         .ac-btn-arrow { transition: transform .2s; }
         .ac-btn-primary:hover .ac-btn-arrow { transform: translateX(4px); }
 
@@ -335,24 +336,24 @@ export default function HomePage() {
         .ac-hero-blob {
           position: absolute;
           border-radius: 50%;
-          filter: blur(80px);
-          opacity: 0.18;
+          filter: blur(90px);
+          opacity: 0.22;
         }
         .ac-hero-blob-1 {
           width: 500px; height: 500px;
-          background: #2563eb;
+          background: hsl(218 55% 80%);
           top: -100px; left: -150px;
           animation: blobPulse 8s ease-in-out infinite;
         }
         .ac-hero-blob-2 {
           width: 400px; height: 400px;
-          background: #7c3aed;
+          background: hsl(43 80% 82%);
           bottom: -80px; right: 100px;
           animation: blobPulse 10s ease-in-out infinite reverse;
         }
         .ac-hero-blob-3 {
           width: 300px; height: 300px;
-          background: #0ea5e9;
+          background: hsl(218 60% 88%);
           top: 50%; right: -50px;
           animation: blobPulse 12s ease-in-out infinite;
         }
@@ -366,9 +367,9 @@ export default function HomePage() {
           display: inline-flex;
           align-items: center;
           gap: 0.5rem;
-          background: rgba(37,99,235,0.15);
-          border: 1px solid rgba(37,99,235,0.3);
-          color: #93c5fd;
+          background: hsl(218 60% 94%);
+          border: 1px solid hsl(218 55% 80%);
+          color: hsl(218 45% 38%);
           font-size: 0.8rem;
           font-weight: 600;
           padding: 0.4rem 1rem;
@@ -379,20 +380,17 @@ export default function HomePage() {
           font-size: clamp(2.2rem, 5vw, 3.5rem);
           font-weight: 900;
           line-height: 1.1;
-          color: #fff;
+          color: hsl(220 35% 18%);
           margin-bottom: 1.25rem;
           letter-spacing: -1px;
         }
         .ac-hero-title-accent {
-          background: linear-gradient(135deg, #60a5fa, #a78bfa);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+          color: hsl(218 55% 52%);
         }
         .ac-hero-subtitle {
-          font-size: 1.1rem;
-          color: #94a3b8;
-          line-height: 1.7;
+          font-size: 1.05rem;
+          color: hsl(220 15% 48%);
+          line-height: 1.75;
           margin-bottom: 2rem;
         }
         .ac-hero-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
@@ -405,12 +403,11 @@ export default function HomePage() {
           z-index: 1;
         }
         .ac-card-preview {
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.1);
+          background: hsl(38 40% 99%);
+          border: 1px solid hsl(38 20% 88%);
           border-radius: 20px;
           overflow: hidden;
-          backdrop-filter: blur(12px);
-          box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+          box-shadow: 0 8px 32px hsl(218 30% 70% / 0.18), 0 2px 8px hsl(38 20% 70% / 0.12);
           animation: cardFloat 6s ease-in-out infinite;
         }
         @keyframes cardFloat {
@@ -418,19 +415,19 @@ export default function HomePage() {
           50% { transform: translateY(-12px); }
         }
         .ac-card-preview-header {
-          background: rgba(255,255,255,0.05);
+          background: hsl(218 55% 96%);
           padding: 0.75rem 1rem;
           display: flex;
           align-items: center;
           gap: 0.75rem;
-          border-bottom: 1px solid rgba(255,255,255,0.07);
+          border-bottom: 1px solid hsl(218 30% 86%);
         }
         .ac-card-dots { display: flex; gap: 5px; }
         .ac-card-dots span {
           width: 10px; height: 10px; border-radius: 50%;
-          background: rgba(255,255,255,0.2);
+          background: hsl(218 30% 78%);
         }
-        .ac-card-preview-title { font-size: 0.8rem; color: #64748b; font-weight: 600; }
+        .ac-card-preview-title { font-size: 0.8rem; color: hsl(220 15% 52%); font-weight: 600; }
         .ac-card-preview-body { padding: 1.25rem; }
         .ac-stat-row {
           display: flex;
@@ -439,33 +436,33 @@ export default function HomePage() {
         }
         .ac-stat {
           flex: 1;
-          background: rgba(37,99,235,0.12);
-          border: 1px solid rgba(37,99,235,0.2);
+          background: hsl(218 60% 94%);
+          border: 1px solid hsl(218 30% 86%);
           border-radius: 12px;
           padding: 0.75rem;
           text-align: center;
         }
-        .ac-stat-n { display: block; font-size: 1.1rem; font-weight: 800; color: #60a5fa; }
-        .ac-stat-l { display: block; font-size: 0.65rem; color: #64748b; margin-top: 2px; }
+        .ac-stat-n { display: block; font-size: 1.1rem; font-weight: 800; color: hsl(218 55% 50%); }
+        .ac-stat-l { display: block; font-size: 0.65rem; color: hsl(220 15% 52%); margin-top: 2px; }
         .ac-fake-list { display: flex; flex-direction: column; gap: 0.6rem; }
         .ac-fake-row {
           display: flex;
           align-items: center;
           gap: 0.65rem;
           padding: 0.55rem 0.75rem;
-          background: rgba(255,255,255,0.03);
+          background: hsl(38 20% 96%);
           border-radius: 10px;
-          border: 1px solid rgba(255,255,255,0.05);
+          border: 1px solid hsl(38 20% 90%);
         }
         .ac-fake-avatar {
           width: 30px; height: 30px; border-radius: 50%;
-          background: linear-gradient(135deg, #2563eb33, #7c3aed33);
+          background: hsl(218 60% 88%);
           flex-shrink: 0;
         }
         .ac-fake-lines { flex: 1; display: flex; flex-direction: column; gap: 4px; }
         .ac-fake-line {
           height: 7px;
-          background: rgba(255,255,255,0.12);
+          background: hsl(38 20% 88%);
           border-radius: 99px;
         }
         .ac-w-30 { width: 30%; } .ac-w-35 { width: 35%; } .ac-w-40 { width: 40%; }
@@ -478,9 +475,9 @@ export default function HomePage() {
           border-radius: 99px;
           white-space: nowrap;
         }
-        .ac-badge-green { background: rgba(34,197,94,0.15); color: #4ade80; }
-        .ac-badge-yellow { background: rgba(234,179,8,0.15); color: #facc15; }
-        .ac-badge-blue { background: rgba(59,130,246,0.15); color: #60a5fa; }
+        .ac-badge-green { background: hsl(142 60% 92%); color: hsl(142 55% 32%); }
+        .ac-badge-yellow { background: hsl(43 80% 92%); color: hsl(38 55% 32%); }
+        .ac-badge-blue { background: hsl(218 60% 92%); color: hsl(218 55% 40%); }
 
         /* ── CONTAINER ── */
         .ac-container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
@@ -488,8 +485,8 @@ export default function HomePage() {
         /* ── ABOUT ── */
         .ac-about {
           padding: 5rem 0;
-          background: rgba(255,255,255,0.02);
-          border-top: 1px solid rgba(255,255,255,0.06);
+          background: hsl(218 55% 96%);
+          border-top: 1px solid hsl(218 30% 86%);
         }
         .ac-about-grid {
           display: grid;
@@ -500,12 +497,12 @@ export default function HomePage() {
         .ac-section-title {
           font-size: 2rem;
           font-weight: 800;
-          color: #fff;
+          color: hsl(220 35% 18%);
           margin-bottom: 1rem;
           letter-spacing: -0.5px;
         }
         .ac-about-text {
-          color: #94a3b8;
+          color: hsl(220 15% 45%);
           line-height: 1.8;
           margin-bottom: 1rem;
           font-size: 0.97rem;
@@ -515,29 +512,30 @@ export default function HomePage() {
           display: inline-flex;
           align-items: center;
           gap: 0.4rem;
-          color: #60a5fa;
+          color: hsl(218 55% 50%);
           text-decoration: none;
           font-weight: 600;
           font-size: 0.9rem;
         }
         .ac-contact-link:hover { text-decoration: underline; }
         .ac-google-scope-box {
-          background: rgba(37,99,235,0.08);
-          border: 1px solid rgba(37,99,235,0.25);
+          background: hsl(38 40% 99%);
+          border: 1px solid hsl(38 20% 88%);
           border-radius: 16px;
           padding: 1.75rem;
+          box-shadow: 0 2px 6px hsl(38 20% 70% / 0.18);
         }
         .ac-scope-title {
           font-size: 1.1rem;
           font-weight: 800;
-          color: #93c5fd;
+          color: hsl(218 45% 38%);
           margin-bottom: 0.85rem;
           display: flex;
           align-items: center;
           gap: 0.5rem;
         }
         .ac-scope-text {
-          color: #94a3b8;
+          color: hsl(220 15% 45%);
           font-size: 0.9rem;
           line-height: 1.7;
           margin-bottom: 1rem;
@@ -550,18 +548,18 @@ export default function HomePage() {
           flex-direction: column;
           gap: 0.4rem;
         }
-        .ac-scope-list li { font-size: 0.88rem; color: #cbd5e1; }
-        .ac-scope-revoke { font-size: 0.82rem; color: #64748b; }
-        .ac-link { color: #60a5fa; text-decoration: none; }
+        .ac-scope-list li { font-size: 0.88rem; color: hsl(220 20% 32%); }
+        .ac-scope-revoke { font-size: 0.82rem; color: hsl(220 15% 52%); }
+        .ac-link { color: hsl(218 55% 50%); text-decoration: none; }
         .ac-link:hover { text-decoration: underline; }
 
         /* ── FEATURES ── */
         .ac-features {
           padding: 5rem 0;
-          border-top: 1px solid rgba(255,255,255,0.06);
+          border-top: 1px solid hsl(38 20% 88%);
         }
         .ac-section-header { margin-bottom: 3rem; }
-        .ac-section-sub { color: #64748b; font-size: 1rem; margin-top: 0.5rem; }
+        .ac-section-sub { color: hsl(220 15% 52%); font-size: 1rem; margin-top: 0.5rem; }
         .ac-text-center { text-align: center; }
         .ac-features-grid {
           display: grid;
@@ -569,47 +567,49 @@ export default function HomePage() {
           gap: 1.25rem;
         }
         .ac-feature-card {
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: hsl(38 40% 99%);
+          border: 1px solid hsl(38 20% 88%);
           border-radius: 16px;
           padding: 1.5rem;
           transition: all .25s;
+          box-shadow: 0 2px 6px hsl(38 20% 70% / 0.12);
         }
         .ac-feature-card:hover {
-          border-color: rgba(37,99,235,0.4);
-          background: rgba(37,99,235,0.06);
+          border-color: hsl(218 55% 72%);
+          background: hsl(218 60% 97%);
           transform: translateY(-4px);
-          box-shadow: 0 12px 30px rgba(37,99,235,0.12);
+          box-shadow: 0 12px 30px hsl(218 55% 58% / 0.14);
         }
         .ac-feature-icon { font-size: 2rem; margin-bottom: 0.75rem; }
         .ac-feature-title {
           font-size: 1rem;
           font-weight: 700;
-          color: #e2e8f0;
+          color: hsl(220 35% 18%);
           margin-bottom: 0.5rem;
         }
-        .ac-feature-desc { font-size: 0.875rem; color: #64748b; line-height: 1.6; }
+        .ac-feature-desc { font-size: 0.875rem; color: hsl(220 15% 48%); line-height: 1.6; }
 
         /* ── CTA ── */
         .ac-cta {
           padding: 5rem 0;
-          background: linear-gradient(135deg, rgba(37,99,235,0.12), rgba(124,58,237,0.12));
-          border-top: 1px solid rgba(255,255,255,0.06);
-          border-bottom: 1px solid rgba(255,255,255,0.06);
+          background: hsl(218 55% 96%);
+          border-top: 1px solid hsl(218 30% 86%);
+          border-bottom: 1px solid hsl(218 30% 86%);
         }
         .ac-cta-inner { text-align: center; }
         .ac-cta-title {
           font-size: clamp(1.5rem, 3vw, 2.25rem);
           font-weight: 800;
-          color: #fff;
+          color: hsl(220 35% 18%);
           margin-bottom: 0.75rem;
         }
-        .ac-cta-sub { color: #94a3b8; margin-bottom: 2rem; }
+        .ac-cta-sub { color: hsl(220 15% 48%); margin-bottom: 2rem; }
 
         /* ── FOOTER ── */
         .ac-footer {
           padding: 2.5rem 0;
-          background: rgba(0,0,0,0.3);
+          background: hsl(38 20% 94%);
+          border-top: 1px solid hsl(38 20% 88%);
         }
         .ac-footer-inner {
           display: flex;
@@ -624,17 +624,17 @@ export default function HomePage() {
           gap: 0.6rem;
           font-size: 0.9rem;
           font-weight: 700;
-          color: #e2e8f0;
+          color: hsl(220 35% 28%);
         }
         .ac-footer-links { display: flex; gap: 1.5rem; }
         .ac-footer-link {
           font-size: 0.85rem;
-          color: #64748b;
+          color: hsl(220 15% 52%);
           text-decoration: none;
           transition: color .2s;
         }
-        .ac-footer-link:hover { color: #60a5fa; }
-        .ac-footer-copy { font-size: 0.78rem; color: #334155; }
+        .ac-footer-link:hover { color: hsl(218 55% 50%); }
+        .ac-footer-copy { font-size: 0.78rem; color: hsl(220 15% 60%); }
 
         /* ── RESPONSIVE ── */
         @media (max-width: 900px) {
