@@ -99,7 +99,7 @@ export default function HomePage() {
       {/* ── FOOTER ── */}
       <footer className="ac-footer">
         <span>© {new Date().getFullYear()} Azione Cattolica di Chiari · dal 1867</span>
-        <Link href="/privacy" className="ac-footer-link">Privacy Policy</Link>
+        <button onClick={() => navigate('/privacy')} className="ac-footer-link">Privacy Policy</button>
       </footer>
 
       <style>{`
@@ -296,6 +296,10 @@ export default function HomePage() {
           font-size: 0.78rem;
           color: hsl(0 0% 100% / 0.5);
           text-decoration: none;
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
           transition: color .2s;
         }
         .ac-footer-link:hover { color: #fff; }
