@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
-// ── Foto del carosello ──────────────────────────────────────────
+// ── Foto del carosello ───────────────────────────────────────────
 // Aggiungi o sostituisci con le tue foto reali (in /public/)
 const slides = [
   { src: "/home-community.jpg", alt: "Momenti di comunità" },
@@ -16,29 +16,40 @@ export default function HomePage() {
   const [current, setCurrent] = useState(0);
   const [fading, setFading] = useState(false);
 
-  // Avanzamento automatico ogni 4s
   useEffect(() => {
     const timer = setInterval(() => {
       setFading(true);
       setTimeout(() => {
         setCurrent(i => (i + 1) % slides.length);
         setFading(false);
-      }, 400);
-    }, 4000);
+      }, 500);
+    }, 4500);
     return () => clearInterval(timer);
   }, []);
 
   const goTo = (idx: number) => {
     if (idx === current) return;
     setFading(true);
-    setTimeout(() => {
-      setCurrent(idx);
-      setFading(false);
-    }, 300);
+    setTimeout(() => { setCurrent(idx); setFading(false); }, 400);
   };
 
   return (
-    <div className="ac-page">
+    <div className="ac-root">
+
+      {/* ── FOTO DI SFONDO ── */}
+      <div className={`ac-bg ${fading ? "ac-fade-out" : "ac-fade-in"}`}>
+        <Image
+          src={slides[current].src}
+          alt={slides[current].alt}
+          fill
+          sizes="100vw"
+          className="ac-bg-img"
+          priority
+        />
+      </div>
+
+      {/* ── OVERLAY scuro per leggibilità ── */}
+      <div className="ac-overlay" />
 
       {/* ── NAV ── */}
       <nav className="ac-nav">
@@ -46,215 +57,185 @@ export default function HomePage() {
         <Link href="/login" className="ac-nav-cta">Accedi</Link>
       </nav>
 
-      {/* ── HERO: Logo + Nome ── */}
-      <header className="ac-hero">
+      {/* ── CENTRO: logo + nome ── */}
+      <main className="ac-center">
         <Image
-          src="/ac-logo.jpg"
+          src="/icon-512.png"
           alt="Logo Azione Cattolica Chiari"
-          width={96}
-          height={96}
+          width={110}
+          height={110}
           className="ac-logo"
           priority
         />
-        <h1 className="ac-title">
+        <div className="ac-title-wrap">
           <span className="ac-title-main">Azione Cattolica</span>
           <span className="ac-title-sub">Chiari</span>
-        </h1>
-        <Link href="/login" className="ac-cta">Accedi al gestionale</Link>
-      </header>
+        </div>
+        <Link href="/login" className="ac-cta">
+          Accedi al gestionale
+        </Link>
+      </main>
 
-      {/* ── CAROSELLO FOTO ── */}
-      <section className="ac-carousel">
-        <div className={`ac-slide ${fading ? "ac-fade-out" : "ac-fade-in"}`}>
-          <Image
-            src={slides[current].src}
-            alt={slides[current].alt}
-            fill
-            sizes="100vw"
-            className="ac-slide-img"
-            priority
+      {/* ── PUNTINI CAROSELLO ── */}
+      <div className="ac-dots">
+        {slides.map((_, i) => (
+          <button
+            key={i}
+            className={`ac-dot ${i === current ? "ac-dot-active" : ""}`}
+            onClick={() => goTo(i)}
+            aria-label={`Foto ${i + 1}`}
           />
-          <div className="ac-slide-overlay" />
-          <span className="ac-slide-caption">{slides[current].alt}</span>
-        </div>
-
-        {/* Punti navigazione */}
-        <div className="ac-dots">
-          {slides.map((_, i) => (
-            <button
-              key={i}
-              className={`ac-dot ${i === current ? "ac-dot-active" : ""}`}
-              onClick={() => goTo(i)}
-              aria-label={`Vai alla foto ${i + 1}`}
-            />
-          ))}
-        </div>
-      </section>
+        ))}
+      </div>
 
       {/* ── FOOTER ── */}
       <footer className="ac-footer">
-        <p>© {new Date().getFullYear()} Azione Cattolica di Chiari · Fondata nel 1867</p>
+        <span>© {new Date().getFullYear()} Azione Cattolica di Chiari · dal 1867</span>
         <Link href="/privacy" className="ac-footer-link">Privacy Policy</Link>
       </footer>
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .ac-page {
-          font-family: var(--font-sans, system-ui, sans-serif);
-          background: hsl(40 33% 98%);
-          color: hsl(220 35% 18%);
-          min-height: 100vh;
+        /* ── LAYOUT FISSO A TUTTO SCHERMO ── */
+        .ac-root {
+          position: fixed;
+          inset: 0;
           display: flex;
           flex-direction: column;
+          font-family: var(--font-sans, system-ui, sans-serif);
           -webkit-font-smoothing: antialiased;
+          overflow: hidden;
+        }
+
+        /* ── FOTO SFONDO ── */
+        .ac-bg {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+        }
+        .ac-bg-img {
+          object-fit: cover;
+        }
+        .ac-fade-in  { animation: fadeIn  .5s ease forwards; }
+        .ac-fade-out { animation: fadeOut .5s ease forwards; }
+        @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+        /* ── OVERLAY ── */
+        .ac-overlay {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          background: linear-gradient(
+            160deg,
+            hsl(220 60% 10% / 0.55) 0%,
+            hsl(220 60% 8%  / 0.70) 100%
+          );
         }
 
         /* ── NAV ── */
         .ac-nav {
+          position: relative;
+          z-index: 10;
           display: flex;
           align-items: center;
           justify-content: flex-end;
           gap: 1.25rem;
-          padding: 1rem 1.75rem;
-          background: hsl(40 33% 98%);
-          border-bottom: 1px solid hsl(38 20% 90%);
+          padding: 1.1rem 1.75rem;
         }
         .ac-nav-link {
           font-size: 0.875rem;
-          color: hsl(220 15% 50%);
+          font-weight: 500;
+          color: hsl(0 0% 100% / 0.75);
           text-decoration: none;
           transition: color .2s;
         }
-        .ac-nav-link:hover { color: hsl(220 35% 18%); }
+        .ac-nav-link:hover { color: #fff; }
         .ac-nav-cta {
           display: inline-flex;
           align-items: center;
-          padding: 0.45rem 1.15rem;
-          background: hsl(218 55% 58%);
+          padding: 0.45rem 1.2rem;
+          background: hsl(38 40% 99% / 0.15);
           color: #fff;
+          border: 1.5px solid hsl(38 40% 99% / 0.35);
           border-radius: 8px;
           font-size: 0.875rem;
           font-weight: 700;
           text-decoration: none;
-          transition: background .2s, box-shadow .2s;
-          box-shadow: 0 2px 10px hsl(218 55% 58% / 0.28);
+          backdrop-filter: blur(8px);
+          transition: background .2s, border-color .2s;
         }
         .ac-nav-cta:hover {
-          background: hsl(218 55% 50%);
-          box-shadow: 0 4px 16px hsl(218 55% 58% / 0.38);
+          background: hsl(38 40% 99% / 0.25);
+          border-color: hsl(38 40% 99% / 0.6);
         }
 
-        /* ── HERO ── */
-        .ac-hero {
+        /* ── CENTRO ── */
+        .ac-center {
+          position: relative;
+          z-index: 10;
+          flex: 1;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 4rem 1.5rem 3.5rem;
-          gap: 1.25rem;
+          gap: 1.1rem;
           text-align: center;
+          padding: 0 1.5rem;
         }
         .ac-logo {
-          border-radius: 18px;
-          box-shadow: 0 4px 20px hsl(218 30% 60% / 0.18);
+          filter: drop-shadow(0 4px 24px hsl(220 60% 8% / 0.5));
         }
-        .ac-title {
+        .ac-title-wrap {
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 0.1rem;
-          line-height: 1.1;
         }
         .ac-title-main {
-          font-size: clamp(1.8rem, 5vw, 2.8rem);
+          font-size: clamp(1.9rem, 5vw, 3rem);
           font-weight: 900;
           letter-spacing: -0.5px;
-          color: hsl(220 35% 14%);
+          color: #fff;
+          text-shadow: 0 2px 16px hsl(220 60% 8% / 0.5);
+          line-height: 1.1;
         }
         .ac-title-sub {
-          font-size: clamp(1.3rem, 3.5vw, 2rem);
-          font-weight: 500;
-          color: hsl(218 55% 52%);
-          letter-spacing: 0.04em;
+          font-size: clamp(1.2rem, 3vw, 1.7rem);
+          font-weight: 400;
+          color: hsl(218 80% 82%);
+          letter-spacing: 0.08em;
+          text-shadow: 0 1px 8px hsl(220 60% 8% / 0.5);
         }
         .ac-cta {
           display: inline-flex;
           align-items: center;
-          gap: 0.4rem;
-          margin-top: 0.25rem;
-          padding: 0.7rem 1.75rem;
+          margin-top: 0.5rem;
+          padding: 0.72rem 1.8rem;
           background: hsl(218 55% 58%);
           color: #fff;
           border-radius: 10px;
           font-size: 0.95rem;
           font-weight: 700;
           text-decoration: none;
+          box-shadow: 0 4px 20px hsl(218 55% 40% / 0.45);
           transition: background .2s, transform .2s, box-shadow .2s;
-          box-shadow: 0 4px 18px hsl(218 55% 58% / 0.32);
         }
         .ac-cta:hover {
           background: hsl(218 55% 50%);
           transform: translateY(-2px);
-          box-shadow: 0 8px 26px hsl(218 55% 58% / 0.40);
+          box-shadow: 0 8px 28px hsl(218 55% 40% / 0.55);
         }
 
-        /* ── CAROSELLO ── */
-        .ac-carousel {
-          position: relative;
-          width: 100%;
-          flex: 1;
-          min-height: 420px;
-          max-height: 560px;
-          overflow: hidden;
-          background: hsl(218 30% 88%);
-        }
-        .ac-slide {
-          position: absolute;
-          inset: 0;
-        }
-        .ac-slide-img {
-          object-fit: cover;
-        }
-        .ac-slide-overlay {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            to bottom,
-            hsl(218 30% 20% / 0.08) 0%,
-            hsl(218 30% 12% / 0.38) 100%
-          );
-        }
-        .ac-slide-caption {
-          position: absolute;
-          bottom: 3.5rem;
-          left: 50%;
-          transform: translateX(-50%);
-          background: hsl(38 40% 99% / 0.88);
-          color: hsl(220 35% 20%);
-          font-size: 0.82rem;
-          font-weight: 600;
-          letter-spacing: 0.04em;
-          padding: 0.35rem 1rem;
-          border-radius: 99px;
-          backdrop-filter: blur(6px);
-          border: 1px solid hsl(38 20% 88%);
-          white-space: nowrap;
-        }
-        .ac-fade-in  { animation: fadeIn  .4s ease forwards; }
-        .ac-fade-out { animation: fadeOut .4s ease forwards; }
-        @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-
-        /* Punti */
+        /* ── PUNTINI ── */
         .ac-dots {
-          position: absolute;
-          bottom: 1.1rem;
-          left: 50%;
-          transform: translateX(-50%);
-          display: flex;
-          gap: 0.5rem;
+          position: relative;
           z-index: 10;
+          display: flex;
+          justify-content: center;
+          gap: 0.5rem;
+          padding-bottom: 0.5rem;
         }
         .ac-dot {
           width: 8px;
@@ -262,43 +243,39 @@ export default function HomePage() {
           border-radius: 99px;
           border: none;
           cursor: pointer;
-          background: hsl(38 40% 99% / 0.55);
+          background: hsl(0 0% 100% / 0.4);
           transition: background .3s, width .3s;
           padding: 0;
         }
         .ac-dot-active {
           background: #fff;
-          width: 22px;
+          width: 24px;
         }
 
         /* ── FOOTER ── */
         .ac-footer {
+          position: relative;
+          z-index: 10;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 1.5rem;
           flex-wrap: wrap;
-          padding: 1.1rem 1.5rem;
-          background: hsl(218 55% 97%);
-          border-top: 1px solid hsl(218 30% 88%);
+          gap: 1.5rem;
+          padding: 0.9rem 1.5rem;
+          background: hsl(220 60% 8% / 0.45);
+          backdrop-filter: blur(8px);
         }
-        .ac-footer p {
+        .ac-footer span {
           font-size: 0.78rem;
-          color: hsl(220 15% 58%);
+          color: hsl(0 0% 100% / 0.5);
         }
         .ac-footer-link {
           font-size: 0.78rem;
-          color: hsl(220 15% 55%);
+          color: hsl(0 0% 100% / 0.5);
           text-decoration: none;
           transition: color .2s;
         }
-        .ac-footer-link:hover { color: hsl(218 55% 50%); }
-
-        /* ── RESPONSIVE ── */
-        @media (max-width: 500px) {
-          .ac-carousel { min-height: 280px; max-height: 380px; }
-          .ac-hero { padding: 3rem 1.25rem 2.5rem; }
-        }
+        .ac-footer-link:hover { color: #fff; }
       `}</style>
     </div>
   );
