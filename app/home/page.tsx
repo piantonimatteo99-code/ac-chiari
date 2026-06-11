@@ -1,8 +1,8 @@
 'use client';
 
 import Image from "next/image";
-import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 // ── Foto del carosello ───────────────────────────────────────────
 // Aggiungi o sostituisci con le tue foto reali (in /public/)
@@ -15,6 +15,8 @@ const slides = [
 export default function HomePage() {
   const [current, setCurrent] = useState(0);
   const [fading, setFading] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -27,6 +29,12 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Navigazione con transizione di uscita
+  const navigate = useCallback((href: string) => {
+    setLeaving(true);
+    setTimeout(() => router.push(href), 420);
+  }, [router]);
+
   const goTo = (idx: number) => {
     if (idx === current) return;
     setFading(true);
@@ -34,7 +42,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="ac-root">
+    <div className={`ac-root ${leaving ? 'ac-leaving' : ''}`}>
 
       {/* ── FOTO DI SFONDO ── */}
       <div className={`ac-bg ${fading ? "ac-fade-out" : "ac-fade-in"}`}>
@@ -53,8 +61,8 @@ export default function HomePage() {
 
       {/* ── NAV ── */}
       <nav className="ac-nav">
-        <Link href="/privacy" className="ac-nav-link">Privacy Policy</Link>
-        <Link href="/login" className="ac-nav-cta">Accedi</Link>
+        <button onClick={() => navigate('/privacy')} className="ac-nav-link">Privacy Policy</button>
+        <button onClick={() => navigate('/login')} className="ac-nav-cta">Accedi</button>
       </nav>
 
       {/* ── CENTRO: logo + nome ── */}
@@ -71,9 +79,9 @@ export default function HomePage() {
           <span className="ac-title-main">Azione Cattolica</span>
           <span className="ac-title-sub">Chiari</span>
         </div>
-        <Link href="/login" className="ac-cta">
+        <button onClick={() => navigate('/login')} className="ac-cta">
           Accedi al gestionale
-        </Link>
+        </button>
       </main>
 
       {/* ── PUNTINI CAROSELLO ── */}
@@ -122,6 +130,15 @@ export default function HomePage() {
         @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 
+        /* ── TRANSIZIONE DI USCITA ── */
+        .ac-leaving {
+          animation: pageLeave 0.42s cubic-bezier(0.4, 0, 1, 1) forwards;
+        }
+        @keyframes pageLeave {
+          0%   { opacity: 1; transform: scale(1); }
+          100% { opacity: 0; transform: scale(1.03); }
+        }
+
         /* ── OVERLAY ── */
         .ac-overlay {
           position: absolute;
@@ -148,8 +165,11 @@ export default function HomePage() {
           font-size: 0.875rem;
           font-weight: 500;
           color: hsl(0 0% 100% / 0.75);
-          text-decoration: none;
+          background: none;
+          border: none;
+          cursor: pointer;
           transition: color .2s;
+          font-family: inherit;
         }
         .ac-nav-link:hover { color: #fff; }
         .ac-nav-cta {
@@ -162,7 +182,8 @@ export default function HomePage() {
           border-radius: 8px;
           font-size: 0.875rem;
           font-weight: 700;
-          text-decoration: none;
+          cursor: pointer;
+          font-family: inherit;
           backdrop-filter: blur(8px);
           transition: background .2s, border-color .2s;
         }
@@ -215,10 +236,12 @@ export default function HomePage() {
           padding: 0.72rem 1.8rem;
           background: hsl(218 55% 58%);
           color: #fff;
+          border: none;
           border-radius: 10px;
           font-size: 0.95rem;
           font-weight: 700;
-          text-decoration: none;
+          cursor: pointer;
+          font-family: inherit;
           box-shadow: 0 4px 20px hsl(218 55% 40% / 0.45);
           transition: background .2s, transform .2s, box-shadow .2s;
         }
