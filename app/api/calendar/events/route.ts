@@ -120,13 +120,29 @@ export async function POST(request: NextRequest) {
     };
 
     if (allDay) {
-      // Google Calendar requires date strings (not datetime) for all-day events
-      const startStr = new Date(startDate).toISOString().split('T')[0];
-      const endDate_ = new Date(endDate);
-      endDate_.setDate(endDate_.getDate() + 1); // Google end date is exclusive
-      const endStr = endDate_.toISOString().split('T')[0];
+      // Google Calendar requires date strings (not datetime) for all-day events.
+      // IMPORTANT: use Europe/Rome locale so that a midnight Italian timestamp is
+      // never shifted back to the previous UTC day (e.g. 2026-06-13T00:00+02:00
+      // would become "2026-06-12" if converted via toISOString() which uses UTC).
+      const toRomeDate = (iso: string) =>
+        new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome' }).format(new Date(iso));
+
+      const startStr = toRomeDate(startDate);
+
+      // Google Calendar end date is exclusive → add one calendar day to the Rome date
+      let finalEndStr: string;
+      if (endDate && endDate !== startDate) {
+        const endRome = toRomeDate(endDate);
+        const [ey, em, ed] = endRome.split('-').map(Number);
+        finalEndStr = new Date(Date.UTC(ey, em - 1, ed + 1)).toISOString().split('T')[0];
+      } else {
+        const [y, m, d] = startStr.split('-').map(Number);
+        finalEndStr = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().split('T')[0];
+      }
+
       googleEvent.start = { date: startStr };
-      googleEvent.end = { date: endStr };
+      googleEvent.end = { date: finalEndStr };
+
     } else {
       googleEvent.start = { dateTime: new Date(startDate).toISOString(), timeZone: 'Europe/Rome' };
       googleEvent.end = { dateTime: new Date(endDate).toISOString(), timeZone: 'Europe/Rome' };
