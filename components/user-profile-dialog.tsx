@@ -226,7 +226,7 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
               </div>
 
               {/* Data nascita / Luogo */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3" style={{ gridTemplateColumns: '3fr 2fr' }}>
                 <div className="space-y-1">
                   <Label>Data di nascita *</Label>
                   <Input type="date" value={form.dataNascita} onChange={e => set('dataNascita', e.target.value)} />
@@ -263,8 +263,8 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
               {/* Indirizzo */}
               <div className="space-y-3 border-t pt-4">
                 <p className="text-sm font-medium">Indirizzo di residenza</p>
-                <div className="grid grid-cols-5 gap-2">
-                  <div className="col-span-3 space-y-1">
+                <div className="grid gap-2" style={{ gridTemplateColumns: '2fr 1fr 1.5fr' }}>
+                  <div className="space-y-1">
                     <Label className="text-xs">Città *</Label>
                     <Input value={form.citta} onChange={e => set('citta', cap(e.target.value))} placeholder="Chiari" />
                   </div>
@@ -274,7 +274,7 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">CAP</Label>
-                    <Input value={form.cap} onChange={e => set('cap', e.target.value)} placeholder="25032" />
+                    <Input value={form.cap} onChange={e => set('cap', e.target.value)} maxLength={5} placeholder="25032" />
                   </div>
                 </div>
                 <div className="grid grid-cols-5 gap-2">
