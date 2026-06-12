@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     // Se non c'è header Authorization lasciamo passare (chiamata interna server-side)
 
     const body = await request.json();
-    const { action, groupIds, title, description, startDate, endDate, allDay, creatorUserId, oldEvent, newEvent } = body;
+    const { action, groupIds, title, description, startDate, endDate, allDay, creatorUserId, oldEvent, newEvent, creatorOnly } = body;
 
     initAdminApp();
     const db = getFirestore();
@@ -93,6 +93,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'oldEvent e newEvent sono obbligatori per update' }, { status: 400 });
       }
 
+      // creatorOnly=true: aggiorna solo il calendario del creatore (es. quando modifica il proprio evento)
+      if (creatorOnly && creatorUserId) {
+        try {
+          const gcalEventId = await findEventOnUserCalendar(creatorUserId, oldEvent);
+          if (gcalEventId) {
+            await updateEventForUser(creatorUserId, gcalEventId, newEvent);
+            updated++;
+          } else {
+            // Non trovato: crea ex-novo nel calendario del creatore
+            await pushEventToUser(creatorUserId, newEvent);
+            pushed++;
+          }
+        } catch (err: any) {
+          errors.push(`${creatorUserId}: ${err.message}`);
+        }
+        return NextResponse.json({ pushed, updated, deleted, skipped, errors });
+      }
+
       const oldGroupIdSet = new Set<string>(oldEvent.groupIds || []);
       const newGroupIdSet = new Set<string>(newEvent.groupIds || []);
 
@@ -111,12 +129,12 @@ export async function POST(request: NextRequest) {
                 await updateEventForUser(uid, gcalEventId, newEvent);
                 updated++;
               } else {
-                // If not found, fall back to push (create)
+                // Se non trovato, ricrea (es. evento inserito prima del fix timezone)
                 await pushEventToUser(uid, newEvent);
                 pushed++;
               }
             } else if (wasSynced && !shouldSync) {
-              // Action: Delete (un-subscribed from group or group removed from event)
+              // Action: Delete (de-iscritto dal gruppo o gruppo rimosso)
               const gcalEventId = await findEventOnUserCalendar(uid, oldEvent);
               if (gcalEventId) {
                 await deleteEventForUser(uid, gcalEventId);
@@ -125,7 +143,7 @@ export async function POST(request: NextRequest) {
                 skipped++;
               }
             } else if (!wasSynced && shouldSync) {
-              // Action: Create (subscribed or group added)
+              // Action: Create (nuovo gruppo aggiunto)
               await pushEventToUser(uid, newEvent);
               pushed++;
             } else {
