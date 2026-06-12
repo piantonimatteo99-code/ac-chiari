@@ -225,16 +225,16 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
                 </div>
               </div>
 
-              {/* Data nascita */}
-              <div className="space-y-1">
-                <Label>Data di nascita *</Label>
-                <Input type="date" value={form.dataNascita} onChange={e => set('dataNascita', e.target.value)} />
-              </div>
-
-              {/* Luogo nascita */}
-              <div className="space-y-1">
-                <Label>Luogo di nascita *</Label>
-                <Input value={form.luogoNascita} onChange={e => set('luogoNascita', cap(e.target.value))} placeholder="Chiari" />
+              {/* Data nascita / Luogo */}
+              <div className="grid gap-3" style={{ gridTemplateColumns: '3fr 2fr' }}>
+                <div className="space-y-1 min-w-0">
+                  <Label>Data di nascita *</Label>
+                  <Input type="date" value={form.dataNascita} onChange={e => set('dataNascita', e.target.value)} className="w-full" />
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <Label>Luogo di nascita *</Label>
+                  <Input value={form.luogoNascita} onChange={e => set('luogoNascita', cap(e.target.value))} placeholder="Chiari" />
+                </div>
               </div>
 
               {/* CF */}
