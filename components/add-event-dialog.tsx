@@ -293,8 +293,27 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                 }
 
                 await batch.commit();
-                // Sync update with Google Calendar (fire-and-forget with auth token)
-                // 1. Aggiorna il calendario degli altri utenti iscritti ai gruppi
+                // Sync update with Google Calendar ──────────────────────────────────────────
+                // 1. Aggiorna il calendario del creatore (direttamente via PATCH)
+                if (isConnected && auth.currentUser) {
+                    fetch('/api/calendar/events', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: auth.currentUser.uid,
+                            oldTitle: eventToEdit.title,
+                            oldStartDate: eventToEdit.startDate?.toDate ? eventToEdit.startDate.toDate().toISOString() : new Date(eventToEdit.startDate).toISOString(),
+                            oldAllDay: eventToEdit.allDay,
+                            title,
+                            description: description || notes,
+                            startDate: finalStartDate.toISOString(),
+                            endDate: finalEndDate.toISOString(),
+                            allDay,
+                        }),
+                    }).catch(console.error);
+                }
+
+                // 2. Aggiorna il calendario degli altri utenti iscritti ai gruppi
                 auth.currentUser?.getIdToken().then(token =>
                     fetch('/api/calendar/broadcast', {
                         method: 'POST',
@@ -319,33 +338,6 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         })
                     })
                 ).catch(console.error);
-
-                // 2. Aggiorna anche il calendario del creatore (escluso dalla broadcast normale)
-                if (isConnected) {
-                    auth.currentUser?.getIdToken().then(token =>
-                        fetch('/api/calendar/broadcast', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify({
-                                action: 'update',
-                                creatorOnly: true,
-                                creatorUserId: auth.currentUser?.uid,
-                                oldEvent: {
-                                    title: eventToEdit.title,
-                                    startDate: eventToEdit.startDate?.toDate ? eventToEdit.startDate.toDate().toISOString() : new Date(eventToEdit.startDate).toISOString(),
-                                    allDay: eventToEdit.allDay,
-                                },
-                                newEvent: {
-                                    title,
-                                    description: description || notes,
-                                    startDate: finalStartDate.toISOString(),
-                                    endDate: finalEndDate.toISOString(),
-                                    allDay,
-                                },
-                            })
-                        })
-                    ).catch(console.error);
-                }
 
                 // Trigger notifica broadcast
                 const startFormatted = format(finalStartDate, 'd MMMM yyyy', { locale: itLocale });

@@ -174,6 +174,137 @@ export async function POST(request: NextRequest) {
 }
 
 /**
+ * PATCH /api/calendar/events
+ * Finds and updates an existing event on the user's Google Calendar.
+ * If the event is not found (e.g. created before the timezone fix), it creates a new one.
+ * Body: { userId, oldTitle, oldStartDate, oldAllDay, title, description, startDate, endDate, allDay }
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { userId, oldTitle, oldStartDate, oldAllDay, title, description, startDate, endDate, allDay } = body;
+
+    if (!userId || !title || !startDate) {
+      return NextResponse.json({ error: 'userId, title e startDate sono obbligatori' }, { status: 400 });
+    }
+
+    const accessToken = await getAccessToken(userId);
+
+    // ── 1. Find the existing event ──────────────────────────────────────────
+    const searchStart = new Date(oldStartDate || startDate);
+    const timeMin = new Date(searchStart.getTime() - 36 * 60 * 60 * 1000);
+    const timeMax = new Date(searchStart.getTime() + 36 * 60 * 60 * 1000);
+
+    const searchUrl = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
+    searchUrl.searchParams.set('timeMin', timeMin.toISOString());
+    searchUrl.searchParams.set('timeMax', timeMax.toISOString());
+    searchUrl.searchParams.set('singleEvents', 'true');
+    searchUrl.searchParams.set('maxResults', '100');
+
+    const searchRes = await fetch(searchUrl.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    let googleEventId: string | null = null;
+
+    if (searchRes.ok) {
+      const searchData = await searchRes.json();
+      const items: any[] = searchData.items || [];
+      const targetTitle = ((oldTitle || title) || '').trim().toLowerCase();
+
+      const toRomeDate = (iso: string) =>
+        new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome' }).format(new Date(iso));
+      const targetDateStr = toRomeDate(oldStartDate || startDate);
+
+      for (const item of items) {
+        const itemTitle = (item.summary || '').trim().toLowerCase();
+        if (itemTitle !== targetTitle) continue;
+
+        if (oldAllDay ?? allDay) {
+          // All-day event: compare the date string
+          // Match either the correct date (after fix) or the old wrong UTC date (before fix)
+          const itemDate = item.start?.date;
+          if (itemDate === targetDateStr) {
+            googleEventId = item.id;
+            break;
+          }
+          // Also try the UTC-shifted date (for events created before the timezone fix)
+          const utcDate = new Date(oldStartDate || startDate).toISOString().split('T')[0];
+          if (itemDate === utcDate) {
+            googleEventId = item.id;
+            break;
+          }
+        } else {
+          const targetTime = new Date(oldStartDate || startDate).getTime();
+          const itemTime = item.start?.dateTime ? new Date(item.start.dateTime).getTime() : null;
+          if (itemTime && Math.abs(itemTime - targetTime) <= 5 * 60 * 1000) {
+            googleEventId = item.id;
+            break;
+          }
+        }
+      }
+    }
+
+    // ── 2. Build the updated event payload ──────────────────────────────────
+    const toRomeDate = (iso: string) =>
+      new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome' }).format(new Date(iso));
+
+    const googleEvent: any = {
+      summary: title,
+      description: description || '',
+    };
+
+    if (allDay) {
+      const startStr = toRomeDate(startDate);
+      const endRome = toRomeDate(endDate || startDate);
+      const [ey, em, ed] = endRome.split('-').map(Number);
+      const finalEndStr = new Date(Date.UTC(ey, em - 1, ed + 1)).toISOString().split('T')[0];
+      googleEvent.start = { date: startStr };
+      googleEvent.end = { date: finalEndStr };
+    } else {
+      googleEvent.start = { dateTime: new Date(startDate).toISOString(), timeZone: 'Europe/Rome' };
+      googleEvent.end = { dateTime: new Date(endDate).toISOString(), timeZone: 'Europe/Rome' };
+    }
+
+    // ── 3. Update if found, otherwise create ────────────────────────────────
+    let response: Response;
+    if (googleEventId) {
+      response = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`,
+        {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(googleEvent),
+        }
+      );
+    } else {
+      // Event not found (e.g. never synced or created before fix) → create it
+      response = await fetch(
+        'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(googleEvent),
+        }
+      );
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Errore aggiornamento evento: ${errText}`);
+    }
+
+    const result = await response.json();
+    return NextResponse.json({ success: true, googleEventId: result.id, action: googleEventId ? 'updated' : 'created' });
+  } catch (err: any) {
+    console.error('Calendar event update error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+
+
+/**
  * DELETE /api/calendar/events?userId=xxx&connected=false
  * Disconnects the user's Google Calendar by removing credentials
  */
