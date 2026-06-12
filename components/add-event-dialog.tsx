@@ -513,7 +513,25 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
             
             await batch.commit();
 
-            // Sync delete with Google Calendar (fire-and-forget with auth token)
+            // Sync delete with Google Calendar ─────────────────────────────────────────
+            const oldStartISO = eventToEdit.startDate?.toDate
+                ? eventToEdit.startDate.toDate().toISOString()
+                : new Date(eventToEdit.startDate).toISOString();
+
+            // 1. Elimina dal calendario del creatore (direttamente, senza broadcast)
+            if (isConnected && auth.currentUser) {
+                const params = new URLSearchParams({
+                    userId: auth.currentUser.uid,
+                    eventTitle: eventToEdit.title,
+                    eventStartDate: oldStartISO,
+                    allDay: String(!!eventToEdit.allDay),
+                });
+                fetch(`/api/calendar/events?${params.toString()}`, {
+                    method: 'DELETE',
+                }).catch(console.error);
+            }
+
+            // 2. Elimina dai calendari degli altri utenti iscritti ai gruppi
             auth.currentUser?.getIdToken().then(token =>
                 fetch('/api/calendar/broadcast', {
                     method: 'POST',

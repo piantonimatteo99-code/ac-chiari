@@ -305,8 +305,11 @@ export async function PATCH(request: NextRequest) {
 
 
 /**
+ * DELETE /api/calendar/events?userId=xxx&eventTitle=xxx&eventStartDate=xxx&allDay=true
+ * Finds and deletes a specific event from the user's Google Calendar.
+ *
  * DELETE /api/calendar/events?userId=xxx&connected=false
- * Disconnects the user's Google Calendar by removing credentials
+ * Disconnects the user's Google Calendar by removing credentials (existing behaviour).
  */
 export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -316,6 +319,87 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'userId richiesto' }, { status: 400 });
   }
 
+  // ── Mode A: delete a specific event ──────────────────────────────────────
+  const eventTitle     = searchParams.get('eventTitle');
+  const eventStartDate = searchParams.get('eventStartDate');
+  const allDay         = searchParams.get('allDay') === 'true';
+
+  if (eventTitle && eventStartDate) {
+    try {
+      const accessToken = await getAccessToken(userId);
+
+      // Search window ±36h around the event start
+      const searchStart = new Date(eventStartDate);
+      const timeMin = new Date(searchStart.getTime() - 36 * 60 * 60 * 1000);
+      const timeMax = new Date(searchStart.getTime() + 36 * 60 * 60 * 1000);
+
+      const searchUrl = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
+      searchUrl.searchParams.set('timeMin', timeMin.toISOString());
+      searchUrl.searchParams.set('timeMax', timeMax.toISOString());
+      searchUrl.searchParams.set('singleEvents', 'true');
+      searchUrl.searchParams.set('maxResults', '100');
+
+      const searchRes = await fetch(searchUrl.toString(), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!searchRes.ok) {
+        const errText = await searchRes.text();
+        throw new Error(`Errore ricerca evento: ${errText}`);
+      }
+
+      const searchData = await searchRes.json();
+      const items: any[] = searchData.items || [];
+      const targetTitle = eventTitle.trim().toLowerCase();
+
+      const toRomeDate = (iso: string) =>
+        new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome' }).format(new Date(iso));
+      const targetDateStr = toRomeDate(eventStartDate);
+      const utcDateStr    = new Date(eventStartDate).toISOString().split('T')[0];
+
+      let googleEventId: string | null = null;
+      for (const item of items) {
+        const itemTitle = (item.summary || '').trim().toLowerCase();
+        if (itemTitle !== targetTitle) continue;
+
+        if (allDay) {
+          const itemDate = item.start?.date;
+          // Match correct Rome date OR old wrong UTC date (pre-fix events)
+          if (itemDate === targetDateStr || itemDate === utcDateStr) {
+            googleEventId = item.id;
+            break;
+          }
+        } else {
+          const targetTime = new Date(eventStartDate).getTime();
+          const itemTime = item.start?.dateTime ? new Date(item.start.dateTime).getTime() : null;
+          if (itemTime && Math.abs(itemTime - targetTime) <= 5 * 60 * 1000) {
+            googleEventId = item.id;
+            break;
+          }
+        }
+      }
+
+      if (googleEventId) {
+        const delRes = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`,
+          { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (!delRes.ok && delRes.status !== 410 && delRes.status !== 404) {
+          const errText = await delRes.text();
+          throw new Error(`Errore eliminazione evento: ${errText}`);
+        }
+        return NextResponse.json({ success: true, deleted: true });
+      }
+
+      // Event not found on Google Calendar — nothing to delete
+      return NextResponse.json({ success: true, deleted: false });
+    } catch (err: any) {
+      console.error('Calendar single event delete error:', err);
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+  }
+
+  // ── Mode B: disconnect Google Calendar (existing behaviour) ───────────────
   try {
     initAdminApp();
     const db = getFirestore();
