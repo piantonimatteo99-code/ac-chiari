@@ -1,0 +1,282 @@
+﻿[
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-3lxtc1iof2wo",
+        "state":  "FAILED",
+        "createTime":  "2026-01-30T09:51:45.761152680Z",
+        "updateTime":  "2026-01-30T09:54:17.551261Z",
+        "commit":  null,
+        "id":  "a-3lxtc1iof2wo"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-m2ttxfayfsd0",
+        "state":  "READY",
+        "createTime":  "2025-12-22T13:37:34.860094858Z",
+        "updateTime":  "2025-12-22T13:41:07.369756Z",
+        "commit":  null,
+        "id":  "a-m2ttxfayfsd0"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/build-2026-06-05-001",
+        "state":  "BUILDING",
+        "createTime":  "2026-06-05T16:39:21.569451079Z",
+        "updateTime":  "2026-06-05T16:39:22.437012Z",
+        "commit":  null,
+        "id":  "build-2026-06-05-001"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-s3ix10xzjgn3",
+        "state":  "FAILED",
+        "createTime":  "2026-02-03T19:06:09.627398153Z",
+        "updateTime":  "2026-02-03T19:09:32.033689Z",
+        "commit":  null,
+        "id":  "a-s3ix10xzjgn3"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-u3wz6ehp7lq6",
+        "state":  "FAILED",
+        "createTime":  "2026-01-29T20:57:31.490792590Z",
+        "updateTime":  "2026-01-29T21:00:03.313370Z",
+        "commit":  null,
+        "id":  "a-u3wz6ehp7lq6"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-9wxkz2b9xlhr",
+        "state":  "FAILED",
+        "createTime":  "2026-02-03T17:48:09.599505210Z",
+        "updateTime":  "2026-02-03T17:50:51.407669Z",
+        "commit":  null,
+        "id":  "a-9wxkz2b9xlhr"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-r6r42gudsema",
+        "state":  "FAILED",
+        "createTime":  "2026-02-03T18:04:15.109550282Z",
+        "updateTime":  "2026-02-03T18:07:27.450007Z",
+        "commit":  null,
+        "id":  "a-r6r42gudsema"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-w1951v52aaw4",
+        "state":  "FAILED",
+        "createTime":  "2026-02-01T07:24:02.805133771Z",
+        "updateTime":  "2026-02-01T07:26:24.508006Z",
+        "commit":  null,
+        "id":  "a-w1951v52aaw4"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-orrk5zwaw4tq",
+        "state":  "FAILED",
+        "createTime":  "2026-02-03T17:56:56.908826724Z",
+        "updateTime":  "2026-02-03T18:00:29.384643Z",
+        "commit":  null,
+        "id":  "a-orrk5zwaw4tq"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-c0lw8jhiwcuk",
+        "state":  "FAILED",
+        "createTime":  "2026-01-30T10:17:34.804421567Z",
+        "updateTime":  "2026-01-30T10:20:36.941730Z",
+        "commit":  null,
+        "id":  "a-c0lw8jhiwcuk"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-j0m01yivvtxy",
+        "state":  "FAILED",
+        "createTime":  "2026-01-29T19:15:29.843461438Z",
+        "updateTime":  "2026-01-29T19:18:21.878604Z",
+        "commit":  null,
+        "id":  "a-j0m01yivvtxy"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-fdg14iyo6o1y",
+        "state":  "FAILED",
+        "createTime":  "2026-02-01T07:33:45.525316695Z",
+        "updateTime":  "2026-02-01T07:36:57.822202Z",
+        "commit":  null,
+        "id":  "a-fdg14iyo6o1y"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/build-2026-06-02-002",
+        "state":  "FAILED",
+        "createTime":  "2026-06-02T19:22:02.526146097Z",
+        "updateTime":  "2026-06-02T19:25:24.918821Z",
+        "commit":  null,
+        "id":  "build-2026-06-02-002"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/build-2026-06-02-001",
+        "state":  "FAILED",
+        "createTime":  "2026-06-02T07:45:28.515547929Z",
+        "updateTime":  "2026-06-02T07:49:01.002708Z",
+        "commit":  null,
+        "id":  "build-2026-06-02-001"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-n676pyr919wr",
+        "state":  "FAILED",
+        "createTime":  "2026-01-30T10:06:41.793197254Z",
+        "updateTime":  "2026-01-30T10:10:04.179016Z",
+        "commit":  null,
+        "id":  "a-n676pyr919wr"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-c8dh3rg3a9pe",
+        "state":  "FAILED",
+        "createTime":  "2026-01-30T14:15:01.370697191Z",
+        "updateTime":  "2026-01-30T14:18:13.618496Z",
+        "commit":  null,
+        "id":  "a-c8dh3rg3a9pe"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-ib8lymys9j9a",
+        "state":  "FAILED",
+        "createTime":  "2025-12-20T07:20:44.122488923Z",
+        "updateTime":  "2025-12-20T07:22:25.285776Z",
+        "commit":  null,
+        "id":  "a-ib8lymys9j9a"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-4jrqu9sz1hjh",
+        "state":  "FAILED",
+        "createTime":  "2026-02-01T07:10:50.440577364Z",
+        "updateTime":  "2026-02-01T07:13:52.535915Z",
+        "commit":  null,
+        "id":  "a-4jrqu9sz1hjh"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-j7b95voiwmmw",
+        "state":  "FAILED",
+        "createTime":  "2025-11-30T14:34:32.294748759Z",
+        "updateTime":  "2025-11-30T14:37:54.727370Z",
+        "commit":  null,
+        "id":  "a-j7b95voiwmmw"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/build-2026-03-22-001",
+        "state":  "FAILED",
+        "createTime":  "2026-03-22T21:12:49.392534821Z",
+        "updateTime":  "2026-03-22T21:16:32.105308Z",
+        "commit":  null,
+        "id":  "build-2026-03-22-001"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-51nk8zrnv6m7",
+        "state":  "FAILED",
+        "createTime":  "2026-01-29T20:46:24.181375153Z",
+        "updateTime":  "2026-01-29T20:48:55.962518Z",
+        "commit":  null,
+        "id":  "a-51nk8zrnv6m7"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-8zdhl2s4t0a6",
+        "state":  "FAILED",
+        "createTime":  "2025-12-20T07:32:49.693617634Z",
+        "updateTime":  "2025-12-20T07:33:50.425981Z",
+        "commit":  null,
+        "id":  "a-8zdhl2s4t0a6"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-g5g52zutw7av",
+        "state":  "FAILED",
+        "createTime":  "2026-02-03T18:22:39.204075221Z",
+        "updateTime":  "2026-02-03T18:26:11.782351Z",
+        "commit":  null,
+        "id":  "a-g5g52zutw7av"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-q2wjjyk4unra",
+        "state":  "FAILED",
+        "createTime":  "2026-01-29T19:22:35.695758764Z",
+        "updateTime":  "2026-01-29T19:25:47.985315Z",
+        "commit":  null,
+        "id":  "a-q2wjjyk4unra"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-rrlk818fv241",
+        "state":  "FAILED",
+        "createTime":  "2026-01-29T14:53:20.058037159Z",
+        "updateTime":  "2026-01-29T14:56:22.231483Z",
+        "commit":  null,
+        "id":  "a-rrlk818fv241"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-kbutn8rm5smn",
+        "state":  "FAILED",
+        "createTime":  "2026-02-03T17:41:08.895895089Z",
+        "updateTime":  "2026-02-03T17:44:31.303592Z",
+        "commit":  null,
+        "id":  "a-kbutn8rm5smn"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-r2qahodu4xid",
+        "state":  "READY",
+        "createTime":  "2025-12-22T13:31:37.305301109Z",
+        "updateTime":  "2025-12-22T13:33:59.257599Z",
+        "commit":  null,
+        "id":  "a-r2qahodu4xid"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-mrgni4rik1uk",
+        "state":  "FAILED",
+        "createTime":  "2026-01-30T09:15:40.812453042Z",
+        "updateTime":  "2026-01-30T09:18:12.607788Z",
+        "commit":  null,
+        "id":  "a-mrgni4rik1uk"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/a-amhcun19uuiy",
+        "state":  "FAILED",
+        "createTime":  "2026-02-03T16:28:52.772054242Z",
+        "updateTime":  "2026-02-03T16:32:15.182922Z",
+        "commit":  null,
+        "id":  "a-amhcun19uuiy"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/build-2026-06-03-004",
+        "state":  "FAILED",
+        "createTime":  "2026-06-03T19:50:05.321221104Z",
+        "updateTime":  "2026-06-03T19:53:58.102747Z",
+        "commit":  null,
+        "id":  "build-2026-06-03-004"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/build-2026-06-03-002",
+        "state":  "FAILED",
+        "createTime":  "2026-06-03T18:48:18.829842506Z",
+        "updateTime":  "2026-06-03T18:51:30.940354Z",
+        "commit":  null,
+        "id":  "build-2026-06-03-002"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/build-2026-06-03-003",
+        "state":  "FAILED",
+        "createTime":  "2026-06-03T18:53:27.496416543Z",
+        "updateTime":  "2026-06-03T18:56:39.788609Z",
+        "commit":  null,
+        "id":  "build-2026-06-03-003"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/build-2026-06-03-001",
+        "state":  "FAILED",
+        "createTime":  "2026-06-03T17:58:56.310349268Z",
+        "updateTime":  "2026-06-03T18:02:59.164493Z",
+        "commit":  null,
+        "id":  "build-2026-06-03-001"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/build-2026-03-23-002",
+        "state":  "FAILED",
+        "createTime":  "2026-03-23T20:29:18.776703607Z",
+        "updateTime":  "2026-03-23T20:32:00.696402Z",
+        "commit":  null,
+        "id":  "build-2026-03-23-002"
+    },
+    {
+        "name":  "projects/ac-chiari-import-2024/locations/us-central1/backends/studio/builds/build-2026-03-23-001",
+        "state":  "FAILED",
+        "createTime":  "2026-03-23T20:13:02.407589653Z",
+        "updateTime":  "2026-03-23T20:16:24.878345Z",
+        "commit":  null,
+        "id":  "build-2026-03-23-001"
+    }
+]

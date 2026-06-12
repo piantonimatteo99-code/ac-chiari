@@ -1,0 +1,1099 @@
+﻿[
+    {
+        "timestamp":  "2026-06-03T19:53:41.975632Z",
+        "severity":  "ERROR",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudaudit.googleapis.com%2Factivity",
+        "textPayload":  null,
+        "jsonPayload":  null,
+        "labels":  null
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.949344287Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "ERROR: build step 3 \"us-central1-docker.pkg.dev/serverless-runtimes/google-22-full/builder/nodejs:nodejs_20260526_RC00_lightweight\" failed: step exited with non-zero status: 51",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "MAIN"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.949264234Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "ERROR",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "MAIN",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.948918094Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Finished Step #3 - \"build\"",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "MAIN"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.304015246Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \u001b[31;1mERROR: \u001b[0mfailed to build: exit status 1",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.302408002Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": {\"reason\":\"Failed Framework Build\",\"code\":\"fah/failed-framework-build\",\"userFacingMessage\":\"Your application failed to run the framework build command \u0027npm exec --prefix /layers/google.nodejs.firebasenextjs/npm_modules apphosting-adapter-nextjs-build\u0027 successfully. Please check the raw log to address the error and confirm that your application builds locally before redeploying.\",\"rawLog\":\"(error ID: d0a693a9):\\n...1698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/contabilita/conto\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/contabilita/pagamenti-contanti\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/contabilita/raccolte\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/contabilita/spese\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/contabilita/storico\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/contabilita/transazioni-da-controllare\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\n   Generating static pages (63/85) \\r\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/dashboard\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/iscrizioni\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/magazzino\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/miei-gruppi\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/nucleo-familiare\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/progetti\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/progetti/storico\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/social-media\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/tesserati/archivio\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/tesserati/famiglie\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/tesserati/nuovi-iscritti\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/tesserati/tariffe\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271698163428\u0027\\n}\\n\\nError occurred prerendering page \\\"/tesserati/tesserati\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at 44833 (/workspace/.next/server/chunks/8876.js:35:33398)\\n    at t (/workspace/.next/server/webpack-runtime.js:1:143)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271850580087\u0027\\n}\\n\\nError occurred prerendering page \\\"/auth/action\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271850580087\u0027\\n}\\n\\nError occurred prerendering page \\\"/famiglia\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271850580087\u0027\\n}\\n\\nError occurred prerendering page \\\"/login\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271850580087\u0027\\n}\\n\\nError occurred prerendering page \\\"/members\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271850580087\u0027\\n}\\n\\nError occurred prerendering page \\\"/\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271850580087\u0027\\n}\\n\\nError occurred prerendering page \\\"/password-dimenticata\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271850580087\u0027\\n}\\n\\nError occurred prerendering page \\\"/signup\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271850580087\u0027\\n}\\n\\nError occurred prerendering page \\\"/home\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131)\\nN [FirebaseError]: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131) {\\n  code: \u0027auth/invalid-api-key\u0027,\\n  customData: { appName: \u0027[DEFAULT]\u0027 },\\n  digest: \u00271850580087\u0027\\n}\\n\\nError occurred prerendering page \\\"/privacy\\\". Read more: https://nextjs.org/docs/messages/prerender-error\\n\\nFirebaseError: Firebase: Error (auth/invalid-api-key).\\n    at C (/workspace/.next/server/chunks/2371.js:37:189440)\\n    at I (/workspace/.next/server/chunks/2371.js:37:189488)\\n    at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)\\n    at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)\\n    at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)\\n    at eO (/workspace/.next/server/chunks/2371.js:37:226104)\\n    at tF (/workspace/.next/server/chunks/2371.js:37:244335)\\n    at f (/workspace/.next/server/chunks/1539.js:1:6420)\\n    at /workspace/.next/server/chunks/1539.js:1:5262\\n    at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131)\\n ✓ Generating static pages (85/85)\\n\\n\\u003e Export encountered errors on following paths:\\n\\t/(app)/admin/area-educatori/educatori/page: /admin/area-educatori/educatori\\n\\t/(app)/admin/area-educatori/ruoli-educatori/page: /admin/area-educatori/ruoli-educatori\\n\\t/(app)/admin/configurazione/gestione-notifiche/page: /admin/configurazione/gestione-notifiche\\n\\t/(app)/admin/configurazione/gestione-pagine/page: /admin/configurazione/gestione-pagine\\n\\t/(app)/admin/configurazione/integrazione-drive/page: /admin/configurazione/integrazione-drive\\n\\t/(app)/admin/configurazione/page: /admin/configurazione\\n\\t/(app)/admin/gestione-gruppi/tutti-i-gruppi/page: /admin/gestione-gruppi/tutti-i-gruppi\\n\\t/(app)/admin/gestione-utenti/permessi/page: /admin/gestione-utenti/permessi\\n\\t/(app)/admin/gestione-utenti/users/page: /admin/gestione-utenti/users\\n\\t/(app)/admin/gestione-utenti/utenti-registrati/page: /admin/gestione-utenti/utenti-registrati\\n\\t/(app)/admin/invia-notifica/page: /admin/invia-notifica\\n\\t/(app)/admin/segnalazioni/page: /admin/segnalazioni\\n\\t/(app)/admin/test-notifiche/page: /admin/test-notifiche\\n\\t/(app)/calendario/page: /calendario\\n\\t/(app)/campi/case/page: /campi/case\\n\\t/(app)/campi/page: /campi\\n\\t/(app)/campi/piatti/page: /campi/piatti\\n\\t/(app)/campi/pullman/page: /campi/pullman\\n\\t/(app)/campi/storico/page: /campi/storico\\n\\t/(app)/consiglio/page: /consiglio\\n\\t/(app)/contabilita/conto/page: /contabilita/conto\\n\\t/(app)/contabilita/pagamenti-contanti/page: /contabilita/pagamenti-contanti\\n\\t/(app)/contabilita/raccolte/page: /contabilita/raccolte\\n\\t/(app)/contabilita/spese/page: /contabilita/spese\\n\\t/(app)/contabilita/storico/page: /contabilita/storico\\n\\t/(app)/contabilita/transazioni-da-controllare/page: /contabilita/transazioni-da-controllare\\n\\t/(app)/dashboard/page: /dashboard\\n\\t/(app)/iscrizioni/page: /iscrizioni\\n\\t/(app)/magazzino/page: /magazzino\\n\\t/(app)/miei-gruppi/page: /miei-gruppi\\n\\t/(app)/nucleo-familiare/page: /nucleo-familiare\\n\\t/(app)/progetti/page: /progetti\\n\\t/(app)/progetti/storico/page: /progetti/storico\\n\\t/(app)/social-media/page: /social-media\\n\\t/(app)/tesserati/archivio/page: /tesserati/archivio\\n\\t/(app)/tesserati/famiglie/page: /tesserati/famiglie\\n\\t/(app)/tesserati/nuovi-iscritti/page: /tesserati/nuovi-iscritti\\n\\t/(app)/tesserati/tariffe/page: /tesserati/tariffe\\n\\t/(app)/tesserati/tesserati/page: /tesserati/tesserati\\n\\t/_not-found/page: /_not-found\\n\\t/auth/action/page: /auth/action\\n\\t/famiglia/page: /famiglia\\n\\t/home/page: /home\\n\\t/login/page: /login\\n\\t/members/page: /members\\n\\t/page: /\\n\\t/password-dimenticata/page: /password-dimenticata\\n\\t/privacy/page: /privacy\\n\\t/signup/page: /signup\\nRestoring original next config in project root\\n/layers/google.nodejs.firebasenextjs/npm_modules/node_modules/@apphosting/common/dist/index.js:64\\n                reject(new Error(`Build process exited with error code ${code}.`));\\n                       ^\\n\\nError: Build process exited with error code 1.\\n    at ChildProcess.\\u003canonymous\\u003e (/layers/google.nodejs.firebasenextjs/npm_modules/node_modules/@apphosting/common/dist/index.js:64:24)\\n    at ChildProcess.emit (node:events:519:28)\\n    at ChildProcess._handle.onexit (node:internal/child_process:293:12)\\n\\nNode.js v22.22.3\",\"isUserAttributed\":true}",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.302247913Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": failed to build: (error ID: 939ce600):",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.301721616Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": --------------------------------------------------------------------------------",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.294592010Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": Done \"npm exec --prefix /layers/google.nodejs.firebasenextjs/npm_m...\" (2m1.2731028s)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.273222206Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": Node.js v22.22.3",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.273217415Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": ",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.273214602Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at ChildProcess._handle.onexit (node:internal/child_process:293:12)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.273207904Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at ChildProcess.emit (node:events:519:28)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.273207418Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at ChildProcess.\u003canonymous\u003e (/layers/google.nodejs.firebasenextjs/npm_modules/node_modules/@apphosting/common/dist/index.js:64:24)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.273203189Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": Error: Build process exited with error code 1.",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.273202086Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": ",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.273201702Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":                        ^",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.273199687Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":                 reject(new Error(`Build process exited with error code ${code}.`));",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.273189075Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": /layers/google.nodejs.firebasenextjs/npm_modules/node_modules/@apphosting/common/dist/index.js:64",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.271804383Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": Restoring original next config in project root",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214056579Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/signup/page: /signup",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214056083Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/privacy/page: /privacy",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214055693Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/password-dimenticata/page: /password-dimenticata",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214055165Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/page: /",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214054131Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/members/page: /members",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214053484Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/login/page: /login",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214052978Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/home/page: /home",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214052086Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/famiglia/page: /famiglia",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214051530Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/auth/action/page: /auth/action",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214050736Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/_not-found/page: /_not-found",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214050205Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/tesserati/tesserati/page: /tesserati/tesserati",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214048661Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/tesserati/tariffe/page: /tesserati/tariffe",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214048064Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/tesserati/nuovi-iscritti/page: /tesserati/nuovi-iscritti",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214047409Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/tesserati/famiglie/page: /tesserati/famiglie",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214046805Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/tesserati/archivio/page: /tesserati/archivio",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214046153Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/social-media/page: /social-media",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214045498Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/progetti/storico/page: /progetti/storico",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214044918Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/progetti/page: /progetti",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214044247Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/nucleo-familiare/page: /nucleo-familiare",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214043611Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/miei-gruppi/page: /miei-gruppi",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214043067Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/magazzino/page: /magazzino",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214042523Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/iscrizioni/page: /iscrizioni",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214041868Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/dashboard/page: /dashboard",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214029442Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/contabilita/transazioni-da-controllare/page: /contabilita/transazioni-da-controllare",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214028102Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/contabilita/storico/page: /contabilita/storico",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214027430Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/contabilita/spese/page: /contabilita/spese",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214023782Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/contabilita/raccolte/page: /contabilita/raccolte",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214023220Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/contabilita/pagamenti-contanti/page: /contabilita/pagamenti-contanti",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214022052Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/contabilita/conto/page: /contabilita/conto",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214021338Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/consiglio/page: /consiglio",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214020773Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/campi/storico/page: /campi/storico",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.214019951Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/campi/pullman/page: /campi/pullman",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213999181Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/campi/piatti/page: /campi/piatti",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213998636Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/campi/page: /campi",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213997805Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/campi/case/page: /campi/case",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213997236Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/calendario/page: /calendario",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213996691Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/test-notifiche/page: /admin/test-notifiche",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213996074Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/segnalazioni/page: /admin/segnalazioni",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213995473Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/invia-notifica/page: /admin/invia-notifica",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213994704Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/gestione-utenti/utenti-registrati/page: /admin/gestione-utenti/utenti-registrati",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213993810Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/gestione-utenti/users/page: /admin/gestione-utenti/users",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213993137Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/gestione-utenti/permessi/page: /admin/gestione-utenti/permessi",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213992471Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/gestione-gruppi/tutti-i-gruppi/page: /admin/gestione-gruppi/tutti-i-gruppi",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213991781Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/configurazione/page: /admin/configurazione",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213990560Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/configurazione/integrazione-drive/page: /admin/configurazione/integrazione-drive",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213989510Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/configurazione/gestione-pagine/page: /admin/configurazione/gestione-pagine",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213988846Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/configurazione/gestione-notifiche/page: /admin/configurazione/gestione-notifiche",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213988048Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/area-educatori/ruoli-educatori/page: /admin/area-educatori/ruoli-educatori",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213987Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \t/(app)/admin/area-educatori/educatori/page: /admin/area-educatori/educatori",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213985816Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": \u003e Export encountered errors on following paths:",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.213973522Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": ",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.177462907Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":  ✓ Generating static pages (85/85)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176446332Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176445617Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at /workspace/.next/server/chunks/1539.js:1:5262",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176444968Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at f (/workspace/.next/server/chunks/1539.js:1:6420)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176444239Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at tF (/workspace/.next/server/chunks/2371.js:37:244335)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176443625Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at eO (/workspace/.next/server/chunks/2371.js:37:226104)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176442811Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176441942Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176441255Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176440609Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at I (/workspace/.next/server/chunks/2371.js:37:189488)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176440070Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at C (/workspace/.next/server/chunks/2371.js:37:189440)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176439088Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": FirebaseError: Firebase: Error (auth/invalid-api-key).",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176438424Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": ",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176438019Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": Error occurred prerendering page \"/privacy\". Read more: https://nextjs.org/docs/messages/prerender-error",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176437108Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": ",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176436694Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\": }",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176436281Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":   digest: \u00271850580087\u0027",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176435473Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":   customData: { appName: \u0027[DEFAULT]\u0027 },",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176434251Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":   code: \u0027auth/invalid-api-key\u0027,",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176433296Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at Object.nr [as useMemo] (/workspace/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:39131) {",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176431036Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at /workspace/.next/server/chunks/1539.js:1:5262",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176430461Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at f (/workspace/.next/server/chunks/1539.js:1:6420)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176429467Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at tF (/workspace/.next/server/chunks/2371.js:37:244335)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176428866Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at eO (/workspace/.next/server/chunks/2371.js:37:226104)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176428257Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at o.initialize (/workspace/.next/server/chunks/2371.js:37:146227)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176427687Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at o.getOrInitializeService (/workspace/.next/server/chunks/2371.js:37:146852)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176426729Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at i.instanceFactory (/workspace/.next/server/chunks/2371.js:37:243666)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176424679Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at I (/workspace/.next/server/chunks/2371.js:37:189488)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE",
+                       "build_step":  "Step #3 - \"build\""
+                   }
+    },
+    {
+        "timestamp":  "2026-06-03T19:53:29.176423006Z",
+        "severity":  "INFO",
+        "logName":  "projects/ac-chiari-import-2024/logs/cloudbuild",
+        "textPayload":  "Step #3 - \"build\":     at C (/workspace/.next/server/chunks/2371.js:37:189440)",
+        "jsonPayload":  null,
+        "labels":  {
+                       "build_step":  "Step #3 - \"build\"",
+                       "build_tags":  "fah,build-2026-06-03-004,studio,p-fah,r-nodejs,b-nodejs_20260526_RC00,bt-LIFECYCLE"
+                   }
+    }
+]

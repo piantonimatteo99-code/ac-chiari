@@ -12,6 +12,7 @@ import { PwaInstallDialog } from '@/components/pwa-install-dialog';
 import { ProfileOnboardingDialog, PostOnboardingDialog } from '@/components/profile-onboarding-dialog';
 import { AiAssistant } from '@/components/ai-assistant';
 import { OnboardingTutorial, useOnboardingTutorial } from '@/components/onboarding-tutorial';
+import { PullToRefresh } from '@/components/pull-to-refresh';
 
 export default function AppLayout({
   children,
@@ -49,12 +50,14 @@ export default function AppLayout({
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <Sidebar />
-      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-64">
-        <Header />
-        <main className="flex-1 gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-          {children}
-        </main>
-      </div>
+      <PullToRefresh>
+        <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-64">
+          <Header />
+          <main className="flex-1 gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+            {children}
+          </main>
+        </div>
+      </PullToRefresh>
       <Toaster />
 
       {/* Tutorial interattivo — mostrato solo ai nuovi utenti, PRIMA di tutto */}
