@@ -1,161 +1,208 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const THRESHOLD = 80;      // px da trascinare per attivare il refresh
-const MAX_PULL = 120;      // px massimi di pull visibili
-const SPINNER_SIZE = 40;   // dimensione spinner in px
+// ─── Costanti fisiche ────────────────────────────────────────────────────────
+const THRESHOLD   = 72;   // px per attivare il refresh
+const MAX_PULL    = 130;  // px massimi di spostamento del contenuto
+const HOLD_PX     = 56;   // px a cui si "ferma" durante il refreshing
+const RESIST      = 0.42; // coefficiente di resistenza (0 = molla dura, 1 = libero)
+
+// ─── Tipi ───────────────────────────────────────────────────────────────────
+type Status = 'idle' | 'pulling' | 'ready' | 'refreshing' | 'snapping';
+
+// ─── Helper: resistenza rubber-band ─────────────────────────────────────────
+// Simula il comportamento elastico di iOS: più si tira, più diventa difficile
+function rubberBand(delta: number, max: number, coeff: number): number {
+  if (delta <= 0) return 0;
+  // Formula rubber-band: x * coeff * max / (x * coeff + max)
+  return (delta * coeff * max) / (delta * coeff + max);
+}
 
 interface PullToRefreshProps {
   children: React.ReactNode;
 }
 
 export function PullToRefresh({ children }: PullToRefreshProps) {
-  const router = useRouter();
-  const [pullY, setPullY] = useState(0);
-  const [status, setStatus] = useState<'idle' | 'pulling' | 'ready' | 'refreshing'>('idle');
-  const startY = useRef<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isRefreshing = useRef(false);
+  const router    = useRouter();
+  const [translateY, setTranslateY] = useState(0);
+  const [status,     setStatus]     = useState<Status>('idle');
 
-  // Controlla se la pagina è scrollata in cima
-  const isAtTop = useCallback(() => {
-    return window.scrollY <= 0;
-  }, []);
+  // Ref condivisi tra gli handler (evitano re-render inutili)
+  const startY        = useRef<number | null>(null);
+  const startScrollY  = useRef(0);
+  const currentDelta  = useRef(0);
+  const statusRef     = useRef<Status>('idle');
+  const isActive      = useRef(false);  // true quando stiamo gestendo un gesto
 
-  const handleTouchStart = useCallback((e: TouchEvent) => {
-    if (!isAtTop()) return;
-    startY.current = e.touches[0].clientY;
-  }, [isAtTop]);
+  const setStatusBoth = (s: Status) => {
+    statusRef.current = s;
+    setStatus(s);
+  };
 
-  const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (startY.current === null || isRefreshing.current) return;
-    if (!isAtTop()) {
-      startY.current = null;
-      return;
-    }
-
-    const currentY = e.touches[0].clientY;
-    const delta = currentY - startY.current;
-
-    if (delta <= 0) {
-      setPullY(0);
-      setStatus('idle');
-      return;
-    }
-
-    // Applica resistenza elastica (logaritmica)
-    const dampened = Math.min(MAX_PULL, delta * (1 - delta / (MAX_PULL * 3)));
-    setPullY(Math.max(0, dampened));
-    setStatus(dampened >= THRESHOLD ? 'ready' : 'pulling');
-
-    // Impedisce lo scroll nativo solo quando si sta tirando verso il basso
-    if (delta > 5) {
-      e.preventDefault();
-    }
-  }, [isAtTop]);
-
-  const handleTouchEnd = useCallback(() => {
-    if (startY.current === null) return;
-    startY.current = null;
-
-    if (status === 'ready' && !isRefreshing.current) {
-      isRefreshing.current = true;
-      setStatus('refreshing');
-      setPullY(SPINNER_SIZE + 16); // tieni il spinner visibile durante il refresh
-
-      // Esegui il refresh della pagina corrente
-      router.refresh();
-
-      // Dopo 1.5s ripristina lo stato
-      setTimeout(() => {
-        setStatus('idle');
-        setPullY(0);
-        isRefreshing.current = false;
-      }, 1500);
-    } else {
-      setPullY(0);
-      setStatus('idle');
-    }
-  }, [status, router]);
-
+  // ─── Touch Start ──────────────────────────────────────────────────────────
   useEffect(() => {
+    const onTouchStart = (e: TouchEvent) => {
+      // Non interferire se c'è già un refresh in corso
+      if (statusRef.current === 'refreshing' || statusRef.current === 'snapping') return;
+      // Registra posizione di partenza, indipendentemente da scrollY
+      startY.current      = e.touches[0].clientY;
+      startScrollY.current = window.scrollY;
+      isActive.current    = false; // diventa true solo se si tira verso il basso da top
+    };
+
+    // ─── Touch Move ─────────────────────────────────────────────────────────
+    const onTouchMove = (e: TouchEvent) => {
+      if (startY.current === null) return;
+      if (statusRef.current === 'refreshing' || statusRef.current === 'snapping') return;
+
+      const touch  = e.touches[0];
+      const dy     = touch.clientY - startY.current;
+      const scrollNow = window.scrollY;
+
+      // Inizia a gestire solo se: tiriamo verso il basso E siamo (o eravamo) in cima
+      if (!isActive.current) {
+        if (dy > 6 && startScrollY.current <= 0 && scrollNow <= 0) {
+          isActive.current = true;
+        } else {
+          return;
+        }
+      }
+
+      // Se durante il drag l'utente ha scrollato su → annulla
+      if (scrollNow > 4) {
+        currentDelta.current = 0;
+        setTranslateY(0);
+        setStatusBoth('idle');
+        isActive.current = false;
+        startY.current   = null;
+        return;
+      }
+
+      // Impedisce lo scroll nativo del browser mentre gestiamo noi
+      e.preventDefault();
+
+      const raw      = Math.max(0, dy);
+      const dampened = rubberBand(raw, MAX_PULL, RESIST);
+
+      currentDelta.current = dampened;
+      setTranslateY(dampened);
+      setStatusBoth(dampened >= THRESHOLD ? 'ready' : 'pulling');
+    };
+
+    // ─── Touch End ──────────────────────────────────────────────────────────
+    const onTouchEnd = () => {
+      if (!isActive.current) {
+        startY.current = null;
+        return;
+      }
+      isActive.current = false;
+      startY.current   = null;
+
+      if (statusRef.current === 'ready') {
+        // Snap alla posizione di "hold" con animazione molla
+        setTranslateY(HOLD_PX);
+        setStatusBoth('refreshing');
+        router.refresh();
+
+        // Dopo 1.4s: snap back con effetto molla
+        setTimeout(() => {
+          setStatusBoth('snapping');
+          setTranslateY(0);
+          setTimeout(() => setStatusBoth('idle'), 500);
+        }, 1400);
+      } else {
+        // Snap back
+        setStatusBoth('snapping');
+        setTranslateY(0);
+        setTimeout(() => setStatusBoth('idle'), 400);
+      }
+    };
+
     const el = document.documentElement;
-    el.addEventListener('touchstart', handleTouchStart, { passive: true });
-    el.addEventListener('touchmove', handleTouchMove, { passive: false });
-    el.addEventListener('touchend', handleTouchEnd, { passive: true });
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove',  onTouchMove,  { passive: false });
+    el.addEventListener('touchend',   onTouchEnd,   { passive: true });
+    el.addEventListener('touchcancel',onTouchEnd,   { passive: true });
 
     return () => {
-      el.removeEventListener('touchstart', handleTouchStart);
-      el.removeEventListener('touchmove', handleTouchMove);
-      el.removeEventListener('touchend', handleTouchEnd);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove',  onTouchMove);
+      el.removeEventListener('touchend',   onTouchEnd);
+      el.removeEventListener('touchcancel',onTouchEnd);
     };
-  }, [handleTouchStart, handleTouchMove, handleTouchEnd]);
+  }, [router]);
 
-  // Rotazione dell'icona freccia in base alla percentuale di pull
-  const pullPercent = Math.min(1, pullY / THRESHOLD);
-  const arrowRotation = pullPercent * 180;
+  // ─── Fisica della transizione ────────────────────────────────────────────
+  const isSnapping    = status === 'snapping';
+  const isRefreshing  = status === 'refreshing';
+  const isPulling     = status === 'pulling' || status === 'ready';
+
+  // Durante il drag: nessuna transizione (segue il dito in real-time)
+  // Durante lo snap: spring cubic-bezier
+  const transition = isPulling
+    ? 'none'
+    : 'transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)'; // spring overshoot
+
+  // ─── Indicatore visivo ───────────────────────────────────────────────────
+  const progress    = Math.min(1, translateY / THRESHOLD);
+  const arrowAngle  = progress * 180; // 0° → 180° mentre si tira
+  const indicatorOpacity = Math.min(1, translateY / 20);
 
   return (
-    <div ref={containerRef} className="relative">
-      {/* Indicatore pull-to-refresh */}
+    <>
+      {/* Indicatore fisso dietro il contenuto, centrato in cima */}
       <div
-        className="ptr-indicator"
+        aria-hidden="true"
         style={{
-          height: `${pullY}px`,
-          overflow: 'hidden',
-          transition: status === 'idle' ? 'height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
-          display: 'flex',
-          alignItems: 'flex-end',
+          position:       'fixed',
+          top:            0,
+          left:           0,
+          right:          0,
+          height:         `${HOLD_PX + 8}px`,
+          display:        'flex',
+          alignItems:     'flex-end',
           justifyContent: 'center',
-          paddingBottom: '8px',
+          paddingBottom:  '10px',
+          pointerEvents:  'none',
+          zIndex:         40,
+          opacity:        status === 'idle' ? 0 : indicatorOpacity,
+          transition:     status === 'idle' ? 'opacity 0.2s ease' : 'none',
         }}
       >
         <div
           style={{
-            width: `${SPINNER_SIZE}px`,
-            height: `${SPINNER_SIZE}px`,
-            borderRadius: '50%',
-            backgroundColor: 'hsl(218 55% 96%)',
-            border: '1px solid hsl(218 30% 86%)',
-            boxShadow: '0 2px 8px hsl(218 30% 70% / 0.25)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: pullY > 4 ? 1 : 0,
-            transition: 'opacity 0.15s ease',
+            width:           '40px',
+            height:          '40px',
+            borderRadius:    '50%',
+            backgroundColor: 'hsl(var(--card))',
+            border:          '1.5px solid hsl(var(--border))',
+            boxShadow:       '0 4px 16px hsl(218 30% 50% / 0.18)',
+            display:         'flex',
+            alignItems:      'center',
+            justifyContent:  'center',
           }}
         >
-          {status === 'refreshing' ? (
+          {isRefreshing || isSnapping ? (
             /* Spinner rotante */
             <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="hsl(218 55% 58%)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ animation: 'ptr-spin 0.75s linear infinite' }}
+              width="18" height="18" viewBox="0 0 24 24"
+              fill="none" stroke="hsl(var(--primary))"
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              style={{ animation: isRefreshing ? 'ptr-spin 0.7s linear infinite' : 'none' }}
             >
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
           ) : (
-            /* Freccia che ruota */
+            /* Freccia direzionale */
             <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="hsl(218 55% 58%)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              width="18" height="18" viewBox="0 0 24 24"
+              fill="none" stroke="hsl(var(--primary))"
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
               style={{
-                transform: `rotate(${arrowRotation}deg)`,
-                transition: 'transform 0.1s ease',
+                transform:  `rotate(${arrowAngle}deg)`,
+                transition: isPulling ? 'transform 0.05s linear' : 'transform 0.3s ease',
               }}
             >
               <path d="M12 5v14M5 12l7 7 7-7" />
@@ -164,7 +211,16 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
         </div>
       </div>
 
-      {children}
+      {/* Contenuto che si sposta verso il basso */}
+      <div
+        style={{
+          transform:  `translateY(${translateY}px)`,
+          transition,
+          willChange: 'transform',
+        }}
+      >
+        {children}
+      </div>
 
       <style>{`
         @keyframes ptr-spin {
@@ -172,6 +228,6 @@ export function PullToRefresh({ children }: PullToRefreshProps) {
           to   { transform: rotate(360deg); }
         }
       `}</style>
-    </div>
+    </>
   );
 }
