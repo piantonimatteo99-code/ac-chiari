@@ -11,12 +11,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/src/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { useFirestore, useCollection, useDoc, useUser, useMemoFirebase } from '@/src/firebase';
+import { collection, doc, query, where, orderBy } from 'firebase/firestore';
 import type { PagePermission } from '@/app/(app)/admin/configurazione/gestione-pagine/page';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import type { EducatorRole } from '@/app/(app)/admin/area-educatori/ruoli-educatori/page';
-import { useCallback, useMemo, memo, useState } from 'react';
+import { useCallback, useMemo, memo, useState, useEffect } from 'react';
 import type { Progetto } from '@/app/(app)/progetti/page';
 import type { Campo } from '@/components/add-event-dialog';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
@@ -150,12 +150,38 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   const pageSettingsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'page-settings') : null, [firestore]);
   const { data: pageSettings, isLoading: isLoadingPageSettings } = useCollection<PagePermission>(pageSettingsQuery);
 
+  // ── Nav order from Firestore ──────────────────────────────────────────────
+  const navOrderRef = useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'nav-order') : null, [firestore]);
+  const { data: navOrderDoc, isLoading: isLoadingNavOrder } = useDoc<{ order: string[] }>(navOrderRef);
+
+  // Sort navConfig according to the saved order; items not in the saved order appear at the end
+  const sortedNavConfig = useMemo(() => {
+    const order = navOrderDoc?.order;
+    if (!order || order.length === 0) return navConfig;
+    const indexMap = new Map(order.map((id, i) => [id, i]));
+    return [...navConfig].sort((a, b) => {
+      const ia = indexMap.get(a.id) ?? 9999;
+      const ib = indexMap.get(b.id) ?? 9999;
+      return ia - ib;
+    });
+  }, [navOrderDoc]);
+
   const myGroupsQuery = useMemoFirebase(() =>
     (firestore && user && userData?.roles?.includes('educatore'))
-      ? query(collection(firestore, 'gruppi'), where('educatorIds', 'array-contains', user.uid))
+      ? query(collection(firestore, 'gruppi'), where('educatorIds', 'array-contains', user.uid), orderBy('sortOrder', 'asc'))
       : null,
     [firestore, user, userData]);
-  const { data: myGroups, isLoading: isLoadingGroups } = useCollection<Group>(myGroupsQuery);
+  const { data: myGroupsRaw, isLoading: isLoadingGroups } = useCollection<Group>(myGroupsQuery);
+  // Fallback sort: groups without sortOrder go to the end, then sort by name
+  const myGroups = useMemo(() => {
+    if (!myGroupsRaw) return myGroupsRaw;
+    return [...myGroupsRaw].sort((a, b) => {
+      const ao = a.sortOrder ?? 9999;
+      const bo = b.sortOrder ?? 9999;
+      if (ao !== bo) return ao - bo;
+      return a.name.localeCompare(b.name);
+    });
+  }, [myGroupsRaw]);
 
   const educatorRolesQuery = useMemoFirebase(() =>
     (user && userData?.roles?.includes('educatore'))
@@ -164,8 +190,18 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     [firestore, user, userData]);
   const { data: mySpecificRoles, isLoading: isLoadingEducatorRoles } = useCollection<EducatorRole>(educatorRolesQuery);
 
-  const allGroupsQuery = useMemoFirebase(() => isAdmin ? collection(firestore, 'gruppi') : null, [firestore, isAdmin]);
-  const { data: allGroups, isLoading: isLoadingAllGroups } = useCollection<Group>(allGroupsQuery);
+  const allGroupsQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'gruppi'), orderBy('sortOrder', 'asc')) : null, [firestore, isAdmin]);
+  const { data: allGroupsRaw, isLoading: isLoadingAllGroups } = useCollection<Group>(allGroupsQuery);
+  // Fallback sort for allGroups
+  const allGroups = useMemo(() => {
+    if (!allGroupsRaw) return allGroupsRaw;
+    return [...allGroupsRaw].sort((a, b) => {
+      const ao = a.sortOrder ?? 9999;
+      const bo = b.sortOrder ?? 9999;
+      if (ao !== bo) return ao - bo;
+      return a.name.localeCompare(b.name);
+    });
+  }, [allGroupsRaw]);
   
   const allProjectsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'progetti'), orderBy('createdAt', 'desc')) : null, [firestore]);
   const { data: allProjects, isLoading: isLoadingAllProjects } = useCollection<Progetto>(allProjectsQuery);
@@ -284,7 +320,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     return [];
   }, [allCampi, isAdmin, userData, myGroups, userAndFamilyMembers]);
 
-  const isLoading = isUserLoading || isLoadingPageSettings || isLoadingGroups || isLoadingEducatorRoles || isLoadingAllGroups || isLoadingAllProjects || isLoadingAllCampi || isLoadingMembri;
+  const isLoading = isUserLoading || isLoadingPageSettings || isLoadingGroups || isLoadingEducatorRoles || isLoadingAllGroups || isLoadingAllProjects || isLoadingAllCampi || isLoadingMembri || isLoadingNavOrder;
 
   const getPageVisibility = useCallback((page: { id: string; href?: string; label: string; }): { visible: boolean; reason: string } => {
     // User must be authenticated
@@ -626,7 +662,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
 
   return (
     <div className="flex flex-col gap-2">
-      {navConfig.map(item => {
+      {sortedNavConfig.map(item => {
         if (item.id === 'progetti') {
              return <div key={item.id}>{renderProgetti()}</div>;
         }

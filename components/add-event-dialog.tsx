@@ -82,6 +82,8 @@ export interface Evento {
     isCampo?: boolean;
     tipoCampo?: TipoCampo;
     campoId?: string;
+    /** Se true, nella notifica promemoria vengono inclusi pulsanti RSVP */
+    richiedeRsvp?: boolean;
 }
 
 export interface Progetto {
@@ -123,6 +125,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
     const [completed, setCompleted] = useState(false);
+    const [richiedeRsvp, setRichiedeRsvp] = useState(false);
     
     // Project state
     const [isProject, setIsProject] = useState(false);
@@ -163,6 +166,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
         setTipoCampo('campo_estivo');
         setNotes('');
         setCompleted(false);
+        setRichiedeRsvp(false);
         setPushToGcal(!!isConnected);
     }, [isConnected]);
 
@@ -186,6 +190,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                 setTipoCampo(eventToEdit.tipoCampo || 'campo_estivo');
                 setNotes(eventToEdit.notes || '');
                 setCompleted(eventToEdit.completed || false);
+                setRichiedeRsvp(eventToEdit.richiedeRsvp || false);
 
              } else {
                 resetForm(initialDate);
@@ -263,6 +268,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                     endDate: finalEndDate,
                     allDay,
                     groupIds: selectedGroups,
+                    richiedeRsvp,
                 };
                 batch.update(eventDocRef, eventData);
 
@@ -457,6 +463,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         groupIds: selectedGroups,
                         notes,
                         completed,
+                        richiedeRsvp,
                     };
                     await addDoc(collection(firestore, 'eventi'), { ...eventData, createdAt: serverTimestamp() });
 
@@ -648,6 +655,25 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                                     Sincronizza con <b>Google Calendar</b>
                                     <span className="text-muted-foreground ml-1">(tu + iscritti ai gruppi)</span>
                                 </Label>
+                            </div>
+                        )}
+
+                        <Separator />
+
+                        {/* ── RSVP ── */}
+                        <div className="flex items-center space-x-2">
+                            <Switch
+                                id="richiede-rsvp"
+                                checked={richiedeRsvp}
+                                onCheckedChange={setRichiedeRsvp}
+                            />
+                            <Label htmlFor="richiede-rsvp">
+                                📋 Richiedi conferma di partecipazione
+                            </Label>
+                        </div>
+                        {richiedeRsvp && (
+                            <div className="pl-6 text-xs text-muted-foreground">
+                                I destinatari del promemoria riceveranno i pulsanti <strong>&quot;Ci sarò&quot;</strong> e <strong>&quot;Non ci sarò&quot;</strong> direttamente nella notifica push.
                             </div>
                         )}
 

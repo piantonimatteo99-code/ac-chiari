@@ -17,6 +17,7 @@ export interface Group {
     name: string;
     educatorIds: string[]; // array of user IDs for educators
     memberIds: string[]; // array of member IDs
+    sortOrder?: number; // optional ordering field managed from Gestione Pagine
 }
 
 const deleteGroup = async (firestore: Firestore, groupId: string) => {

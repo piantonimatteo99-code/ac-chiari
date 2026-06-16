@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { getAuth } from 'firebase/auth';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,10 +9,35 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
-import { collection, doc, setDoc, writeBatch } from 'firebase/firestore';
-import { Home, FlaskConical, PenSquare, Building, Calendar, Warehouse, Tent, Landmark, ShieldCheck, Users, Share2, Shield, GraduationCap, UserCog, FileCog, CircleHelp, ChevronRight, FolderOpen, Gavel, Trash2, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/src/firebase';
+import { collection, doc, setDoc, writeBatch, query, orderBy } from 'firebase/firestore';
+import {
+  Home, FlaskConical, PenSquare, Building, Calendar, Warehouse, Tent,
+  Landmark, ShieldCheck, Users, Share2, Shield, GraduationCap, UserCog,
+  FileCog, CircleHelp, ChevronRight, FolderOpen, Gavel, Trash2,
+  AlertTriangle, CheckCircle2, Loader2, GripVertical, Save,
+} from 'lucide-react';
 import type { Group } from '../../gestione-gruppi/tutti-i-gruppi/page';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+import { cn } from '@/lib/utils';
 
 
 export interface PagePermission {
@@ -155,6 +180,93 @@ const SITE_MAP: SiteMapNode[] = [
   },
 ];
 
+// ─── Nav items that can be reordered in the sidebar ────────────────────────
+// Each entry represents a top-level sidebar slot (some are accordion groups)
+interface NavOrderItem {
+  id: string;           // matches navConfig id or 'contabilita' | 'tesserati' | 'gruppo-[id]'
+  label: string;
+  icon?: React.ElementType;
+  isGroup?: boolean;    // true = dynamic Firestore group
+}
+
+const DEFAULT_NAV_ORDER: string[] = [
+  'dashboard',
+  'progetti',
+  'iscrizioni',
+  'nucleo-familiare',
+  'calendario',
+  'magazzino',
+  'campi',
+  'consiglio',
+  'contabilita',
+  'tesserati',
+  'miei-gruppi',
+  'social-media',
+];
+
+// Default group order (matches user request)
+const DEFAULT_GROUP_ORDER: string[] = [
+  'Seconda elementare',
+  'Terza elementare',
+  'Quarta elementare',
+  'Quinta elementare',
+  'Prima media',
+  'Seconda media',
+  'Terza media',
+  'ACG',
+  'EDU',
+  'Adulti',
+];
+
+const NAV_ITEM_META: Record<string, { label: string; icon?: React.ElementType }> = {
+  dashboard: { label: 'Dashboard', icon: Home },
+  progetti: { label: 'Progetti', icon: FlaskConical },
+  iscrizioni: { label: 'Iscrizioni', icon: PenSquare },
+  'nucleo-familiare': { label: 'Nucleo Familiare', icon: Building },
+  calendario: { label: 'Calendario', icon: Calendar },
+  magazzino: { label: 'Magazzino', icon: Warehouse },
+  campi: { label: 'Campi', icon: Tent },
+  consiglio: { label: 'Consiglio', icon: Gavel },
+  contabilita: { label: 'Contabilità', icon: Landmark },
+  tesserati: { label: 'Tesseramento', icon: ShieldCheck },
+  'miei-gruppi': { label: 'I Miei Gruppi', icon: Users },
+  'social-media': { label: 'Social Media', icon: Share2 },
+};
+
+// ─── Sortable row component ─────────────────────────────────────────────────
+function SortableRow({ id, label, icon: Icon }: { id: string; label: string; icon?: React.ElementType }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 text-sm select-none',
+        isDragging ? 'shadow-lg border-primary/40 bg-primary/5' : 'border-border'
+      )}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+        aria-label="Trascina per riordinare"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      {Icon && <Icon className="h-4 w-4 text-muted-foreground shrink-0" />}
+      <span className="flex-1 font-medium">{label}</span>
+    </div>
+  );
+}
+
+// ─── Main page ──────────────────────────────────────────────────────────────
 export default function GestionePaginePage() {
   const firestore = useFirestore();
   const { userData, isLoading: isUserLoading } = useUserData();
@@ -188,19 +300,141 @@ export default function GestionePaginePage() {
     }
   };
 
+  // ── Page permissions ──────────────────────────────────────────────────────
   const permissionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, 'page-settings');
   }, [firestore]);
-
   const { data: permissionsData, isLoading } = useCollection<PagePermission>(permissionsQuery);
 
+  // ── Nav order document ────────────────────────────────────────────────────
+  const navOrderRef = useMemoFirebase(() =>
+    firestore ? doc(firestore, 'settings', 'nav-order') : null,
+    [firestore]);
+  const { data: navOrderDoc, isLoading: isLoadingNavOrder } = useDoc<{ order: string[] }>(navOrderRef);
+
+  // ── Groups ────────────────────────────────────────────────────────────────
+  const groupsQuery = useMemoFirebase(() =>
+    firestore ? query(collection(firestore, 'gruppi'), orderBy('sortOrder', 'asc')) : null,
+    [firestore]);
+  const { data: groups, isLoading: isLoadingGroups } = useCollection<Group>(groupsQuery);
+
+  // ── Local drag state: nav order ───────────────────────────────────────────
+  const [navOrder, setNavOrder] = useState<string[]>(DEFAULT_NAV_ORDER);
+  const [navOrderDirty, setNavOrderDirty] = useState(false);
+  const [isSavingNav, setIsSavingNav] = useState(false);
+
+  useEffect(() => {
+    if (!isLoadingNavOrder) {
+      if (navOrderDoc?.order && navOrderDoc.order.length > 0) {
+        // Merge: keep saved order, append any new items not yet stored
+        const saved = navOrderDoc.order;
+        const missing = DEFAULT_NAV_ORDER.filter(id => !saved.includes(id));
+        setNavOrder([...saved, ...missing]);
+      } else {
+        setNavOrder(DEFAULT_NAV_ORDER);
+      }
+      setNavOrderDirty(false);
+    }
+  }, [isLoadingNavOrder, navOrderDoc]);
+
+  // ── Local drag state: groups ──────────────────────────────────────────────
+  const [groupOrder, setGroupOrder] = useState<Group[]>([]);
+  const [groupOrderDirty, setGroupOrderDirty] = useState(false);
+  const [isSavingGroups, setIsSavingGroups] = useState(false);
+
+  useEffect(() => {
+    if (!isLoadingGroups && groups) {
+      // Sort by sortOrder, then by DEFAULT_GROUP_ORDER name match, then alphabetically
+      const sorted = [...groups].sort((a, b) => {
+        const hasSortOrderA = a.sortOrder !== undefined && a.sortOrder !== null;
+        const hasSortOrderB = b.sortOrder !== undefined && b.sortOrder !== null;
+        if (hasSortOrderA && hasSortOrderB) return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+        if (hasSortOrderA) return -1;
+        if (hasSortOrderB) return 1;
+        // Fallback: match DEFAULT_GROUP_ORDER
+        const ia = DEFAULT_GROUP_ORDER.indexOf(a.name);
+        const ib = DEFAULT_GROUP_ORDER.indexOf(b.name);
+        if (ia !== -1 && ib !== -1) return ia - ib;
+        if (ia !== -1) return -1;
+        if (ib !== -1) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      setGroupOrder(sorted);
+      setGroupOrderDirty(false);
+    }
+  }, [isLoadingGroups, groups]);
+
+  // ── DnD sensors ──────────────────────────────────────────────────────────
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  // ── Nav drag handlers ─────────────────────────────────────────────────────
+  const handleNavDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setNavOrder(prev => {
+        const oldIdx = prev.indexOf(String(active.id));
+        const newIdx = prev.indexOf(String(over.id));
+        return arrayMove(prev, oldIdx, newIdx);
+      });
+      setNavOrderDirty(true);
+    }
+  }, []);
+
+  const handleSaveNavOrder = async () => {
+    if (!firestore || !navOrderRef) return;
+    setIsSavingNav(true);
+    try {
+      await setDoc(navOrderRef, { order: navOrder }, { merge: true });
+      setNavOrderDirty(false);
+    } catch (e) {
+      console.error('Errore salvataggio ordine nav:', e);
+    } finally {
+      setIsSavingNav(false);
+    }
+  };
+
+  // ── Group drag handlers ───────────────────────────────────────────────────
+  const handleGroupDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setGroupOrder(prev => {
+        const oldIdx = prev.findIndex(g => g.id === active.id);
+        const newIdx = prev.findIndex(g => g.id === over.id);
+        return arrayMove(prev, oldIdx, newIdx);
+      });
+      setGroupOrderDirty(true);
+    }
+  }, []);
+
+  const handleSaveGroupOrder = async () => {
+    if (!firestore) return;
+    setIsSavingGroups(true);
+    try {
+      const batch = writeBatch(firestore);
+      groupOrder.forEach((group, idx) => {
+        const ref = doc(firestore, 'gruppi', group.id);
+        batch.update(ref, { sortOrder: idx });
+      });
+      await batch.commit();
+      setGroupOrderDirty(false);
+    } catch (e) {
+      console.error('Errore salvataggio ordine gruppi:', e);
+    } finally {
+      setIsSavingGroups(false);
+    }
+  };
+
+  // ── Auto-initialize page-settings ────────────────────────────────────────
   useEffect(() => {
     if (!isLoading && firestore && permissionsData) {
       const existingIds = new Set(permissionsData.map(p => p.id));
       const batch = writeBatch(firestore);
       let writes = 0;
-
       ALL_PAGES.forEach(page => {
         if (!existingIds.has(page.id)) {
           let requiresEducatorRoleCheck = false;
@@ -214,14 +448,11 @@ export default function GestionePaginePage() {
             requiresEducatorRoleCheck,
             requiresGroupAssignmentCheck: page.id === 'miei-gruppi',
           };
-          const pageDocRef = doc(firestore, 'page-settings', page.id);
-          batch.set(pageDocRef, newPermission);
+          batch.set(doc(firestore, 'page-settings', page.id), newPermission);
           writes++;
         }
       });
-      if (writes > 0) {
-        batch.commit().catch(console.error);
-      }
+      if (writes > 0) batch.commit().catch(console.error);
     }
   }, [isLoading, permissionsData, firestore]);
 
@@ -239,24 +470,23 @@ export default function GestionePaginePage() {
     const currentPermissions = permissionsMap.get(pageId);
     if (!currentPermissions) return;
     const updatedPermissions: PagePermission = { ...currentPermissions, [field]: value };
-    const pageDocRef = doc(firestore, 'page-settings', pageId);
-    await setDoc(pageDocRef, updatedPermissions, { merge: true });
+    await setDoc(doc(firestore, 'page-settings', pageId), updatedPermissions, { merge: true });
   };
 
   const isSpecialPage = (id: string) => id === 'miei-gruppi';
 
-  // \u2500\u2500 Guard: solo admin \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  // ── Guard: solo admin ─────────────────────────────────────────────────────
   if (!isUserLoading && !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
         <Shield className="h-12 w-12 text-muted-foreground" />
         <h2 className="text-xl font-semibold">Accesso negato</h2>
-        <p className="text-muted-foreground">Questa pagina \u00e8 riservata agli amministratori.</p>
+        <p className="text-muted-foreground">Questa pagina è riservata agli amministratori.</p>
       </div>
     );
   }
 
-
+  // ── Site map renderer ─────────────────────────────────────────────────────
   const renderSiteMapNode = (node: SiteMapNode, depth = 0): React.ReactNode => {
     const Icon = node.icon;
     const hasChildren = node.children && node.children.length > 0;
@@ -300,8 +530,12 @@ export default function GestionePaginePage() {
     );
   };
 
+  const isPageLoading = isLoading || isLoadingNavOrder || isLoadingGroups;
+
   return (
     <div className="flex flex-col gap-8">
+
+      {/* ── Gestione Visibilità Pagine ──────────────────────────────────────── */}
       <Card>
         <CardHeader>
           <CardTitle>Gestione Pagine e Visibilità</CardTitle>
@@ -386,7 +620,123 @@ export default function GestionePaginePage() {
         <b>Visibile solo a Educatori assegnati a un Gruppo:</b> Se spuntata, la pagina è visibile agli educatori solo se sono assegnati ad almeno un gruppo (gestito in &quot;Tutti i Gruppi&quot;).
       </CardDescription>
 
-      {/* Site Map Section */}
+      {/* ── Ordine Sidebar ─────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>Ordine Sidebar — Voci Principali</CardTitle>
+              <CardDescription className="mt-1">
+                Trascina le voci per cambiare l&apos;ordine in cui appaiono nella barra laterale. L&apos;ordine è valido per tutti gli utenti.
+              </CardDescription>
+            </div>
+            <Button
+              onClick={handleSaveNavOrder}
+              disabled={!navOrderDirty || isSavingNav || isPageLoading}
+              size="sm"
+              className="shrink-0"
+            >
+              {isSavingNav ? (
+                <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Salvataggio...</>
+              ) : (
+                <><Save className="mr-2 h-3.5 w-3.5" />Salva Ordine</>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoadingNavOrder ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
+              <Loader2 className="h-4 w-4 animate-spin" /> Caricamento ordine...
+            </div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleNavDragEnd}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            >
+              <SortableContext items={navOrder} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-col gap-1.5">
+                  {navOrder.map(id => {
+                    const meta = NAV_ITEM_META[id];
+                    if (!meta) return null;
+                    return (
+                      <SortableRow key={id} id={id} label={meta.label} icon={meta.icon} />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+          {navOrderDirty && (
+            <p className="mt-3 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Hai modifiche non salvate. Clicca «Salva Ordine» per applicarle.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Ordine Gruppi ──────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>Ordine Sidebar — Gruppi</CardTitle>
+              <CardDescription className="mt-1">
+                Trascina i gruppi per cambiare l&apos;ordine in cui appaiono nella sezione «I Miei Gruppi» della sidebar.
+              </CardDescription>
+            </div>
+            <Button
+              onClick={handleSaveGroupOrder}
+              disabled={!groupOrderDirty || isSavingGroups || isLoadingGroups}
+              size="sm"
+              className="shrink-0"
+            >
+              {isSavingGroups ? (
+                <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Salvataggio...</>
+              ) : (
+                <><Save className="mr-2 h-3.5 w-3.5" />Salva Ordine</>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoadingGroups ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
+              <Loader2 className="h-4 w-4 animate-spin" /> Caricamento gruppi...
+            </div>
+          ) : groupOrder.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">
+              Nessun gruppo trovato. Creane uno in <strong>Gestione Gruppi → Tutti i Gruppi</strong>.
+            </p>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleGroupDragEnd}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            >
+              <SortableContext items={groupOrder.map(g => g.id)} strategy={verticalListSortingStrategy}>
+                <div className="flex flex-col gap-1.5">
+                  {groupOrder.map(group => (
+                    <SortableRow key={group.id} id={group.id} label={group.name} icon={Users} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+          {groupOrderDirty && (
+            <p className="mt-3 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Hai modifiche non salvate. Clicca «Salva Ordine» per applicarle.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Mappa del Sito ─────────────────────────────────────────────────── */}
       <Card>
         <CardHeader>
           <CardTitle>Mappa del Sito</CardTitle>
@@ -415,7 +765,7 @@ export default function GestionePaginePage() {
         </CardContent>
       </Card>
 
-      {/* ── Zona di Pericolo ──────────────────────────────────────────────── */}
+      {/* ── Zona di Pericolo ─────────────────────────────────────────────── */}
       <Card className="border-destructive/40 bg-destructive/5">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -426,14 +776,13 @@ export default function GestionePaginePage() {
             Elimina <strong>tutti i dati inseriti</strong> durante i test: gruppi, eventi, raccolte, spese, notifiche,
             magazzino, presenze, movimenti contanti, campi, ecc.<br />
             Vengono eliminati anche <strong>tutti gli utenti registrati</strong> (Firebase Auth + profili) e i loro
-            <strong> nuclei familiari</strong> — incluso il nucleo dell'account admin
+            <strong> nuclei familiari</strong> — incluso il nucleo dell&apos;account admin
             (<code className="text-xs bg-muted px-1 py-0.5 rounded">piantonimatteo.99@gmail.com</code>).<br />
             La <strong>configurazione</strong> del sistema (Drive, notifiche) viene conservata.
             Questa operazione è <strong className="text-destructive">irreversibile</strong>.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {/* Result banner */}
           {resetResult && (
             <div className={`rounded-lg border p-4 text-sm ${
               resetResult.success
@@ -462,7 +811,6 @@ export default function GestionePaginePage() {
               )}
             </div>
           )}
-
           <div className="flex items-center gap-3">
             <Button
               variant="destructive"
@@ -476,14 +824,13 @@ export default function GestionePaginePage() {
               )}
             </Button>
             <span className="text-xs text-muted-foreground">
-              Tutti gli utenti e i nuclei familiari verranno eliminati. Viene conservato solo l'account admin e la configurazione.
+              Tutti gli utenti e i nuclei familiari verranno eliminati. Viene conservato solo l&apos;account admin e la configurazione.
             </span>
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Confirm dialogs ─────────────────────────────────────────────── */}
-      {/* Step 1 */}
+      {/* ── Confirm dialogs ──────────────────────────────────────────────── */}
       <Dialog open={showResetConfirm1} onOpenChange={setShowResetConfirm1}>
         <DialogContent>
           <DialogHeader>
@@ -496,7 +843,7 @@ export default function GestionePaginePage() {
               gruppi, eventi, raccolte, spese, pagamenti, notifiche, presenze, magazzino, campi e altro ancora.
               <br /><br />
               Verranno eliminati anche <strong>tutti gli account utente</strong> e i loro nuclei familiari
-              (incluso il nucleo dell'admin). La configurazione del sistema verrà conservata.
+              (incluso il nucleo dell&apos;admin). La configurazione del sistema verrà conservata.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -508,7 +855,6 @@ export default function GestionePaginePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Step 2 — final */}
       <Dialog open={showResetConfirm2} onOpenChange={setShowResetConfirm2}>
         <DialogContent>
           <DialogHeader>
