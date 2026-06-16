@@ -84,104 +84,31 @@ interface SiteMapNode {
 
 const SITE_MAP: SiteMapNode[] = [
   { label: 'Dashboard', path: '/dashboard', icon: Home },
-  {
-    label: 'Progetti', path: '/progetti', icon: FlaskConical,
-    children: [
-      { label: '[nome-progetto]', path: '/progetti/[slug]', badge: 'dinamico' },
-      { label: 'Storico', path: '/progetti/storico' },
-    ],
-  },
+  { label: 'Progetti', path: '/progetti', icon: FlaskConical, children: [{ label: '[nome-progetto]', path: '/progetti/[slug]', badge: 'dinamico' }, { label: 'Storico', path: '/progetti/storico' }] },
   { label: 'Iscrizioni', path: '/iscrizioni', icon: PenSquare },
   { label: 'Nucleo Familiare', path: '/nucleo-familiare', icon: Building },
   { label: 'Calendario', path: '/calendario', icon: Calendar },
   { label: 'Magazzino', path: '/magazzino', icon: Warehouse },
-  {
-    label: 'Campi', path: '/campi', icon: Tent,
-    children: [
-      { label: 'Case', badge: 'tab' },
-      { label: 'Pullman', badge: 'tab' },
-      { label: 'Spesa', badge: 'tab' },
-      { label: 'Preventivo', badge: 'tab' },
-    ],
-  },
-  {
-    label: 'Consiglio', path: '/consiglio', icon: Gavel, badge: 'solo educatori',
-    children: [
-      { label: 'Ordine del Giorno', badge: 'tab' },
-      { label: 'Verbali', badge: 'tab' },
-    ],
-  },
-  {
-    label: 'Contabilità', icon: Landmark,
-    children: [
-      { label: 'Conto', path: '/contabilita/conto' },
-      { label: 'Raccolte attive', path: '/contabilita/raccolte' },
-      { label: 'Transazioni da Controllare', path: '/contabilita/transazioni-da-controllare' },
-      { label: 'Pagamenti Contanti', path: '/contabilita/pagamenti-contanti' },
-      { label: 'Spese', path: '/contabilita/spese' },
-      { label: 'Raccolte concluse', path: '/contabilita/storico' },
-    ],
-  },
-  {
-    label: 'Tesseramento', icon: ShieldCheck,
-    children: [
-      { label: 'Tariffe', path: '/tesserati/tariffe' },
-      { label: 'Nuovi Iscritti', path: '/tesserati/nuovi-iscritti' },
-      { label: 'Tesserati', path: '/tesserati/tesserati' },
-      { label: 'Famiglie', path: '/tesserati/famiglie' },
-      { label: 'Archivio', path: '/tesserati/archivio' },
-    ],
-  },
-  {
-    label: 'I Miei Gruppi', path: '/miei-gruppi', icon: Users,
-    children: [
-      { label: '[nome-gruppo]', path: '/miei-gruppi/[slug]', badge: 'dinamico' },
-    ],
-  },
+  { label: 'Campi', path: '/campi', icon: Tent, children: [{ label: 'Case', badge: 'tab' }, { label: 'Pullman', badge: 'tab' }, { label: 'Spesa', badge: 'tab' }, { label: 'Preventivo', badge: 'tab' }] },
+  { label: 'Consiglio', path: '/consiglio', icon: Gavel, badge: 'solo educatori', children: [{ label: 'Ordine del Giorno', badge: 'tab' }, { label: 'Verbali', badge: 'tab' }] },
+  { label: 'Contabilità', icon: Landmark, children: [{ label: 'Conto', path: '/contabilita/conto' }, { label: 'Raccolte attive', path: '/contabilita/raccolte' }, { label: 'Transazioni da Controllare', path: '/contabilita/transazioni-da-controllare' }, { label: 'Pagamenti Contanti', path: '/contabilita/pagamenti-contanti' }, { label: 'Spese', path: '/contabilita/spese' }, { label: 'Raccolte concluse', path: '/contabilita/storico' }] },
+  { label: 'Tesseramento', icon: ShieldCheck, children: [{ label: 'Tariffe', path: '/tesserati/tariffe' }, { label: 'Nuovi Iscritti', path: '/tesserati/nuovi-iscritti' }, { label: 'Tesserati', path: '/tesserati/tesserati' }, { label: 'Famiglie', path: '/tesserati/famiglie' }, { label: 'Archivio', path: '/tesserati/archivio' }] },
+  { label: 'I Miei Gruppi', path: '/miei-gruppi', icon: Users, children: [{ label: '[nome-gruppo]', path: '/miei-gruppi/[slug]', badge: 'dinamico' }] },
   { label: 'Social Media', path: '/social-media', icon: Share2, badge: 'solo educatori' },
   {
     label: 'Admin Panel', icon: Shield, badge: 'solo admin',
     children: [
-      {
-        label: 'Area Educatori', icon: GraduationCap,
-        children: [
-          { label: 'Educatori', path: '/admin/area-educatori/educatori' },
-          { label: 'Ruoli Educatori', path: '/admin/area-educatori/ruoli-educatori' },
-        ],
-      },
-      {
-        label: 'Gestione Gruppi', icon: Users,
-        children: [
-          { label: 'Tutti i Gruppi', path: '/admin/gestione-gruppi/tutti-i-gruppi' },
-        ],
-      },
-      {
-        label: 'Gestione Utenti', icon: UserCog,
-        children: [
-          { label: 'Database Utenti', path: '/admin/gestione-utenti/users' },
-          { label: 'Permessi', path: '/admin/gestione-utenti/permessi' },
-        ],
-      },
-      {
-        label: 'Configurazione', icon: FileCog,
-        children: [
-          { label: 'Integrazione Drive', path: '/admin/configurazione/integrazione-drive' },
-          { label: 'Gestione Pagine', path: '/admin/configurazione/gestione-pagine' },
-          { label: 'Gestione Notifiche', path: '/admin/configurazione/gestione-notifiche' },
-        ],
-      },
-      {
-        label: 'Segnalazioni', icon: CircleHelp,
-        children: [
-          { label: 'Gestione Feedback / Problemi', path: '/admin/segnalazioni' },
-        ],
-      },
+      { label: 'Area Educatori', icon: GraduationCap, children: [{ label: 'Educatori', path: '/admin/area-educatori/educatori' }, { label: 'Ruoli Educatori', path: '/admin/area-educatori/ruoli-educatori' }] },
+      { label: 'Gestione Gruppi', icon: Users, children: [{ label: 'Tutti i Gruppi', path: '/admin/gestione-gruppi/tutti-i-gruppi' }] },
+      { label: 'Gestione Utenti', icon: UserCog, children: [{ label: 'Database Utenti', path: '/admin/gestione-utenti/users' }, { label: 'Permessi', path: '/admin/gestione-utenti/permessi' }] },
+      { label: 'Configurazione', icon: FileCog, children: [{ label: 'Integrazione Drive', path: '/admin/configurazione/integrazione-drive' }, { label: 'Gestione Pagine', path: '/admin/configurazione/gestione-pagine' }, { label: 'Gestione Notifiche', path: '/admin/configurazione/gestione-notifiche' }] },
+      { label: 'Segnalazioni', icon: CircleHelp, children: [{ label: 'Gestione Feedback / Problemi', path: '/admin/segnalazioni' }] },
     ],
   },
 ];
 
-// ─── Sottopagine ordinabili per ciascuna voce accordion ────────────────────
-const SUB_ITEM_META: Record<string, { id: string; label: string }[]> = {
+// ─── Sottopagine statiche per ciascuna voce accordion ──────────────────────
+const STATIC_SUB_ITEMS: Record<string, { id: string; label: string }[]> = {
   contabilita: [
     { id: 'contabilita-conto', label: 'Conto' },
     { id: 'contabilita-raccolte', label: 'Raccolte attive' },
@@ -210,17 +137,9 @@ const DEFAULT_SUB_ORDERS: Record<string, string[]> = {
   campi: ['campi-piatti', 'campi-pullman', 'campi-case'],
 };
 
-// ─── Nav items top-level ────────────────────────────────────────────────────
-const DEFAULT_NAV_ORDER: string[] = [
-  'dashboard', 'progetti', 'iscrizioni', 'nucleo-familiare',
-  'calendario', 'magazzino', 'campi', 'consiglio',
-  'contabilita', 'tesserati', 'miei-gruppi', 'social-media',
-];
+const DEFAULT_NAV_ORDER: string[] = ['dashboard', 'progetti', 'iscrizioni', 'nucleo-familiare', 'calendario', 'magazzino', 'campi', 'consiglio', 'contabilita', 'tesserati', 'miei-gruppi', 'social-media'];
 
-const DEFAULT_GROUP_ORDER: string[] = [
-  'Seconda elementare', 'Terza elementare', 'Quarta elementare', 'Quinta elementare',
-  'Prima media', 'Seconda media', 'Terza media', 'ACG', 'EDU', 'Adulti',
-];
+const DEFAULT_GROUP_ORDER: string[] = ['Seconda elementare', 'Terza elementare', 'Quarta elementare', 'Quinta elementare', 'Prima media', 'Seconda media', 'Terza media', 'ACG', 'EDU', 'Adulti'];
 
 const NAV_ITEM_META: Record<string, { label: string; icon?: React.ElementType }> = {
   dashboard: { label: 'Dashboard', icon: Home },
@@ -237,13 +156,13 @@ const NAV_ITEM_META: Record<string, { label: string; icon?: React.ElementType }>
   'social-media': { label: 'Social Media', icon: Share2 },
 };
 
-// ─── Simple sortable row (used for sub-items and groups) ────────────────────
+// ─── Simple sortable row (sub-items) ───────────────────────────────────────
 function SortableRow({ id, label, icon: Icon }: { id: string; label: string; icon?: React.ElementType }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : undefined, opacity: isDragging ? 0.8 : 1 };
   return (
     <div ref={setNodeRef} style={style} className={cn('flex items-center gap-3 rounded-lg border bg-card px-3 py-2 text-sm select-none', isDragging ? 'shadow-lg border-primary/40 bg-primary/5' : 'border-border')}>
-      <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none" aria-label="Trascina per riordinare">
+      <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none shrink-0" aria-label="Trascina per riordinare">
         <GripVertical className="h-4 w-4" />
       </button>
       {Icon && <Icon className="h-4 w-4 text-muted-foreground shrink-0" />}
@@ -252,27 +171,28 @@ function SortableRow({ id, label, icon: Icon }: { id: string; label: string; ico
   );
 }
 
-// ─── Expandable sortable row (top-level nav items) ──────────────────────────
+// ─── Expandable sortable row (top-level nav items with optional sub-items) ──
 interface ExpandableNavRowProps {
   id: string;
   label: string;
   icon?: React.ElementType;
-  subItems: { id: string; label: string }[];
-  currentSubOrder: string[];
+  subItems: { id: string; label: string }[];      // items to show in the nested list
+  currentSubOrder: string[];                        // IDs in current order
   isExpanded: boolean;
   onToggleExpand: () => void;
   onSubDragEnd: (event: DragEndEvent) => void;
   sensors: ReturnType<typeof useSensors>;
+  subLabel?: string;                                // custom label for the expand button
 }
 
-function ExpandableNavRow({ id, label, icon: Icon, subItems, currentSubOrder, isExpanded, onToggleExpand, onSubDragEnd, sensors }: ExpandableNavRowProps) {
+function ExpandableNavRow({ id, label, icon: Icon, subItems, currentSubOrder, isExpanded, onToggleExpand, onSubDragEnd, sensors, subLabel }: ExpandableNavRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : undefined, opacity: isDragging ? 0.8 : 1 };
   const hasSubItems = subItems.length > 0;
+  const count = subItems.length;
 
   return (
     <div ref={setNodeRef} style={style} className="flex flex-col">
-      {/* Main row */}
       <div className={cn('flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 text-sm select-none', isDragging ? 'shadow-lg border-primary/40 bg-primary/5' : 'border-border')}>
         <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none shrink-0" aria-label="Trascina per riordinare">
           <GripVertical className="h-4 w-4" />
@@ -280,25 +200,16 @@ function ExpandableNavRow({ id, label, icon: Icon, subItems, currentSubOrder, is
         {Icon && <Icon className="h-4 w-4 text-muted-foreground shrink-0" />}
         <span className="flex-1 font-medium">{label}</span>
         {hasSubItems && !isDragging && (
-          <button
-            onClick={onToggleExpand}
-            className="ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
-          >
-            <span>{subItems.length} sottopagine</span>
+          <button onClick={onToggleExpand} className="ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0">
+            <span>{subLabel ?? `${count} sottopagine`}</span>
             <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', isExpanded && 'rotate-180')} />
           </button>
         )}
       </div>
 
-      {/* Sub-items (nested DnD) */}
       {isExpanded && hasSubItems && !isDragging && (
         <div className="ml-8 mt-1.5 mb-1">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onSubDragEnd}
-            modifiers={[restrictToVerticalAxis]}
-          >
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onSubDragEnd} modifiers={[restrictToVerticalAxis]}>
             <SortableContext items={currentSubOrder} strategy={verticalListSortingStrategy}>
               <div className="flex flex-col gap-1">
                 {currentSubOrder.map(subId => {
@@ -354,20 +265,21 @@ export default function GestionePaginePage() {
   const navOrderRef = useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'nav-order') : null, [firestore]);
   const { data: navOrderDoc, isLoading: isLoadingNavOrder } = useDoc<{ order: string[]; subOrder?: Record<string, string[]> }>(navOrderRef);
 
-  // ── Groups ────────────────────────────────────────────────────────────────
+  // ── Groups (for I Miei Gruppi sub-items) ─────────────────────────────────
   const groupsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'gruppi'), orderBy('sortOrder', 'asc')) : null, [firestore]);
   const { data: groups, isLoading: isLoadingGroups } = useCollection<Group>(groupsQuery);
 
-  // ── Local state: nav top-level order ─────────────────────────────────────
+  // ── Local state: nav + sub order (unified) ───────────────────────────────
   const [navOrder, setNavOrder] = useState<string[]>(DEFAULT_NAV_ORDER);
   const [subOrder, setSubOrder] = useState<Record<string, string[]>>(DEFAULT_SUB_ORDERS);
+  const [groupOrder, setGroupOrder] = useState<Group[]>([]);
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
-  const [isNavDirty, setIsNavDirty] = useState(false);
-  const [isSavingNav, setIsSavingNav] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
+  // Initialize nav order from Firestore
   useEffect(() => {
     if (!isLoadingNavOrder) {
-      // Top-level order
       if (navOrderDoc?.order && navOrderDoc.order.length > 0) {
         const saved = navOrderDoc.order;
         const missing = DEFAULT_NAV_ORDER.filter(id => !saved.includes(id));
@@ -375,10 +287,9 @@ export default function GestionePaginePage() {
       } else {
         setNavOrder(DEFAULT_NAV_ORDER);
       }
-      // Sub-item orders
       const savedSub = navOrderDoc?.subOrder ?? {};
       const merged: Record<string, string[]> = { ...DEFAULT_SUB_ORDERS };
-      Object.keys(SUB_ITEM_META).forEach(parentId => {
+      Object.keys(STATIC_SUB_ITEMS).forEach(parentId => {
         const saved = savedSub[parentId];
         if (saved && saved.length > 0) {
           const defaults = DEFAULT_SUB_ORDERS[parentId] ?? [];
@@ -387,15 +298,11 @@ export default function GestionePaginePage() {
         }
       });
       setSubOrder(merged);
-      setIsNavDirty(false);
+      setIsDirty(false);
     }
   }, [isLoadingNavOrder, navOrderDoc]);
 
-  // ── Local state: group order ──────────────────────────────────────────────
-  const [groupOrder, setGroupOrder] = useState<Group[]>([]);
-  const [isGroupDirty, setIsGroupDirty] = useState(false);
-  const [isSavingGroups, setIsSavingGroups] = useState(false);
-
+  // Initialize group order from Firestore
   useEffect(() => {
     if (!isLoadingGroups && groups) {
       const sorted = [...groups].sort((a, b) => {
@@ -412,7 +319,6 @@ export default function GestionePaginePage() {
         return a.name.localeCompare(b.name);
       });
       setGroupOrder(sorted);
-      setIsGroupDirty(false);
     }
   }, [isLoadingGroups, groups]);
 
@@ -423,16 +329,12 @@ export default function GestionePaginePage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  // ── Nav drag handlers ─────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────
   const handleNavDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      setNavOrder(prev => {
-        const oldIdx = prev.indexOf(String(active.id));
-        const newIdx = prev.indexOf(String(over.id));
-        return arrayMove(prev, oldIdx, newIdx);
-      });
-      setIsNavDirty(true);
+      setNavOrder(prev => arrayMove(prev, prev.indexOf(String(active.id)), prev.indexOf(String(over.id))));
+      setIsDirty(true);
     }
   }, []);
 
@@ -441,26 +343,24 @@ export default function GestionePaginePage() {
     if (over && active.id !== over.id) {
       setSubOrder(prev => {
         const items = prev[parentId] ?? DEFAULT_SUB_ORDERS[parentId] ?? [];
-        const oldIdx = items.indexOf(String(active.id));
-        const newIdx = items.indexOf(String(over.id));
-        return { ...prev, [parentId]: arrayMove(items, oldIdx, newIdx) };
+        return { ...prev, [parentId]: arrayMove(items, items.indexOf(String(active.id)), items.indexOf(String(over.id))) };
       });
-      setIsNavDirty(true);
+      setIsDirty(true);
     }
   }, []);
 
-  const handleSaveNavOrder = async () => {
-    if (!firestore || !navOrderRef) return;
-    setIsSavingNav(true);
-    try {
-      await setDoc(navOrderRef, { order: navOrder, subOrder }, { merge: true });
-      setIsNavDirty(false);
-    } catch (e) {
-      console.error('Errore salvataggio ordine nav:', e);
-    } finally {
-      setIsSavingNav(false);
+  // Special handler for groups (sub-items of 'miei-gruppi')
+  const handleGroupSubDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setGroupOrder(prev => {
+        const oldIdx = prev.findIndex(g => g.id === String(active.id));
+        const newIdx = prev.findIndex(g => g.id === String(over.id));
+        return arrayMove(prev, oldIdx, newIdx);
+      });
+      setIsDirty(true);
     }
-  };
+  }, []);
 
   const toggleExpanded = useCallback((id: string) => {
     setExpandedParents(prev => {
@@ -470,33 +370,28 @@ export default function GestionePaginePage() {
     });
   }, []);
 
-  // ── Group drag handlers ───────────────────────────────────────────────────
-  const handleGroupDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setGroupOrder(prev => {
-        const oldIdx = prev.findIndex(g => g.id === active.id);
-        const newIdx = prev.findIndex(g => g.id === over.id);
-        return arrayMove(prev, oldIdx, newIdx);
-      });
-      setIsGroupDirty(true);
-    }
-  }, []);
-
-  const handleSaveGroupOrder = async () => {
-    if (!firestore) return;
-    setIsSavingGroups(true);
+  // Unified save: nav order + sub order + group sort order
+  const handleSave = async () => {
+    if (!firestore || !navOrderRef) return;
+    setIsSaving(true);
     try {
-      const batch = writeBatch(firestore);
-      groupOrder.forEach((group, idx) => {
-        batch.update(doc(firestore, 'gruppi', group.id), { sortOrder: idx });
-      });
-      await batch.commit();
-      setIsGroupDirty(false);
+      // 1. Save nav + subOrder document
+      await setDoc(navOrderRef, { order: navOrder, subOrder }, { merge: true });
+
+      // 2. Save group sortOrder if groups are loaded
+      if (groupOrder.length > 0) {
+        const batch = writeBatch(firestore);
+        groupOrder.forEach((group, idx) => {
+          batch.update(doc(firestore, 'gruppi', group.id), { sortOrder: idx });
+        });
+        await batch.commit();
+      }
+
+      setIsDirty(false);
     } catch (e) {
-      console.error('Errore salvataggio ordine gruppi:', e);
+      console.error('Errore salvataggio ordine:', e);
     } finally {
-      setIsSavingGroups(false);
+      setIsSaving(false);
     }
   };
 
@@ -578,6 +473,8 @@ export default function GestionePaginePage() {
     );
   };
 
+  const isPageLoading = isLoadingNavOrder || isLoadingGroups;
+
   return (
     <div className="flex flex-col gap-8">
 
@@ -645,26 +542,27 @@ export default function GestionePaginePage() {
         <b>Solo Educatori assegnati a Gruppo:</b> Visibile agli educatori solo se assegnati ad almeno un gruppo.
       </CardDescription>
 
-      {/* ── Ordine Sidebar — Voci Principali + Sottopagine ─────────────────── */}
+      {/* ── Ordine Sidebar (voci + sottopagine + gruppi unificati) ─────────── */}
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div>
               <CardTitle>Ordine Sidebar — Voci e Sottopagine</CardTitle>
               <CardDescription className="mt-1">
-                Trascina le voci per cambiare l&apos;ordine nella barra laterale. Le voci con sottopagine mostrano un
-                pulsante <strong>«N sottopagine»</strong> per espandere e riordinare anche i livelli interni.
+                Trascina le voci per cambiare l&apos;ordine nella barra laterale. Clicca il pulsante{' '}
+                <strong>«▼»</strong> per espandere e riordinare anche le sottopagine interne.
+                I gruppi di <strong>I Miei Gruppi</strong> sono anch&apos;essi riordinabili espandendo la voce.
               </CardDescription>
             </div>
-            <Button onClick={handleSaveNavOrder} disabled={!isNavDirty || isSavingNav || isLoadingNavOrder} size="sm" className="shrink-0">
-              {isSavingNav ? <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Salvataggio...</> : <><Save className="mr-2 h-3.5 w-3.5" />Salva Ordine</>}
+            <Button onClick={handleSave} disabled={!isDirty || isSaving || isPageLoading} size="sm" className="shrink-0">
+              {isSaving ? <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Salvataggio...</> : <><Save className="mr-2 h-3.5 w-3.5" />Salva Ordine</>}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {isLoadingNavOrder ? (
+          {isPageLoading ? (
             <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
-              <Loader2 className="h-4 w-4 animate-spin" /> Caricamento ordine...
+              <Loader2 className="h-4 w-4 animate-spin" /> Caricamento...
             </div>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleNavDragEnd} modifiers={[restrictToVerticalAxis]}>
@@ -673,16 +571,40 @@ export default function GestionePaginePage() {
                   {navOrder.map(id => {
                     const meta = NAV_ITEM_META[id];
                     if (!meta) return null;
-                    const subMeta = SUB_ITEM_META[id] ?? [];
-                    const currentSubOrder = subOrder[id] ?? DEFAULT_SUB_ORDERS[id] ?? [];
+
+                    // ── Special case: I Miei Gruppi → show dynamic groups as sub-items
+                    if (id === 'miei-gruppi') {
+                      const groupSubItems = groupOrder.map(g => ({ id: g.id, label: g.name }));
+                      const groupSubOrder = groupOrder.map(g => g.id);
+                      const subLabel = groupOrder.length > 0 ? `${groupOrder.length} gruppi` : 'nessun gruppo';
+                      return (
+                        <ExpandableNavRow
+                          key={id}
+                          id={id}
+                          label={meta.label}
+                          icon={meta.icon}
+                          subItems={groupSubItems}
+                          currentSubOrder={groupSubOrder}
+                          isExpanded={expandedParents.has(id)}
+                          onToggleExpand={() => toggleExpanded(id)}
+                          onSubDragEnd={handleGroupSubDragEnd}
+                          sensors={sensors}
+                          subLabel={subLabel}
+                        />
+                      );
+                    }
+
+                    // ── Static sub-items (Contabilità, Tesseramento, Campi)
+                    const staticSub = STATIC_SUB_ITEMS[id] ?? [];
+                    const currentSub = subOrder[id] ?? DEFAULT_SUB_ORDERS[id] ?? [];
                     return (
                       <ExpandableNavRow
                         key={id}
                         id={id}
                         label={meta.label}
                         icon={meta.icon}
-                        subItems={subMeta}
-                        currentSubOrder={currentSubOrder}
+                        subItems={staticSub}
+                        currentSubOrder={currentSub}
                         isExpanded={expandedParents.has(id)}
                         onToggleExpand={() => toggleExpanded(id)}
                         onSubDragEnd={(e) => handleSubDragEnd(id, e)}
@@ -694,51 +616,7 @@ export default function GestionePaginePage() {
               </SortableContext>
             </DndContext>
           )}
-          {isNavDirty && (
-            <p className="mt-3 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              Hai modifiche non salvate. Clicca «Salva Ordine» per applicarle.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Ordine Gruppi ──────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle>Ordine Sidebar — Gruppi</CardTitle>
-              <CardDescription className="mt-1">
-                Trascina i gruppi per cambiare l&apos;ordine nella sezione «I Miei Gruppi».
-              </CardDescription>
-            </div>
-            <Button onClick={handleSaveGroupOrder} disabled={!isGroupDirty || isSavingGroups || isLoadingGroups} size="sm" className="shrink-0">
-              {isSavingGroups ? <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Salvataggio...</> : <><Save className="mr-2 h-3.5 w-3.5" />Salva Ordine</>}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoadingGroups ? (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
-              <Loader2 className="h-4 w-4 animate-spin" /> Caricamento gruppi...
-            </div>
-          ) : groupOrder.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">
-              Nessun gruppo trovato. Creane uno in <strong>Gestione Gruppi → Tutti i Gruppi</strong>.
-            </p>
-          ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleGroupDragEnd} modifiers={[restrictToVerticalAxis]}>
-              <SortableContext items={groupOrder.map(g => g.id)} strategy={verticalListSortingStrategy}>
-                <div className="flex flex-col gap-1.5">
-                  {groupOrder.map(group => (
-                    <SortableRow key={group.id} id={group.id} label={group.name} icon={Users} />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
-          {isGroupDirty && (
+          {isDirty && (
             <p className="mt-3 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
               <AlertTriangle className="h-3.5 w-3.5" />
               Hai modifiche non salvate. Clicca «Salva Ordine» per applicarle.
@@ -751,7 +629,7 @@ export default function GestionePaginePage() {
       <Card>
         <CardHeader>
           <CardTitle>Mappa del Sito</CardTitle>
-          <CardDescription>Struttura completa di tutte le pagine dell&apos;applicazione. Le pagine admin sono accessibili solo agli amministratori.</CardDescription>
+          <CardDescription>Struttura completa di tutte le pagine dell&apos;applicazione.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
@@ -785,11 +663,9 @@ export default function GestionePaginePage() {
             <div className={`rounded-lg border p-4 text-sm ${resetResult.success ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-950/30 dark:border-green-800 dark:text-green-300' : 'bg-destructive/10 border-destructive/30 text-destructive'}`}>
               {resetResult.success ? (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4" />Reset completato con successo!</div>
+                  <div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4" />Reset completato!</div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs font-mono mt-2">
-                    {Object.entries(resetResult.deleted ?? {}).map(([col, count]) => (
-                      <span key={col} className="truncate"><span className="font-semibold">{col}:</span> {count < 0 ? 'errore' : `${count} doc`}</span>
-                    ))}
+                    {Object.entries(resetResult.deleted ?? {}).map(([col, count]) => <span key={col} className="truncate"><span className="font-semibold">{col}:</span> {count < 0 ? 'errore' : `${count} doc`}</span>)}
                   </div>
                 </div>
               ) : (
@@ -806,14 +682,13 @@ export default function GestionePaginePage() {
         </CardContent>
       </Card>
 
-      {/* ── Confirm dialogs ──────────────────────────────────────────────── */}
       <Dialog open={showResetConfirm1} onOpenChange={setShowResetConfirm1}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5" />Sei sicuro di voler resettare?</DialogTitle>
             <DialogDescription className="pt-2">
               Stai per eliminare <strong>tutti i dati di test</strong>: gruppi, eventi, raccolte, spese, pagamenti, notifiche, presenze, magazzino, campi.<br /><br />
-              Verranno eliminati anche <strong>tutti gli account utente</strong> e i loro nuclei familiari (incluso il nucleo dell&apos;admin). La configurazione del sistema verrà conservata.
+              Verranno eliminati anche <strong>tutti gli account utente</strong> e i loro nuclei familiari (incluso il nucleo dell&apos;admin). La configurazione verrà conservata.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -828,7 +703,7 @@ export default function GestionePaginePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5" />Ultima conferma — operazione irreversibile</DialogTitle>
             <DialogDescription className="pt-2">
-              Cliccando <strong>«Elimina tutto»</strong> tutti i dati di test verranno cancellati definitivamente da Firestore. Non è possibile annullare questa operazione.
+              Cliccando <strong>«Elimina tutto»</strong> tutti i dati di test verranno cancellati definitivamente. Non è possibile annullare.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
