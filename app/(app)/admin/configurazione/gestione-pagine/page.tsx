@@ -266,7 +266,7 @@ export default function GestionePaginePage() {
   const { data: navOrderDoc, isLoading: isLoadingNavOrder } = useDoc<{ order: string[]; subOrder?: Record<string, string[]> }>(navOrderRef);
 
   // ── Groups (for I Miei Gruppi sub-items) ─────────────────────────────────
-  const groupsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'gruppi'), orderBy('sortOrder', 'asc')) : null, [firestore]);
+  const groupsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'gruppi') : null, [firestore]);
   const { data: groups, isLoading: isLoadingGroups } = useCollection<Group>(groupsQuery);
 
   // ── Local state: nav + sub order (unified) ───────────────────────────────

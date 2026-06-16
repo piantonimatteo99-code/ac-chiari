@@ -188,7 +188,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
 
   const myGroupsQuery = useMemoFirebase(() =>
     (firestore && user && userData?.roles?.includes('educatore'))
-      ? query(collection(firestore, 'gruppi'), where('educatorIds', 'array-contains', user.uid), orderBy('sortOrder', 'asc'))
+      ? query(collection(firestore, 'gruppi'), where('educatorIds', 'array-contains', user.uid))
       : null,
     [firestore, user, userData]);
   const { data: myGroupsRaw, isLoading: isLoadingGroups } = useCollection<Group>(myGroupsQuery);
@@ -210,7 +210,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     [firestore, user, userData]);
   const { data: mySpecificRoles, isLoading: isLoadingEducatorRoles } = useCollection<EducatorRole>(educatorRolesQuery);
 
-  const allGroupsQuery = useMemoFirebase(() => isAdmin ? query(collection(firestore, 'gruppi'), orderBy('sortOrder', 'asc')) : null, [firestore, isAdmin]);
+  const allGroupsQuery = useMemoFirebase(() => isAdmin ? collection(firestore, 'gruppi') : null, [firestore, isAdmin]);
   const { data: allGroupsRaw, isLoading: isLoadingAllGroups } = useCollection<Group>(allGroupsQuery);
   // Fallback sort for allGroups
   const allGroups = useMemo(() => {
