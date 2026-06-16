@@ -129,12 +129,20 @@ const STATIC_SUB_ITEMS: Record<string, { id: string; label: string }[]> = {
     { id: 'campi-pullman', label: 'Pullman' },
     { id: 'campi-case', label: 'Case' },
   ],
+  admin: [
+    { id: 'admin-area-educatori', label: 'Area Educatori' },
+    { id: 'admin-gestione-gruppi', label: 'Gestione Gruppi' },
+    { id: 'admin-gestione-utenti', label: 'Gestione Utenti' },
+    { id: 'admin-configurazione', label: 'Configurazione' },
+    { id: 'admin-segnalazioni', label: 'Segnalazioni' },
+  ],
 };
 
 const DEFAULT_SUB_ORDERS: Record<string, string[]> = {
   contabilita: ['contabilita-conto', 'contabilita-raccolte', 'contabilita-transazioni-da-controllare', 'contabilita-pagamenti-contanti', 'contabilita-spese', 'contabilita-storico'],
   tesserati: ['tesserati-tariffe', 'tesserati-nuovi-iscritti', 'tesserati-tesserati', 'tesserati-famiglie', 'tesserati-archivio'],
   campi: ['campi-piatti', 'campi-pullman', 'campi-case'],
+  admin: ['admin-area-educatori', 'admin-gestione-gruppi', 'admin-gestione-utenti', 'admin-configurazione', 'admin-segnalazioni'],
 };
 
 const DEFAULT_NAV_ORDER: string[] = ['dashboard', 'progetti', 'iscrizioni', 'nucleo-familiare', 'calendario', 'magazzino', 'campi', 'consiglio', 'contabilita', 'tesserati', 'miei-gruppi', 'social-media', 'admin'];

@@ -681,6 +681,20 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   }
 
   const renderAdminPanel = () => {
+    const subOrderList = navOrderDoc?.subOrder?.admin ?? ['admin-area-educatori', 'admin-gestione-gruppi', 'admin-gestione-utenti', 'admin-configurazione', 'admin-segnalazioni'];
+    const titleToIdMap: Record<string, string> = {
+      'Area Educatori': 'admin-area-educatori',
+      'Gestione Gruppi': 'admin-gestione-gruppi',
+      'Gestione Utenti': 'admin-gestione-utenti',
+      'Configurazione': 'admin-configurazione',
+      'Segnalazioni': 'admin-segnalazioni',
+    };
+    const sortedAdminGroups = [...adminGroups].sort((a, b) => {
+      const idxA = subOrderList.indexOf(titleToIdMap[a.title]);
+      const idxB = subOrderList.indexOf(titleToIdMap[b.title]);
+      return (idxA !== -1 ? idxA : 999) - (idxB !== -1 ? idxB : 999);
+    });
+
     return (
       <Accordion
         type="single" collapsible
@@ -712,7 +726,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
               }}
               className="w-full space-y-1"
             >
-              {adminGroups.map((group) => {
+              {sortedAdminGroups.map((group) => {
                 const groupBadge = getSectionBadge(group.links.map(l => l.href));
                 const isGroupOpen = openSections.has(group.title);
                 const isGroupActive = group.links.some(l => pathname.startsWith(l.href));
