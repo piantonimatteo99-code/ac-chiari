@@ -152,18 +152,38 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
 
   // ── Nav order from Firestore ──────────────────────────────────────────────
   const navOrderRef = useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'nav-order') : null, [firestore]);
-  const { data: navOrderDoc, isLoading: isLoadingNavOrder } = useDoc<{ order: string[] }>(navOrderRef);
+  const { data: navOrderDoc, isLoading: isLoadingNavOrder } = useDoc<{ order: string[]; subOrder?: Record<string, string[]> }>(navOrderRef);
 
-  // Sort navConfig according to the saved order; items not in the saved order appear at the end
+  // Sort navConfig top-level AND sub-items according to saved order
   const sortedNavConfig = useMemo(() => {
     const order = navOrderDoc?.order;
-    if (!order || order.length === 0) return navConfig;
-    const indexMap = new Map(order.map((id, i) => [id, i]));
-    return [...navConfig].sort((a, b) => {
-      const ia = indexMap.get(a.id) ?? 9999;
-      const ib = indexMap.get(b.id) ?? 9999;
-      return ia - ib;
-    });
+    const subOrder = navOrderDoc?.subOrder;
+
+    // Sort top-level items
+    let result: typeof navConfig = navConfig;
+    if (order && order.length > 0) {
+      const indexMap = new Map(order.map((id, i) => [id, i]));
+      result = [...navConfig].sort((a, b) => (indexMap.get(a.id) ?? 9999) - (indexMap.get(b.id) ?? 9999));
+    } else {
+      result = [...navConfig];
+    }
+
+    // Sort sub-items within each accordion item
+    if (subOrder) {
+      result = result.map(item => {
+        const subIds = subOrder[item.id];
+        if (!subIds || subIds.length === 0 || item.subItems.length === 0) return item;
+        const subIndexMap = new Map(subIds.map((id, i) => [id, i]));
+        return {
+          ...item,
+          subItems: [...item.subItems].sort((a, b) =>
+            (subIndexMap.get(a.id) ?? 9999) - (subIndexMap.get(b.id) ?? 9999)
+          ),
+        };
+      });
+    }
+
+    return result;
   }, [navOrderDoc]);
 
   const myGroupsQuery = useMemoFirebase(() =>
@@ -553,7 +573,7 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
   }
 
   const renderCampi = () => {
-    const pageConfig = navConfig.find(p => p.id === 'campi')!;
+    const pageConfig = sortedNavConfig.find(p => p.id === 'campi')!;
     const isVisible = getPageVisibility({ id: 'campi', href: '/campi', label: 'Campi' }).visible;
     if (!isVisible) return null;
 
@@ -565,11 +585,10 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
       '/campi/case': Home,
     };
 
-    const fixedSubItems = [
-      { id: 'campi-piatti', href: '/campi/piatti', label: 'Piatti' },
-      { id: 'campi-pullman', href: '/campi/pullman', label: 'Pullman' },
-      { id: 'campi-case', href: '/campi/case', label: 'Case' },
-    ];
+    // Use sorted sub-items from sortedNavConfig (excluding the 'campi-list' entry)
+    const fixedSubItems = pageConfig.subItems
+      .filter(s => s.id !== 'campi-list' && s.href)
+      .map(s => ({ id: s.id, href: s.href as string, label: s.label }));
 
     return (
       <Accordion type="single" collapsible
