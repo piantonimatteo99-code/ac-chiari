@@ -67,6 +67,7 @@ const navConfig = [
   },
   { id: 'miei-gruppi', label: 'I Miei Gruppi', icon: Users, subItems: [] },
   { id: 'social-media', href: '/social-media', label: 'Social Media', icon: Share2, subItems: [] },
+  { id: 'admin', href: '/admin', label: 'Admin Panel', icon: Shield, subItems: [] },
 ];
 
 const adminGroups = [
@@ -679,6 +680,69 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     );
   }
 
+  const renderAdminPanel = () => {
+    return (
+      <Accordion
+        type="single" collapsible
+        value={openSections.has('admin-panel') ? 'admin-panel' : ''}
+        onValueChange={val => toggleSection('admin-panel', !!val)}
+        className="w-full"
+      >
+        <AccordionItem value="admin-panel" className="border-b-0">
+          <AccordionTrigger
+            className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground", {'bg-accent text-accent-foreground': pathname.startsWith('/admin')})}
+          >
+            <div className="flex items-center gap-4 pointer-events-none flex-1 min-w-0">
+              <Shield className="h-5 w-5 shrink-0" />
+              <span className="flex-1 text-left">Admin Panel</span>
+              {adminTotalBadge > 0 && !openSections.has('admin-panel') && renderBadge(adminTotalBadge)}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-1 pb-0">
+            <Accordion
+              type="multiple"
+              value={Array.from(openSections).filter(s => adminGroups.some(g => g.title === s))}
+              onValueChange={vals => {
+                setOpenSections(prev => {
+                  const next = new Set(prev);
+                  adminGroups.forEach(g => next.delete(g.title));
+                  vals.forEach(v => next.add(v));
+                  return next;
+                });
+              }}
+              className="w-full space-y-1"
+            >
+              {adminGroups.map((group) => {
+                const groupBadge = getSectionBadge(group.links.map(l => l.href));
+                const isGroupOpen = openSections.has(group.title);
+                const isGroupActive = group.links.some(l => pathname.startsWith(l.href));
+                return (
+                  <AccordionItem value={group.title} key={group.title} className="border-b-0">
+                    <AccordionTrigger
+                      className={cn(
+                        "w-full py-2 pl-3 pr-3 hover:no-underline text-left",
+                        isGroupActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <div className="flex items-center gap-3 text-sm font-medium flex-1 min-w-0">
+                        <group.icon className="h-4 w-4 shrink-0" />
+                        <span className="flex-1 text-left">{group.title}</span>
+                        {groupBadge > 0 && !isGroupOpen && renderBadge(groupBadge)}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pt-1 pl-4 space-y-1">
+                      {group.links.map(link => <div key={link.href}>{renderAdminSubLink(link.href, link.label)}</div>)}
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-2">
       {sortedNavConfig.map(item => {
@@ -690,6 +754,10 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
         }
         if (item.id === 'miei-gruppi') {
           return <div key={item.id}>{renderMieiGruppi()}</div>;
+        }
+        if (item.id === 'admin') {
+          if (!isAdmin) return null;
+          return <div key={item.id}>{renderAdminPanel()}</div>;
         }
         if (item.id === 'social-media') {
           if (!getPageVisibility(item).visible) return null;
@@ -707,68 +775,6 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
         }
         return null;
       })}
-
-      {isAdmin && (
-        <Accordion
-          type="single" collapsible
-          value={openSections.has('admin-panel') ? 'admin-panel' : ''}
-          onValueChange={val => toggleSection('admin-panel', !!val)}
-          className="w-full"
-        >
-            <AccordionItem value="admin-panel" className="border-b-0">
-                <AccordionTrigger
-                  className={cn("flex items-center gap-4 rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:no-underline hover:text-foreground", {'bg-accent text-accent-foreground': pathname.startsWith('/admin')})}
-                >
-                    <div className="flex items-center gap-4 pointer-events-none flex-1 min-w-0">
-                        <Shield className="h-5 w-5 shrink-0" />
-                        <span className="flex-1 text-left">Admin Panel</span>
-                        {adminTotalBadge > 0 && !openSections.has('admin-panel') && renderBadge(adminTotalBadge)}
-                    </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-1 pb-0">
-                    <Accordion
-                      type="multiple"
-                      value={Array.from(openSections).filter(s => adminGroups.some(g => g.title === s))}
-                      onValueChange={vals => {
-                        setOpenSections(prev => {
-                          const next = new Set(prev);
-                          adminGroups.forEach(g => next.delete(g.title));
-                          vals.forEach(v => next.add(v));
-                          return next;
-                        });
-                      }}
-                      className="w-full space-y-1"
-                    >
-                        {adminGroups.map((group) => {
-                            const groupBadge = getSectionBadge(group.links.map(l => l.href));
-                            const isGroupOpen = openSections.has(group.title);
-                            const isGroupActive = group.links.some(l => pathname.startsWith(l.href));
-                            return (
-                            <AccordionItem value={group.title} key={group.title} className="border-b-0">
-                                <AccordionTrigger
-                                  className={cn(
-                                    "w-full py-2 pl-3 pr-3 hover:no-underline text-left",
-                                    isGroupActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                                  )}
-                                >
-                                    <div className="flex items-center gap-3 text-sm font-medium flex-1 min-w-0">
-                                        <group.icon className="h-4 w-4 shrink-0" />
-                                        <span className="flex-1 text-left">{group.title}</span>
-                                        {groupBadge > 0 && !isGroupOpen && renderBadge(groupBadge)}
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="pt-1 pl-4 space-y-1">
-                                    {group.links.map(link => <div key={link.href}>{renderAdminSubLink(link.href, link.label)}</div>)}
-                                </AccordionContent>
-                            </AccordionItem>
-                            );
-                        })}
-                    </Accordion>
-                </AccordionContent>
-            </AccordionItem>
-        </Accordion>
-      )}
-
     </div>
   );
 }

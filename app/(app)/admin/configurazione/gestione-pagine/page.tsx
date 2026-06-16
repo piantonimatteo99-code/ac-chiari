@@ -137,7 +137,7 @@ const DEFAULT_SUB_ORDERS: Record<string, string[]> = {
   campi: ['campi-piatti', 'campi-pullman', 'campi-case'],
 };
 
-const DEFAULT_NAV_ORDER: string[] = ['dashboard', 'progetti', 'iscrizioni', 'nucleo-familiare', 'calendario', 'magazzino', 'campi', 'consiglio', 'contabilita', 'tesserati', 'miei-gruppi', 'social-media'];
+const DEFAULT_NAV_ORDER: string[] = ['dashboard', 'progetti', 'iscrizioni', 'nucleo-familiare', 'calendario', 'magazzino', 'campi', 'consiglio', 'contabilita', 'tesserati', 'miei-gruppi', 'social-media', 'admin'];
 
 const DEFAULT_GROUP_ORDER: string[] = ['Seconda elementare', 'Terza elementare', 'Quarta elementare', 'Quinta elementare', 'Prima media', 'Seconda media', 'Terza media', 'ACG', 'EDU', 'Adulti'];
 
@@ -154,6 +154,7 @@ const NAV_ITEM_META: Record<string, { label: string; icon?: React.ElementType }>
   tesserati: { label: 'Tesseramento', icon: ShieldCheck },
   'miei-gruppi': { label: 'I Miei Gruppi', icon: Users },
   'social-media': { label: 'Social Media', icon: Share2 },
+  admin: { label: 'Admin Panel', icon: Shield },
 };
 
 // ─── Simple sortable row (sub-items) ───────────────────────────────────────
