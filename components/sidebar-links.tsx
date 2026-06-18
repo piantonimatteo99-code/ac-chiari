@@ -102,6 +102,7 @@ const adminGroups = [
       { href: '/admin/configurazione/integrazione-drive', label: 'Integrazione Drive' },
       { href: '/admin/configurazione/gestione-pagine', label: 'Gestione Pagine' },
       { href: '/admin/configurazione/gestione-notifiche', label: 'Gestione Notifiche' },
+      { href: '/admin/configurazione/modalita-programmazione', label: 'Modalità Programmazione' },
       { href: '/admin/invia-notifica', label: 'Invia Notifica' },
     ],
   },

@@ -42,6 +42,17 @@ export async function POST(request: NextRequest) {
     initAdminApp();
     const db = getFirestore();
 
+    // Leggi configurazione globale per modalità programmazione
+    let isProgrammingMode = false;
+    try {
+      const systemConfig = await db.collection('config').doc('sistema').get();
+      if (systemConfig.exists) {
+        isProgrammingMode = !!systemConfig.data()?.modalitaProgrammazione;
+      }
+    } catch (e) {
+      console.warn('[broadcast] Could not read system config:', e);
+    }
+
     // Query all users who have Google Calendar connected
     const subsSnap = await db
       .collection('calendarSubscriptions')
@@ -66,6 +77,16 @@ export async function POST(request: NextRequest) {
       await Promise.all(
         subsSnap.docs.map(async (docSnap) => {
           const { uid, syncGroupIds } = docSnap.data() as { uid: string; syncGroupIds: string[] };
+
+          // Se la modalità programmazione è attiva, salta gli utenti non-admin/non-educatore
+          if (isProgrammingMode) {
+            const userDoc = await db.collection('users').doc(uid).get();
+            const roles: string[] = Array.isArray(userDoc.data()?.roles) ? userDoc.data()!.roles : [];
+            if (!roles.includes('admin') && !roles.includes('educatore')) {
+              skipped++;
+              return;
+            }
+          }
 
           const shouldSync = (syncGroupIds ?? []).some(gid => groupIdSet.has(gid));
           if (!shouldSync) { skipped++; return; }
@@ -118,6 +139,16 @@ export async function POST(request: NextRequest) {
         subsSnap.docs.map(async (docSnap) => {
           const { uid, syncGroupIds } = docSnap.data() as { uid: string; syncGroupIds: string[] };
 
+          // Se la modalità programmazione è attiva, salta gli utenti non-admin/non-educatore
+          if (isProgrammingMode) {
+            const userDoc = await db.collection('users').doc(uid).get();
+            const roles: string[] = Array.isArray(userDoc.data()?.roles) ? userDoc.data()!.roles : [];
+            if (!roles.includes('admin') && !roles.includes('educatore')) {
+              skipped++;
+              return;
+            }
+          }
+
           const wasSynced = (syncGroupIds ?? []).some(gid => oldGroupIdSet.has(gid));
           const shouldSync = (syncGroupIds ?? []).some(gid => newGroupIdSet.has(gid));
 
@@ -169,6 +200,16 @@ export async function POST(request: NextRequest) {
     await Promise.all(
       subsSnap.docs.map(async (docSnap) => {
         const { uid, syncGroupIds } = docSnap.data() as { uid: string; syncGroupIds: string[] };
+
+        // Se la modalità programmazione è attiva, salta gli utenti non-admin/non-educatore
+        if (isProgrammingMode) {
+          const userDoc = await db.collection('users').doc(uid).get();
+          const roles: string[] = Array.isArray(userDoc.data()?.roles) ? userDoc.data()!.roles : [];
+          if (!roles.includes('admin') && !roles.includes('educatore')) {
+            skipped++;
+            return;
+          }
+        }
 
         if (uid === creatorUserId) { skipped++; return; }
 

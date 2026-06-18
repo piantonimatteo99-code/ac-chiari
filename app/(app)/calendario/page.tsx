@@ -12,12 +12,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, PlusCircle, CalendarDays, Loader2, Unlink, RefreshCw, Settings2 } from 'lucide-react';
+import { ChevronDown, PlusCircle, CalendarDays, Loader2, Unlink, RefreshCw, Settings2, AlertTriangle, Info } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { it } from 'date-fns/locale';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/src/firebase';
-import { collection } from 'firebase/firestore';
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/src/firebase';
+import { collection, doc } from 'firebase/firestore';
 import type { Group } from '../admin/gestione-gruppi/tutti-i-gruppi/page';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AddEventDialog, type Evento } from '@/components/add-event-dialog';
 import { areIntervalsOverlapping, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { useUserData } from '@/src/hooks/use-user-data';
@@ -193,6 +194,13 @@ export default function CalendarioPage() {
   const firestore = useFirestore();
   const { user } = useUser();
   const { userData, isLoading: isUserLoading } = useUserData();
+
+  const systemConfigRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'config', 'sistema');
+  }, [firestore]);
+  const { data: systemConfig } = useDoc<{ modalitaProgrammazione?: boolean }>(systemConfigRef);
+  const isProgrammingMode = !!systemConfig?.modalitaProgrammazione;
   const googleCalendar = useGoogleCalendar();
 
   const canAddEvents = useMemo(() => {
@@ -260,6 +268,12 @@ export default function CalendarioPage() {
   const filteredEvents = useMemo(() => {
     if (!events) return [];
     
+    // Se la modalità programmazione è attiva ed l'utente non è admin né educatore, nascondi tutti gli eventi
+    const isEducatorOrAdmin = userData?.roles?.includes('admin') || userData?.roles?.includes('educatore');
+    if (isProgrammingMode && !isEducatorOrAdmin) {
+      return [];
+    }
+    
     if (selectedGroup === 'tutti') return events;
     
     if (selectedGroup === 'personale') {
@@ -274,7 +288,7 @@ export default function CalendarioPage() {
 
     // Specific group ID
     return events.filter(e => e.groupIds?.includes(selectedGroup));
-  }, [events, selectedGroup, userData, familyGroupIds]);
+  }, [events, selectedGroup, userData, familyGroupIds, isProgrammingMode]);
 
   // Dropdown label
   const selectedGroupLabel = useMemo(() => {
@@ -385,6 +399,30 @@ export default function CalendarioPage() {
         event={detailEvent as any}
         getGroupName={getGroupName}
       />
+
+      {isProgrammingMode && (
+        canAddEvents ? (
+          <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <div>
+              <AlertTitle className="font-semibold text-xs sm:text-sm">Modalità Programmazione Attiva</AlertTitle>
+              <AlertDescription className="text-xs">
+                Gli utenti normali non vedono alcun impegno e non ricevono notifiche in questa modalità. Solo gli educatori e gli admin possono visualizzare e modificare gli eventi del calendario.
+              </AlertDescription>
+            </div>
+          </Alert>
+        ) : (
+          <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 text-blue-800 dark:text-blue-300">
+            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div>
+              <AlertTitle className="font-semibold text-xs sm:text-sm">Calendario in Programmazione</AlertTitle>
+              <AlertDescription className="text-xs">
+                Il calendario è in modalità programmazione. Gli educatori stanno inserendo gli impegni per il nuovo anno. Gli eventi non saranno visibili fino al completamento della pianificazione.
+              </AlertDescription>
+            </div>
+          </Alert>
+        )
+      )}
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
         <h1 className="text-2xl font-bold">Calendario</h1>

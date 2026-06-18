@@ -659,25 +659,6 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         )}
 
                         <Separator />
-
-                        {/* ── RSVP ── */}
-                        <div className="flex items-center space-x-2">
-                            <Switch
-                                id="richiede-rsvp"
-                                checked={richiedeRsvp}
-                                onCheckedChange={setRichiedeRsvp}
-                            />
-                            <Label htmlFor="richiede-rsvp">
-                                📋 Richiedi conferma di partecipazione
-                            </Label>
-                        </div>
-                        {richiedeRsvp && (
-                            <div className="pl-6 text-xs text-muted-foreground">
-                                I destinatari del promemoria riceveranno i pulsanti <strong>&quot;Ci sarò&quot;</strong> e <strong>&quot;Non ci sarò&quot;</strong> direttamente nella notifica push.
-                            </div>
-                        )}
-
-                        <Separator />
                         
                         <div className="flex items-center space-x-2">
                            <Switch id="is-campo" checked={isCampo} onCheckedChange={(v) => { setIsCampo(v); if (v) setIsProject(false); }} disabled={isEditing}/>

@@ -73,6 +73,17 @@ async function processReminders(type: 'sera' | 'mezzogiorno'): Promise<NextRespo
       ? 'evento_promemoria_sera'
       : 'evento_promemoria_mezzogiorno';
 
+    // Leggi configurazione globale per modalità programmazione
+    let isProgrammingMode = false;
+    try {
+      const systemConfig = await adminDb.collection('config').doc('sistema').get();
+      if (systemConfig.exists) {
+        isProgrammingMode = !!systemConfig.data()?.modalitaProgrammazione;
+      }
+    } catch (e) {
+      console.warn('[reminders] Could not read system config:', e);
+    }
+
     // Helper function to parse long offset (e.g. GMT+02:00 or GMT-05:00) into minutes
     function parseOffset(tzName: string): number {
       if (tzName === 'GMT') return 0;
@@ -197,6 +208,23 @@ async function processReminders(type: 'sera' | 'mezzogiorno'): Promise<NextRespo
       // Filtra utenti che hanno disabilitato questo tipo di promemoria
       const eligibleUids: string[] = [];
       for (const uid of Array.from(targetUids)) {
+        // Se la modalità programmazione è attiva, escludiamo gli utenti non-admin e non-educatori
+        if (isProgrammingMode) {
+          try {
+            const userDoc = await adminDb.collection('users').doc(uid).get();
+            if (userDoc.exists) {
+              const roles: string[] = Array.isArray(userDoc.data()?.roles) ? userDoc.data()!.roles : [];
+              if (!roles.includes('admin') && !roles.includes('educatore')) {
+                continue; // salta questo utente
+              }
+            } else {
+              continue; // salta se non ha documento utente
+            }
+          } catch {
+            continue;
+          }
+        }
+
         const prefDoc = await adminDb
           .collection('users').doc(uid)
           .collection('notificationPreferences').doc(eventTypeId)

@@ -56,6 +56,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Token non valido o scaduto' }, { status: 401 });
     }
 
+    // ── 0.5 Read global system config for programming mode ─────────────────
+    let isProgrammingMode = false;
+    try {
+      const systemConfig = await adminDb.collection('config').doc('sistema').get();
+      if (systemConfig.exists) {
+        isProgrammingMode = !!systemConfig.data()?.modalitaProgrammazione;
+      }
+    } catch (e) {
+      console.warn('[send-notification] Could not read system config:', e);
+    }
+
     const { userId, title, body, type, href, eventType } = await req.json();
 
     if (!userId || !title || !body || !type) {
@@ -97,8 +108,16 @@ export async function POST(req: NextRequest) {
       const usersSnap = await adminDb.collection('users').get();
       for (const userDoc of usersSnap.docs) {
         const userData = userDoc.data();
+        const userRoles: string[] = Array.isArray(userData.roles) ? userData.roles : [];
+
+        // Se la modalità programmazione è attiva e la notifica è di tipo 'evento',
+        // escludiamo gli utenti non-admin/non-educatore
+        if (isProgrammingMode && type === 'evento') {
+          const isAdminOrEducator = userRoles.includes('admin') || userRoles.includes('educatore');
+          if (!isAdminOrEducator) continue;
+        }
+
         if (enabledFor) {
-          const userRoles: string[] = Array.isArray(userData.roles) ? userData.roles : [];
           const notifRoles = userNotifRoles(userRoles);
           const shouldReceive = notifRoles.some(r => enabledFor![r]);
           if (!shouldReceive) continue;
@@ -112,7 +131,29 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // Single user
-      targetUserIds.push(userId);
+      // Se la modalità programmazione è attiva e la notifica è di tipo 'evento',
+      // verifichiamo che l'utente destinatario sia admin o educatore
+      let shouldBlock = false;
+      if (isProgrammingMode && type === 'evento') {
+        try {
+          const targetUserDoc = await adminDb.collection('users').doc(userId).get();
+          if (targetUserDoc.exists) {
+            const targetRoles: string[] = Array.isArray(targetUserDoc.data()?.roles) ? targetUserDoc.data()!.roles : [];
+            const isAdminOrEducator = targetRoles.includes('admin') || targetRoles.includes('educatore');
+            if (!isAdminOrEducator) {
+              shouldBlock = true;
+            }
+          } else {
+            shouldBlock = true;
+          }
+        } catch {
+          shouldBlock = true;
+        }
+      }
+
+      if (!shouldBlock) {
+        targetUserIds.push(userId);
+      }
     }
 
     if (targetUserIds.length === 0) {
