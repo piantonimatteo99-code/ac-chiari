@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -148,6 +148,16 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
         return collection(firestore, 'gruppi');
     }, [firestore]);
     const { data: groups, isLoading: isLoadingGroups } = useCollection<Group>(groupsQuery);
+    
+    const sortedGroups = useMemo(() => {
+        if (!groups) return [];
+        return [...groups].sort((a, b) => {
+            const ao = a.sortOrder ?? 9999;
+            const bo = b.sortOrder ?? 9999;
+            if (ao !== bo) return ao - bo;
+            return a.name.localeCompare(b.name);
+        });
+    }, [groups]);
     
     const resetForm = useCallback((defaultDate?: Date | null) => {
         const now = defaultDate ?? new Date();
@@ -602,16 +612,40 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         )}
                          <div className="grid gap-3">
                             <Label>Gruppi di destinazione</Label>
-                            <ScrollArea className="h-24 rounded-md border">
+                            <ScrollArea className="h-32 rounded-md border">
                                 <div className="px-3 py-2 space-y-2">
-                                    {groups && groups.length > 0 ? groups.map(group => (
+                                    {sortedGroups && sortedGroups.length > 0 && (
+                                        <div className="flex items-center space-x-2 pb-2 mb-2 border-b">
+                                            <Checkbox
+                                                id="select-all-groups"
+                                                checked={
+                                                    selectedGroups.length === sortedGroups.length
+                                                        ? true
+                                                        : selectedGroups.length > 0
+                                                        ? 'indeterminate'
+                                                        : false
+                                                }
+                                                onCheckedChange={(checked) => {
+                                                    if (checked === true) {
+                                                        setSelectedGroups(sortedGroups.map(g => g.id));
+                                                    } else {
+                                                        setSelectedGroups([]);
+                                                    }
+                                                }}
+                                            />
+                                            <label htmlFor="select-all-groups" className="text-sm font-semibold leading-none cursor-pointer">
+                                                Seleziona tutti
+                                            </label>
+                                        </div>
+                                    )}
+                                    {sortedGroups && sortedGroups.length > 0 ? sortedGroups.map(group => (
                                         <div key={group.id} className="flex items-center space-x-2">
                                             <Checkbox
                                                 id={`group-${group.id}`}
                                                 checked={selectedGroups.includes(group.id)}
                                                 onCheckedChange={(checked) => handleGroupToggle(group.id, !!checked)}
                                             />
-                                            <label htmlFor={`group-${group.id}`} className="text-sm font-medium leading-none">
+                                            <label htmlFor={`group-${group.id}`} className="text-sm font-medium leading-none cursor-pointer">
                                                 {group.name}
                                             </label>
                                         </div>
