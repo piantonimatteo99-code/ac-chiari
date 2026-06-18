@@ -89,6 +89,14 @@ export async function POST(request: NextRequest) {
         email,
         actionCodeSettings ?? undefined
       );
+
+      // Bypassa la pagina predefinita di Firebase reindirizzando direttamente alla nostra pagina custom /auth/action
+      if (verificationLink && baseUrl) {
+        verificationLink = verificationLink.replace(
+          /https:\/\/[^/]+\/__\/auth\/action/,
+          `${baseUrl}/auth/action`
+        );
+      }
     } catch (firebaseErr: any) {
       console.error('[email] Errore generazione link Firebase:', firebaseErr.message);
       return NextResponse.json({ error: 'Impossibile generare il link di verifica' }, { status: 500 });
