@@ -377,31 +377,32 @@ export const SidebarLinksInner = ({ isMobile = false, onLinkClick }: { isMobile?
     
     const userIsEducator = userData.roles?.includes('educatore');
 
-    // Visibile a tutti gli educatori (indipendentemente da ruolo specifico o gruppo)
-    if (setting.visibleToAllEducators) {
-        if (userIsEducator) {
-            return { visible: true, reason: 'Visibile: Accesso concesso a tutti gli Educatori' };
-        } else {
+    // Se è attiva qualunque restrizione per educatori (visibile a tutti, ruolo specifico o gruppo)
+    const isEducatorOnly = setting.visibleToAllEducators || setting.requiresEducatorRoleCheck || setting.requiresGroupAssignmentCheck;
+
+    if (isEducatorOnly) {
+        if (!userIsEducator) {
             return { visible: false, reason: 'Nascosto: Visibile solo agli Educatori' };
         }
+
+        // Se richiede un ruolo specifico, l'educatore lo deve avere
+        if (setting.requiresEducatorRoleCheck) {
+            const hasSpecificRole = page.href && mySpecificRoles?.some(role => role.accessiblePages.includes(page.href!));
+            if (!hasSpecificRole) {
+                return { visible: false, reason: 'Nascosto: Richiede un ruolo educatore specifico' };
+            }
+        }
+
+        // Se richiede l'assegnazione a un gruppo, l'educatore deve essere assegnato ad almeno un gruppo
+        if (setting.requiresGroupAssignmentCheck) {
+            if (!myGroups || myGroups.length === 0) {
+                return { visible: false, reason: 'Nascosto: Richiede assegnazione a un gruppo' };
+            }
+        }
+
+        return { visible: true, reason: 'Visibile: Permessi educatore validati' };
     }
 
-    if (setting.requiresGroupAssignmentCheck) {
-        if (userIsEducator && myGroups && myGroups.length > 0) {
-            return { visible: true, reason: 'Visibile: Educatore assegnato a un gruppo' };
-        } else {
-            return { visible: false, reason: 'Nascosto: Richiede assegnazione a un gruppo' };
-        }
-    } 
-    
-    if (setting.requiresEducatorRoleCheck) {
-        if (userIsEducator && page.href && mySpecificRoles?.some(role => role.accessiblePages.includes(page.href!))) {
-            return { visible: true, reason: 'Visibile: Permesso garantito da un ruolo specifico' };
-        } else {
-            return { visible: false, reason: 'Nascosto: Richiede un ruolo educatore specifico' };
-        }
-    } 
-    
     // No special restrictions: visible to all authenticated users
     return { visible: true, reason: 'Nessun permesso speciale richiesto' };
     
