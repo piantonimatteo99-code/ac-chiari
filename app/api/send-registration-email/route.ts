@@ -64,8 +64,8 @@ export async function POST(request: NextRequest) {
     const smtpPassword = process.env.SMTP_PASSWORD;
 
     if (!smtpUser || !smtpPassword) {
-      console.warn('[email] SMTP non configurato. Salto invio email di registrazione personalizzata.');
-      return NextResponse.json({ success: true, skipped: true, reason: 'SMTP non configurato' });
+      console.warn('[email] SMTP non configurato. Ritorno errore per forzare il fallback Firebase.');
+      return NextResponse.json({ error: 'SMTP non configurato', fallback: true }, { status: 500 });
     }
 
     // Generate Firebase verification link.
@@ -89,6 +89,14 @@ export async function POST(request: NextRequest) {
         email,
         actionCodeSettings ?? undefined
       );
+
+      // Bypassa la pagina predefinita di Firebase reindirizzando direttamente alla nostra pagina custom /auth/action
+      if (verificationLink && baseUrl) {
+        verificationLink = verificationLink.replace(
+          /https:\/\/[^/]+\/__\/auth\/action/,
+          `${baseUrl}/auth/action`
+        );
+      }
     } catch (firebaseErr: any) {
       console.error('[email] Errore generazione link Firebase:', firebaseErr.message);
       return NextResponse.json({ error: 'Impossibile generare il link di verifica' }, { status: 500 });

@@ -75,7 +75,7 @@ export default function SignupPage() {
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://olicachiari.vercel.app';
           await sendEmailVerification(userCredential.user, {
             url: `${baseUrl}/auth/action`,
-            handleCodeInApp: true,
+            handleCodeInApp: false,
           });
         } catch (fbErr) {
           console.error("Anche il fallback Firebase ha fallito:", fbErr);
