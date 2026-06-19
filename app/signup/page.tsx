@@ -69,18 +69,13 @@ export default function SignupPage() {
           })
         });
         if (!emailRes.ok) throw new Error('Risposta API non OK, uso fallback Firebase');
-        
-        const emailData = await emailRes.json();
-        if (emailData.skipped) {
-          throw new Error('Invio custom email saltato: ' + (emailData.reason || 'SMTP non configurato'));
-        }
       } catch (emailErr) {
         console.warn("Invio custom email fallito, uso fallback Firebase:", emailErr);
         try {
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://olicachiari.vercel.app';
           await sendEmailVerification(userCredential.user, {
             url: `${baseUrl}/auth/action`,
-            handleCodeInApp: false,
+            handleCodeInApp: true,
           });
         } catch (fbErr) {
           console.error("Anche il fallback Firebase ha fallito:", fbErr);
