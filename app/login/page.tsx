@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth, useUser, useFirestore } from '@/src/firebase';
-import { signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Eye, EyeOff, AlertCircle, InfoIcon, ShieldCheck, X } from 'lucide-react';
 import { AcChiariLogo } from '@/components/ac-logo';
@@ -27,11 +27,32 @@ function LoginForm() {
   const [pendingGoogleUser, setPendingGoogleUser] = useState<any>(null);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
+  // States for resending email verification
+  const [showResend, setShowResend] = useState(false);
+  const [unverifiedUser, setUnverifiedUser] = useState<{
+    uid: string;
+    email: string;
+    nome: string;
+    cognome: string;
+    displayName: string;
+  } | null>(null);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Countdown timer for resend button
+  useEffect(() => {
+    if (resendCountdown === 0) return;
+    const interval = setInterval(() => {
+      setResendCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCountdown]);
 
   useEffect(() => {
     const errorParam = searchParams.get('error');
@@ -58,11 +79,39 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setInfo(null);
+    setShowResend(false);
+    setUnverifiedUser(null);
     if (!auth) return;
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       if (!userCredential.user.emailVerified) {
+        let nome = '';
+        let cognome = '';
+        let displayName = '';
+        if (firestore) {
+          try {
+            const userDoc = await getDoc(doc(firestore, 'users', userCredential.user.uid));
+            if (userDoc.exists()) {
+              const data = userDoc.data();
+              nome = data.nome || '';
+              cognome = data.cognome || '';
+              displayName = data.displayName || '';
+            }
+          } catch (fsErr) {
+            console.warn("Errore lettura Firestore per resend:", fsErr);
+          }
+        }
+
+        setUnverifiedUser({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email || email,
+          nome,
+          cognome,
+          displayName: displayName || userCredential.user.displayName || email,
+        });
+        setShowResend(true);
+
         await signOut(auth);
         setError('Devi prima verificare la tua email. Controlla la tua casella di posta e clicca il link che ti abbiamo inviato.');
         setIsLoading(false);
@@ -71,6 +120,8 @@ function LoginForm() {
       router.push('/dashboard');
     } catch (err: any) {
       setIsLoading(false);
+      setShowResend(false);
+      setUnverifiedUser(null);
       if (
         err.code === 'auth/user-not-found' ||
         err.code === 'auth/wrong-password' ||
@@ -80,6 +131,61 @@ function LoginForm() {
       } else {
         setError('Si è verificato un errore. Riprova tra qualche istante.');
       }
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!unverifiedUser || isResending) return;
+    setIsResending(true);
+    setError(null);
+    setInfo(null);
+
+    try {
+      // 1. Prova l'invio dell'email custom tramite l'API backend
+      const emailRes = await fetch('/api/send-registration-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: unverifiedUser.uid,
+          email: unverifiedUser.email,
+          nome: unverifiedUser.nome,
+          cognome: unverifiedUser.cognome,
+          displayName: unverifiedUser.displayName,
+        })
+      });
+
+      if (!emailRes.ok) throw new Error('API backend fallita, forzo fallback Firebase client-side');
+      setInfo("Ti abbiamo reinviato l'email di attivazione personalizzata! Controlla la posta.");
+      setResendCountdown(60);
+    } catch (err) {
+      console.warn("Invio custom fallito, provo fallback client-side:", err);
+
+      // 2. Fallback client-side (Firebase standard):
+      try {
+        if (auth) {
+          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://olicachiari.vercel.app';
+          
+          try {
+            await sendEmailVerification(userCredential.user, {
+              url: `${baseUrl}/auth/action`,
+              handleCodeInApp: false,
+            });
+          } catch (fbErr: any) {
+            console.warn("Fallback con continueUrl fallito, provo senza continueUrl:", fbErr.message);
+            await sendEmailVerification(userCredential.user);
+          }
+
+          await signOut(auth);
+          setInfo("Email di verifica inviata con successo (sistema predefinito Firebase).");
+          setResendCountdown(60);
+        }
+      } catch (fbErr: any) {
+        console.error("Anche il fallback client-side ha fallito:", fbErr);
+        setError("Impossibile inviare l'email in questo momento. Riprova più tardi.");
+      }
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -317,6 +423,39 @@ function LoginForm() {
                 <div className="flex items-start gap-2.5 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                   <p>{error}</p>
+                </div>
+              )}
+
+              {showResend && unverifiedUser && (
+                <div className="flex flex-col gap-2 rounded-xl bg-primary/10 border border-primary/20 p-3 text-sm text-primary-foreground/90 mt-1">
+                  <div className="flex items-start gap-2.5 text-primary">
+                    <InfoIcon className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-semibold text-foreground text-xs">Non hai ricevuto l'email?</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">
+                        Controlla la cartella Spam o richiedine una nuova cliccando qui sotto.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs font-semibold rounded-lg h-9 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary transition-colors"
+                    onClick={handleResendVerification}
+                    disabled={resendCountdown > 0 || isResending}
+                  >
+                    {isResending ? (
+                      <span className="flex items-center gap-1.5 justify-center">
+                        <span className="h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                        Invio in corso...
+                      </span>
+                    ) : resendCountdown > 0 ? (
+                      `Invia di nuovo tra ${resendCountdown}s`
+                    ) : (
+                      "Invia di nuovo l'email"
+                    )}
+                  </Button>
                 </div>
               )}
 
