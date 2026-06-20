@@ -77,8 +77,13 @@ export default function SignupPage() {
             url: `${baseUrl}/auth/action`,
             handleCodeInApp: false,
           });
-        } catch (fbErr) {
-          console.error("Anche il fallback Firebase ha fallito:", fbErr);
+        } catch (fbErr: any) {
+          console.error("Il fallback Firebase con continueUrl ha fallito, provo senza settings:", fbErr);
+          try {
+            await sendEmailVerification(userCredential.user);
+          } catch (retryErr) {
+            console.error("Anche il secondo fallback client-side ha fallito:", retryErr);
+          }
         }
       }
 

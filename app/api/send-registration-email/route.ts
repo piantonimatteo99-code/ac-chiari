@@ -98,8 +98,14 @@ export async function POST(request: NextRequest) {
         );
       }
     } catch (firebaseErr: any) {
-      console.error('[email] Errore generazione link Firebase:', firebaseErr.message);
-      return NextResponse.json({ error: 'Impossibile generare il link di verifica' }, { status: 500 });
+      console.warn('[email] Errore generazione link con continueUrl, provo senza continueUrl:', firebaseErr.message);
+      try {
+        // Fallback: genera il link senza url di continuazione (usando le impostazioni predefinite di Firebase)
+        verificationLink = await admin.auth().generateEmailVerificationLink(email);
+      } catch (fallbackErr: any) {
+        console.error('[email] Errore generazione link Firebase anche senza continueUrl:', fallbackErr.message);
+        return NextResponse.json({ error: 'Impossibile generare il link di verifica' }, { status: 500 });
+      }
     }
 
     // ── Invia email ───────────────────────────────────────────────────────────
