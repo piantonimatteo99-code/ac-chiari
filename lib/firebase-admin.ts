@@ -1,4 +1,7 @@
 import * as admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
+import { headers } from 'next/headers';
+import { DEFAULT_TENANT_ID, TENANTS } from './tenants';
 
 let initialized = false;
 
@@ -35,11 +38,43 @@ export function initAdminApp() {
   initialized = true;
 }
 
+function getTenantIdFromServer(): string {
+  try {
+    const headersList = headers();
+    const tenantId = headersList.get('x-tenant-id');
+    return tenantId || DEFAULT_TENANT_ID;
+  } catch (e) {
+    return DEFAULT_TENANT_ID;
+  }
+}
+
+export function getDriveRootFolderName(): string {
+  try {
+    const tenantId = getTenantIdFromServer();
+    const config = TENANTS[tenantId];
+    return `App ${config?.name || 'AC Chiari'}`;
+  } catch (e) {
+    return 'App AC Chiari';
+  }
+}
+
+function getTenantFirestoreInstance(): admin.firestore.Firestore {
+  initAdminApp();
+  const tenantId = getTenantIdFromServer();
+  const databaseId = tenantId === 'acchiari' ? '(default)' : tenantId;
+  const app = admin.apps[0];
+  return getFirestore(app, databaseId);
+}
+
 // Convenience accessors — call initAdminApp() first
 export const adminDb = new Proxy({} as admin.firestore.Firestore, {
   get(_target, prop) {
-    initAdminApp();
-    return (admin.firestore() as any)[prop];
+    const db = getTenantFirestoreInstance();
+    const value = (db as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(db);
+    }
+    return value;
   },
 });
 
@@ -56,7 +91,7 @@ export const adminMessaging = new Proxy({} as admin.messaging.Messaging, {
  */
 export async function getDriveAccessToken(): Promise<string> {
   initAdminApp();
-  const db = admin.firestore();
+  const db = adminDb;
   
   const configDoc = await db.collection('config').doc('google-drive').get();
   

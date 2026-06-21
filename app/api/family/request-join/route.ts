@@ -4,28 +4,31 @@ import { initAdminApp, adminDb } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { headers } from 'next/headers';
+import { TENANTS, DEFAULT_TENANT_ID, TenantConfig } from '@/lib/tenants';
 
 function buildApprovalEmailHtml(
   approverName: string,
   requesterName: string,
   requesterEmail: string,
   approvalUrl: string,
-  rejectUrl: string
+  rejectUrl: string,
+  tenantConfig: TenantConfig
 ): string {
   return `<!DOCTYPE html>
 <html lang="it">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:Inter,Arial,sans-serif;">
   <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-    <div style="background:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%);padding:32px;color:white;text-align:center;">
-      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">AC Chiari</p>
+    <div style="background:linear-gradient(135deg, ${tenantConfig.colors.primary} 0%, #3b82f6 100%);padding:32px;color:white;text-align:center;">
+      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">${tenantConfig.name}</p>
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;">👨‍👩‍👧 Richiesta di Collegamento Familiare</h1>
     </div>
     <div style="padding:32px;">
       <p style="margin:0 0 16px;font-size:15px;color:#374151;">
         Ciao <strong>${approverName}</strong>,<br/><br/>
-        <strong>${requesterName}</strong> (<a href="mailto:${requesterEmail}" style="color:#1d4ed8;">${requesterEmail}</a>) 
-        ha richiesto di essere collegato al tuo nucleo familiare su AC Chiari.
+        <strong>${requesterName}</strong> (<a href="mailto:${requesterEmail}" style="color:${tenantConfig.colors.primary};">${requesterEmail}</a>) 
+        ha richiesto di essere collegato al tuo nucleo familiare su ${tenantConfig.name}.
       </p>
       <p style="margin:0 0 24px;font-size:14px;color:#6b7280;">
         Se conosci questa persona e fa parte della tua famiglia, clicca <strong>Approva</strong>.
@@ -44,7 +47,7 @@ function buildApprovalEmailHtml(
       </div>
     </div>
     <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} AC Chiari — Sistema Gestione</p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} ${tenantConfig.name} — Sistema Gestione</p>
     </div>
   </div>
 </body>
@@ -54,7 +57,7 @@ function buildApprovalEmailHtml(
 export async function POST(request: NextRequest) {
   try {
     initAdminApp();
-    const db = admin.firestore();
+    const db = adminDb;
 
     const body = await request.json();
     const { requesterId, requesterEmail, requesterName, targetFamilyEmail } = body;
@@ -62,6 +65,15 @@ export async function POST(request: NextRequest) {
     if (!requesterId || !requesterEmail || !requesterName || !targetFamilyEmail) {
       return NextResponse.json({ error: 'Dati mancanti' }, { status: 400 });
     }
+
+    // ── Determina Tenant e Hostname Dinamici ──────────────────────────────────
+    const headersList = headers();
+    const tenantId = headersList.get('x-tenant-id') || DEFAULT_TENANT_ID;
+    const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
+
+    const host = headersList.get('host') || 'localhost:3000';
+    const proto = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
+    const dynamicBaseUrl = `${proto}://${host}`;
 
     // Find the target family by email
     const usersSnap = await db.collection('users').where('email', '==', targetFamilyEmail).limit(1).get();
@@ -114,7 +126,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'DB admin non disponibile' }, { status: 500 });
     }
 
-    const requestRef = await adminDb.collection('familyJoinRequests').add({
+    const requestRef = await db.collection('familyJoinRequests').add({
       requesterId,
       requesterEmail,
       requesterName,
@@ -136,9 +148,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, skipped: true, requestId: requestRef.id });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://olicachiari.vercel.app');
-
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
@@ -148,21 +157,23 @@ export async function POST(request: NextRequest) {
 
     // Send to each family member
     for (const recipient of notifyEmails) {
-      const approvalUrl = `${baseUrl}/api/family/approve-join?token=${approvalToken}&action=approve`;
-      const rejectUrl = `${baseUrl}/api/family/approve-join?token=${approvalToken}&action=reject`;
+      const approvalUrl = `${dynamicBaseUrl}/api/family/approve-join?token=${approvalToken}&action=approve`;
+      const rejectUrl = `${dynamicBaseUrl}/api/family/approve-join?token=${approvalToken}&action=reject`;
 
       const html = buildApprovalEmailHtml(
         recipient.name,
         requesterName,
         requesterEmail,
         approvalUrl,
-        rejectUrl
+        rejectUrl,
+        tenantConfig
       );
 
       try {
         await transporter.sendMail({
-          from: `"AC Chiari" <${smtpUser}>`,
+          from: `"${tenantConfig.name}" <${smtpUser}>`,
           to: recipient.email,
+          replyTo: tenantConfig.email,
           subject: `👨‍👩‍👧 ${requesterName} vuole unirsi al tuo nucleo familiare`,
           html,
         });

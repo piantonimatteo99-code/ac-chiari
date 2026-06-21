@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDriveAccessToken } from '@/lib/firebase-admin';
+import { getDriveAccessToken, getDriveRootFolderName } from '@/lib/firebase-admin';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
-const ROOT_FOLDER_NAME = 'App AC Chiari';
 const SEGNALAZIONI_FOLDER_NAME = 'segnalazioni';
 
 async function getOrCreateFolder(accessToken: string, folderName: string, parentId?: string): Promise<string> {
@@ -40,8 +39,9 @@ export async function POST(request: NextRequest) {
 
     const fileName = name || `segnalazione_${Date.now()}_${file.name}`;
     const accessToken = await getDriveAccessToken();
+    const rootFolderName = getDriveRootFolderName();
 
-    const rootFolderId = await getOrCreateFolder(accessToken, ROOT_FOLDER_NAME);
+    const rootFolderId = await getOrCreateFolder(accessToken, rootFolderName);
     const segnalazioniFolderId = await getOrCreateFolder(accessToken, SEGNALAZIONI_FOLDER_NAME, rootFolderId);
 
     const metadata = { name: fileName, parents: [segnalazioniFolderId] };

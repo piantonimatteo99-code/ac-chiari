@@ -5,6 +5,9 @@ import { cn } from "@/lib/utils";
 import { FirebaseClientProvider } from "@/src/firebase/client-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Analytics } from "@vercel/analytics/next";
+import { headers } from "next/headers";
+import { TenantProvider } from "@/src/hooks/useTenant";
+import { DEFAULT_TENANT_ID } from "@/lib/tenants";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -49,6 +52,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = headers();
+  const tenantId = headersList.get("x-tenant-id") || DEFAULT_TENANT_ID;
+
   return (
     <html lang="it" suppressHydrationWarning>
       <head>
@@ -88,7 +94,11 @@ export default function RootLayout({
           nunito.variable
         )}
       >
-        <FirebaseClientProvider>{children}</FirebaseClientProvider>
+        <FirebaseClientProvider>
+          <TenantProvider tenantId={tenantId}>
+            {children}
+          </TenantProvider>
+        </FirebaseClientProvider>
         <Toaster />
         <Analytics />
       </body>

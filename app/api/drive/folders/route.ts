@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDriveAccessToken, initAdminApp } from '@/lib/firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getDriveAccessToken, initAdminApp, getDriveRootFolderName, adminDb } from '@/lib/firebase-admin';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
-const ROOT_FOLDER_NAME = 'App AC Chiari';
 
 /**
- * Finds or creates the root "App AC Chiari" folder on Drive.
+ * Finds or creates the root folder on Drive.
  */
-async function getOrCreateRootFolder(accessToken: string): Promise<string> {
+async function getOrCreateRootFolder(accessToken: string, rootFolderName: string): Promise<string> {
   // Search for existing root folder
   const searchRes = await fetch(
-    `${DRIVE_API}/files?q=name='${ROOT_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`,
+    `${DRIVE_API}/files?q=name='${rootFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const searchData = await searchRes.json();
@@ -29,7 +27,7 @@ async function getOrCreateRootFolder(accessToken: string): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      name: ROOT_FOLDER_NAME,
+      name: rootFolderName,
       mimeType: 'application/vnd.google-apps.folder',
     }),
   });
@@ -41,7 +39,7 @@ async function getOrCreateRootFolder(accessToken: string): Promise<string> {
 /**
  * POST /api/drive/folders
  * Body: { projectId: string, projectName: string }
- * Creates a folder "App AC Chiari / [projectName]" on Drive and saves the folderId to Firestore.
+ * Creates a folder on Drive and saves the folderId to Firestore.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -52,9 +50,10 @@ export async function POST(request: NextRequest) {
     }
 
     const accessToken = await getDriveAccessToken();
+    const rootFolderName = getDriveRootFolderName();
 
     // 1. Get or create root folder
-    const rootFolderId = await getOrCreateRootFolder(accessToken);
+    const rootFolderId = await getOrCreateRootFolder(accessToken, rootFolderName);
 
     // 2. Create project subfolder
     const createRes = await fetch(`${DRIVE_API}/files`, {
@@ -80,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Save folderId to Firestore project document
     initAdminApp();
-    const db = getFirestore();
+    const db = adminDb;
     await db.collection('progetti').doc(projectId).update({
       driveFolderId: folderId,
     });

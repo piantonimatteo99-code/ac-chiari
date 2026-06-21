@@ -14,12 +14,22 @@ export function initializeFirebase() {
   return getSdks(app);
 }
 
+function getDatabaseId(): string {
+  if (typeof window === 'undefined') {
+    return '(default)';
+  }
+  const match = document.cookie.match(/(^| )tenant_id=([^;]+)/);
+  const tenantId = match ? match[2] : undefined;
+  return !tenantId || tenantId === 'acchiari' ? '(default)' : tenantId;
+}
+
 export function getSdks(firebaseApp: FirebaseApp) {
+  const databaseId = getDatabaseId();
   // Ensure that getStorage is called with the app instance that includes the storageBucket config.
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp),
+    firestore: getFirestore(firebaseApp, databaseId),
     storage: getStorage(firebaseApp),
     functions: getFunctions(firebaseApp, 'us-central1'),
   };

@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helper ────────────────────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // ── Upload pagamenti (ricevute) ───────────────────────────────────────────
+    // Percorso: /uploads/{userId}/pagamenti/{fileName}
+    // Solo l'utente proprietario può caricare; la lettura è per tutti gli autenticati
+    match /uploads/{userId}/pagamenti/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ── Upload segnalazioni ───────────────────────────────────────────────────
+    // Percorso: /uploads/{userId}/segnalazioni/{fileName}
+    match /uploads/{userId}/segnalazioni/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ── Asset pubblici (loghi, immagini) ──────────────────────────────────────
+    // Percorso: /public/{allPaths=**}
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // ── Tutto il resto: richiede autenticazione ───────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

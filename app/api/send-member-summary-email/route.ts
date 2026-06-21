@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
 import { initAdminApp, adminDb } from '@/lib/firebase-admin';
+import { headers } from 'next/headers';
+import { TENANTS, DEFAULT_TENANT_ID, TenantConfig } from '@/lib/tenants';
 
 // ─── Tipi ─────────────────────────────────────────────────────────────────────
 
@@ -43,7 +45,7 @@ interface EmailPayload {
 // ─── Helper: recupera email capofamiglia ──────────────────────────────────────
 
 async function getFamilyHeadEmail(uid: string): Promise<{ email: string; displayName: string } | null> {
-  const db = admin.firestore();
+  const db = adminDb;
 
   const userDoc = await db.collection('users').doc(uid).get();
   if (userDoc.exists) {
@@ -119,7 +121,8 @@ function buildMemberSummaryHtml(
   recipientName: string,
   membro: MembroData,
   anagrafica: AnagraficaData,
-  isEdit: boolean
+  isEdit: boolean,
+  tenantConfig: TenantConfig
 ): string {
   const today = new Date().toLocaleDateString('it-IT', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -130,7 +133,7 @@ function buildMemberSummaryHtml(
   const actionTitle = isEdit ? '✏️ Dati Membro Aggiornati' : '✅ Nuovo Membro Registrato';
   const headerColor = isEdit
     ? 'linear-gradient(135deg,#0f766e 0%,#14b8a6 100%)'
-    : 'linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%)';
+    : `linear-gradient(135deg, ${tenantConfig.colors.primary} 0%, #3b82f6 100%)`;
 
   const addressParts = [
     anagrafica.via && anagrafica.numeroCivico
@@ -203,7 +206,7 @@ function buildMemberSummaryHtml(
 <body style="margin:0;padding:0;background:#f9fafb;font-family:Inter,Arial,sans-serif;">
   <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
     <div style="background:${headerColor};padding:32px;color:white;">
-      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">AC Chiari</p>
+      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">${tenantConfig.name}</p>
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;">${actionTitle}</h1>
       <p style="margin:0;font-size:14px;opacity:.85;">${today}</p>
     </div>
@@ -277,11 +280,11 @@ function buildMemberSummaryHtml(
       ${pickupSection}
 
       <div style="margin-top:24px;padding:16px;background:#fefce8;border:1px solid #fde68a;border-radius:8px;">
-        <p style="margin:0;font-size:13px;color:#92400e;">ℹ️ Questa email è stata generata automaticamente dal sistema AC Chiari a seguito di una modifica anagrafica. Per domande, contatta il tuo educatore o la segreteria.</p>
+        <p style="margin:0;font-size:13px;color:#92400e;">ℹ️ Questa email è stata generata automaticamente dal sistema ${tenantConfig.name} a seguito di una modifica anagrafica. Per domande, contatta il tuo educatore o la segreteria.</p>
       </div>
     </div>
     <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} AC Chiari — Sistema Gestione Anagrafica</p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} ${tenantConfig.name} — Sistema Gestione Anagrafica</p>
     </div>
   </div>
 </body>
@@ -324,10 +327,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, skipped: true, reason: 'SMTP non configurato' });
     }
 
+    // ── Determina Tenant Dinamico ────────────────────────────────────────────
+    const headersList = headers();
+    const tenantId = headersList.get('x-tenant-id') || DEFAULT_TENANT_ID;
+    const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
+
     // ── Recupera destinatari (capofamiglia + membri collegati) ────────────────
     const familyHead = await getFamilyHeadEmail(familyHeadId);
 
-    const db = admin.firestore();
+    const db = adminDb;
     const linkedSnap = await db.collection('users')
       .where('familyId', '==', familyHeadId)
       .get();
@@ -364,11 +372,12 @@ export async function POST(request: NextRequest) {
 
     const sentTo: string[] = [];
     for (const recipient of recipients) {
-      const html = buildMemberSummaryHtml(recipient.displayName, membroData, anagraficaData, isEdit);
+      const html = buildMemberSummaryHtml(recipient.displayName, membroData, anagraficaData, isEdit, tenantConfig);
       try {
         await transporter.sendMail({
-          from: `"AC Chiari" <${smtpUser}>`,
+          from: `"${tenantConfig.name}" <${smtpUser}>`,
           to: recipient.email,
+          replyTo: tenantConfig.email,
           subject,
           html,
         });

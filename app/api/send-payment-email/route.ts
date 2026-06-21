@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
 import { initAdminApp, adminDb } from '@/lib/firebase-admin';
+import { headers } from 'next/headers';
+import { TENANTS, DEFAULT_TENANT_ID, TenantConfig } from '@/lib/tenants';
 
 // ─── Tipi ─────────────────────────────────────────────────────────────────────
 
@@ -23,7 +25,7 @@ interface EmailPayload {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function getFamilyHeadEmail(uid: string): Promise<{ email: string; displayName: string } | null> {
-  const db = admin.firestore();
+  const db = adminDb;
 
   // ── Step 1: lookup diretto in users/{uid} ────────────────────────────────
   const userDoc = await db.collection('users').doc(uid).get();
@@ -92,6 +94,7 @@ function buildEmailHtml(
   displayName: string,
   paymentItems: PaymentItem[],
   paymentMethod: 'bonifico' | 'contanti',
+  tenantConfig: TenantConfig,
   paymentId?: string,
   receiptUrl?: string
 ): string {
@@ -135,8 +138,8 @@ function buildEmailHtml(
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:Inter,Arial,sans-serif;">
   <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-    <div style="background:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%);padding:32px;color:white;">
-      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">AC Chiari</p>
+    <div style="background:linear-gradient(135deg, ${tenantConfig.colors.primary} 0%, #3b82f6 100%);padding:32px;color:white;">
+      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">${tenantConfig.name}</p>
       <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;">✅ Pagamento Confermato</h1>
       <p style="margin:0;font-size:14px;opacity:.85;">${today}</p>
     </div>
@@ -171,11 +174,11 @@ function buildEmailHtml(
 
 
       <div style="margin-top:24px;padding:16px;background:#fefce8;border:1px solid #fde68a;border-radius:8px;">
-        <p style="margin:0;font-size:13px;color:#92400e;">ℹ️ Email generata automaticamente dal sistema di AC Chiari. Per domande, contatta il tuo educatore.</p>
+        <p style="margin:0;font-size:13px;color:#92400e;">ℹ️ Email generata automaticamente dal sistema di ${tenantConfig.name}. Per domande, contatta il tuo educatore.</p>
       </div>
     </div>
     <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} AC Chiari — Sistema Gestione Pagamenti</p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} ${tenantConfig.name} — Sistema Gestione Pagamenti</p>
     </div>
   </div>
 </body>
@@ -211,6 +214,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Dati mancanti' }, { status: 400 });
     }
 
+    // ── Determina Tenant Dinamico ────────────────────────────────────────────
+    const headersList = headers();
+    const tenantId = headersList.get('x-tenant-id') || DEFAULT_TENANT_ID;
+    const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
+
     // ── Controlla SMTP ────────────────────────────────────────────────────────
     const smtpUser = process.env.SMTP_USER;
     const smtpPassword = process.env.SMTP_PASSWORD;
@@ -225,7 +233,7 @@ export async function POST(request: NextRequest) {
     const familyHead = await getFamilyHeadEmail(familyHeadId);
     
     // Find all users linked to this family
-    const db = admin.firestore();
+    const db = adminDb;
     const linkedMembersSnap = await db.collection('users')
       .where('familyId', '==', familyHeadId)
       .get();
@@ -269,13 +277,15 @@ export async function POST(request: NextRequest) {
         recipient.displayName,
         paymentItems,
         paymentMethod,
+        tenantConfig,
         paymentId,
         receiptUrl
       );
       try {
         await transporter.sendMail({
-          from: `"AC Chiari" <${smtpUser}>`,
+          from: `"${tenantConfig.name}" <${smtpUser}>`,
           to: recipient.email,
+          replyTo: tenantConfig.email,
           subject,
           html: htmlBody,
         });

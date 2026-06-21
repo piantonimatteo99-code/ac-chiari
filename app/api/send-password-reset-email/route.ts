@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
 import { initAdminApp } from '@/lib/firebase-admin';
+import { headers } from 'next/headers';
+import { TENANTS, DEFAULT_TENANT_ID, TenantConfig } from '@/lib/tenants';
 
-function buildPasswordResetEmailHtml(resetLink: string): string {
+function buildPasswordResetEmailHtml(resetLink: string, tenantConfig: TenantConfig): string {
   const today = new Date().toLocaleDateString('it-IT', {
     day: '2-digit',
     month: 'long',
@@ -15,19 +17,19 @@ function buildPasswordResetEmailHtml(resetLink: string): string {
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:Inter,Arial,sans-serif;">
   <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-    <div style="background:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%);padding:32px;color:white;text-align:center;">
-      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">AC Chiari</p>
+    <div style="background:linear-gradient(135deg, ${tenantConfig.colors.primary} 0%, #3b82f6 100%);padding:32px;color:white;text-align:center;">
+      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">${tenantConfig.name}</p>
       <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;">🔒 Reimposta la tua password</h1>
       <p style="margin:0;font-size:14px;opacity:.85;">${today}</p>
     </div>
     <div style="padding:32px;text-align:center;">
       <p style="margin:0 0 20px;font-size:16px;color:#374151;text-align:left;">
         Ciao,<br/><br/>
-        Abbiamo ricevuto una richiesta per reimpostare la password del tuo account su AC Chiari. Se non sei stato tu a farne richiesta, puoi ignorare in sicurezza questa email.
+        Abbiamo ricevuto una richiesta per reimpostare la password del tuo account su ${tenantConfig.name}. Se non sei stato tu a farne richiesta, puoi ignorare in sicurezza questa email.
       </p>
       
       <div style="margin: 32px 0;">
-        <a href="${resetLink}" style="display:inline-block;padding:14px 32px;background:#1d4ed8;color:#ffffff;text-decoration:none;font-weight:600;font-size:16px;border-radius:8px;box-shadow:0 4px 12px rgba(29,78,216,0.3);">Reimposta la tua Password</a>
+        <a href="${resetLink}" style="display:inline-block;padding:14px 32px;background:${tenantConfig.colors.primary};color:#ffffff;text-decoration:none;font-weight:600;font-size:16px;border-radius:8px;box-shadow:0 4px 12px rgba(29,78,216,0.3);">Reimposta la tua Password</a>
       </div>
       
       <div style="margin-top:32px;padding:16px;background:#fefce8;border:1px solid #fde68a;border-radius:8px;text-align:left;">
@@ -36,7 +38,7 @@ function buildPasswordResetEmailHtml(resetLink: string): string {
       </div>
     </div>
     <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} AC Chiari — Sistema Gestione</p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} ${tenantConfig.name} — Sistema Gestione</p>
     </div>
   </div>
 </body>
@@ -61,6 +63,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nessun utente trovato', code: 'auth/user-not-found' }, { status: 404 });
     }
 
+    // ── Determina Tenant e Hostname Dinamici ──────────────────────────────────
+    const headersList = headers();
+    const tenantId = headersList.get('x-tenant-id') || DEFAULT_TENANT_ID;
+    const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
+
+    const host = headersList.get('host') || 'localhost:3000';
+    const proto = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
+    const dynamicBaseUrl = `${proto}://${host}`;
+
     // Controlla SMTP
     const smtpUser = process.env.SMTP_USER;
     const smtpPassword = process.env.SMTP_PASSWORD;
@@ -71,9 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     const actionCodeSettings = {
-      url: process.env.NEXT_PUBLIC_BASE_URL 
-        ? `${process.env.NEXT_PUBLIC_BASE_URL}/login` 
-        : 'https://azionecattolicachiari.vercel.app/login',
+      url: `${dynamicBaseUrl}/login`,
       handleCodeInApp: false
     };
 
@@ -93,12 +102,13 @@ export async function POST(request: NextRequest) {
       auth: { user: smtpUser, pass: smtpPassword },
     });
 
-    const htmlBody = buildPasswordResetEmailHtml(resetLink);
+    const htmlBody = buildPasswordResetEmailHtml(resetLink, tenantConfig);
 
     await transporter.sendMail({
-      from: `"AC Chiari" <${smtpUser}>`,
+      from: `"${tenantConfig.name}" <${smtpUser}>`,
       to: email,
-      subject: '🔒 Reimposta la tua password su AC Chiari',
+      replyTo: tenantConfig.email,
+      subject: `🔒 Reimposta la tua password su ${tenantConfig.name}`,
       html: htmlBody,
     });
 

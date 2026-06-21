@@ -3,11 +3,13 @@ import * as admin from 'firebase-admin';
 import { initAdminApp, adminDb } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import nodemailer from 'nodemailer';
+import { headers } from 'next/headers';
+import { TENANTS, DEFAULT_TENANT_ID, TenantConfig } from '@/lib/tenants';
 
 // Force dynamic rendering (uses request.url at runtime)
 export const dynamic = 'force-dynamic';
 
-function buildConfirmationEmailHtml(requesterName: string, approved: boolean, loginUrl: string): string {
+function buildConfirmationEmailHtml(requesterName: string, approved: boolean, loginUrl: string, tenantConfig: TenantConfig): string {
   const color = approved ? '#16a34a' : '#dc2626';
   const icon = approved ? '✅' : '❌';
   const title = approved ? 'Collegamento al Nucleo Approvato!' : 'Richiesta di Collegamento Rifiutata';
@@ -20,8 +22,8 @@ function buildConfirmationEmailHtml(requesterName: string, approved: boolean, lo
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:Inter,Arial,sans-serif;">
   <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-    <div style="background:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%);padding:32px;color:white;text-align:center;">
-      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">AC Chiari</p>
+    <div style="background:linear-gradient(135deg, ${tenantConfig.colors.primary} 0%, #3b82f6 100%);padding:32px;color:white;text-align:center;">
+      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">${tenantConfig.name}</p>
       <h1 style="margin:0;font-size:22px;font-weight:700;">${icon} ${title}</h1>
     </div>
     <div style="padding:32px;text-align:center;">
@@ -31,7 +33,7 @@ function buildConfirmationEmailHtml(requesterName: string, approved: boolean, lo
       ${approved ? `<a href="${loginUrl}" style="display:inline-block;padding:14px 28px;background:${color};color:#fff;text-decoration:none;font-weight:600;border-radius:8px;font-size:15px;">Vai al Login</a>` : ''}
     </div>
     <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} AC Chiari — Sistema Gestione</p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} ${tenantConfig.name} — Sistema Gestione</p>
     </div>
   </div>
 </body>
@@ -41,14 +43,23 @@ function buildConfirmationEmailHtml(requesterName: string, approved: boolean, lo
 export async function GET(request: NextRequest) {
   try {
     initAdminApp();
-    const db = admin.firestore();
+    const db = adminDb;
+
+    // ── Determina Tenant e Hostname Dinamici ──────────────────────────────────
+    const headersList = headers();
+    const tenantId = headersList.get('x-tenant-id') || DEFAULT_TENANT_ID;
+    const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
+
+    const host = headersList.get('host') || 'localhost:3000';
+    const proto = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
+    const dynamicBaseUrl = `${proto}://${host}`;
 
     const { searchParams } = new URL(request.url);
     const token = searchParams.get('token');
     const action = searchParams.get('action'); // 'approve' | 'reject'
 
     if (!token || !action) {
-      return new NextResponse(renderPage('Errore', 'Link non valido o incompleto.', false), {
+      return new NextResponse(renderPage('Errore', 'Link non valido o incompleto.', false, tenantConfig), {
         headers: { 'Content-Type': 'text/html' },
         status: 400,
       });
@@ -65,7 +76,8 @@ export async function GET(request: NextRequest) {
       return new NextResponse(renderPage(
         'Link non valido',
         'Questo link è già stato utilizzato, è scaduto, o non è valido.',
-        false
+        false,
+        tenantConfig
       ), { headers: { 'Content-Type': 'text/html' } });
     }
 
@@ -78,7 +90,8 @@ export async function GET(request: NextRequest) {
       return new NextResponse(renderPage(
         'Link scaduto',
         'Questo link è scaduto (valido 48 ore). Il richiedente dovrà re-inviare la richiesta.',
-        false
+        false,
+        tenantConfig
       ), { headers: { 'Content-Type': 'text/html' } });
     }
 
@@ -89,9 +102,6 @@ export async function GET(request: NextRequest) {
       status: approved ? 'approved' : 'rejected',
       resolvedAt: Timestamp.now(),
     });
-
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://olicachiari.vercel.app');
 
     if (approved) {
       // Set familyId on the requester's user document
@@ -114,12 +124,13 @@ export async function GET(request: NextRequest) {
 
       try {
         await transporter.sendMail({
-          from: `"AC Chiari" <${smtpUser}>`,
+          from: `"${tenantConfig.name}" <${smtpUser}>`,
           to: reqData.requesterEmail,
+          replyTo: tenantConfig.email,
           subject: approved
-            ? '✅ Sei stato aggiunto al nucleo familiare su AC Chiari!'
+            ? `✅ Sei stato aggiunto al nucleo familiare su ${tenantConfig.name}!`
             : '❌ Richiesta di collegamento familiare rifiutata',
-          html: buildConfirmationEmailHtml(reqData.requesterName, approved, `${baseUrl}/login`),
+          html: buildConfirmationEmailHtml(reqData.requesterName, approved, `${dynamicBaseUrl}/login`, tenantConfig),
         });
       } catch (mailErr) {
         console.error('[family/approve] Errore invio email confermata:', mailErr);
@@ -133,19 +144,23 @@ export async function GET(request: NextRequest) {
         ? `${reqData.requesterName} è stato collegato al nucleo familiare con successo. Riceverà una email di conferma.`
         : `La richiesta di ${reqData.requesterName} è stata rifiutata. Riceverà una email di notifica.`,
       true,
-      `${baseUrl}/dashboard`
+      tenantConfig,
+      `${dynamicBaseUrl}/dashboard`
     ), { headers: { 'Content-Type': 'text/html' } });
 
   } catch (err: any) {
     console.error('[family/approve-join] Errore:', err.message);
-    return new NextResponse(renderPage('Errore', err.message, false), {
+    const headersList = headers();
+    const tenantId = headersList.get('x-tenant-id') || DEFAULT_TENANT_ID;
+    const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
+    return new NextResponse(renderPage('Errore', err.message, false, tenantConfig), {
       headers: { 'Content-Type': 'text/html' },
       status: 500,
     });
   }
 }
 
-function renderPage(title: string, message: string, success: boolean, redirectUrl?: string): string {
+function renderPage(title: string, message: string, success: boolean, tenantConfig: TenantConfig, redirectUrl?: string): string {
   const color = success ? '#16a34a' : '#dc2626';
   const bg = success ? '#f0fdf4' : '#fef2f2';
   const border = success ? '#86efac' : '#fca5a5';
@@ -155,14 +170,14 @@ function renderPage(title: string, message: string, success: boolean, redirectUr
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>${title} — AC Chiari</title>
+  <title>${title} — ${tenantConfig.name}</title>
   ${redirectUrl ? `<meta http-equiv="refresh" content="4;url=${redirectUrl}"/>` : ''}
   <style>body{margin:0;padding:0;background:#f9fafb;font-family:Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;}</style>
 </head>
 <body>
   <div style="max-width:480px;width:100%;margin:24px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.10);overflow:hidden;">
-    <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);padding:28px;color:white;text-align:center;">
-      <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">AC Chiari</p>
+    <div style="background:linear-gradient(135deg, ${tenantConfig.colors.primary}, #3b82f6);padding:28px;color:white;text-align:center;">
+      <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">${tenantConfig.name}</p>
       <h1 style="margin:8px 0 0;font-size:20px;">${title}</h1>
     </div>
     <div style="padding:28px;background:${bg};border:1px solid ${border};border-radius:0 0 16px 16px;">

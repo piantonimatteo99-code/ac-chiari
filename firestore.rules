@@ -2,9 +2,61 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Regola base: tutti i documenti richiedono autenticazione
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+
+    // ── Helper functions ───────────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles.hasAny(['admin']);
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // ── Utenti ────────────────────────────────────────────────────────────────
+    // Ogni utente può leggere/modificare il proprio documento; gli admin possono tutto
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+
+      // Subcollections utente (token FCM, preferenze notifiche, WebPush)
+      match /{subcollection}/{docId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    // ── Notifiche ─────────────────────────────────────────────────────────────
+    // Ogni utente può solo leggere le proprie notifiche; la scrittura è riservata all'app (Admin SDK)
+    match /notifiche/{notifId} {
+      allow read: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || resource.data.userId == '__admin__' && isAdmin());
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create, delete: if isAdmin();
+    }
+
+    // ── PIN di collegamento familiare ─────────────────────────────────────────
+    // Solo il richiedente può leggere il proprio PIN; la scrittura è server-side
+    match /familyJoinPins/{requesterId} {
+      allow read: if isOwner(requesterId);
+      allow write: if false; // Solo Admin SDK (server-side)
+    }
+
+    // ── Configurazione sistema ────────────────────────────────────────────────
+    match /config/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ── Configurazione notifiche ──────────────────────────────────────────────
+    match /notification-config/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // ── Moduli (forms) ────────────────────────────────────────────────────────
@@ -12,33 +64,28 @@ service cloud.firestore {
     match /forms/{formId} {
       allow read: if resource.data.isPublic == true
                      && resource.data.status == 'active';
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
     // ── Risposte ai moduli ────────────────────────────────────────────────────
     // Chiunque può creare una risposta (anche non autenticato)
-    // La lettura è riservata agli utenti autenticati (creatori del form)
     match /form_responses/{responseId} {
       allow create: if true;
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if isAuthenticated();
     }
 
     // ── Righe raccolta automatica ─────────────────────────────────────────────
-    // Chiunque può creare una riga (post-compilazione anonima)
-    // La lettura è riservata agli utenti autenticati
     match /form_collection_rows/{rowId} {
       allow create: if true;
-      allow read, update, delete: if request.auth != null;
+      allow read, update, delete: if isAuthenticated();
+    }
+
+    // ── Tutto il resto: richiede autenticazione ───────────────────────────────
+    // Collezioni come eventi, gruppi, campi, spese, iscrizioni, ecc.
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
     }
   }
 }
 
-service firebase.storage {
-  match /b/{bucket}/o {
-    // Permette a qualsiasi utente autenticato di caricare file.
-    // L'app dovrebbe comunque garantire che gli utenti carichino solo nei percorsi corretti (es. /uploads/{userId}/).
-    match /{allPaths=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
+

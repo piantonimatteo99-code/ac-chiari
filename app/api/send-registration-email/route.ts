@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
-import { initAdminApp } from '@/lib/firebase-admin';
-import { adminDb } from '@/lib/firebase-admin';
+import { initAdminApp, adminDb } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
+import { headers } from 'next/headers';
+import { TENANTS, DEFAULT_TENANT_ID, TenantConfig } from '@/lib/tenants';
 
-function buildRegistrationEmailHtml(nome: string, displayName: string, verificationLink: string): string {
+function buildRegistrationEmailHtml(nome: string, displayName: string, verificationLink: string, tenantConfig: TenantConfig): string {
   const today = new Date().toLocaleDateString('it-IT', {
     day: '2-digit',
     month: 'long',
@@ -19,9 +20,9 @@ function buildRegistrationEmailHtml(nome: string, displayName: string, verificat
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:Inter,Arial,sans-serif;">
   <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-    <div style="background:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%);padding:32px;color:white;text-align:center;">
-      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">AC Chiari</p>
-      <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;">👋 Benvenuto in AC Chiari!</h1>
+    <div style="background:linear-gradient(135deg, ${tenantConfig.colors.primary} 0%, #3b82f6 100%);padding:32px;color:white;text-align:center;">
+      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">${tenantConfig.name}</p>
+      <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;">👋 Benvenuto in ${tenantConfig.name}!</h1>
       <p style="margin:0;font-size:14px;opacity:.85;">${today}</p>
     </div>
     <div style="padding:32px;text-align:center;">
@@ -31,7 +32,7 @@ function buildRegistrationEmailHtml(nome: string, displayName: string, verificat
       </p>
 
       <div style="margin: 32px 0;">
-        <a href="${verificationLink}" style="display:inline-block;padding:14px 32px;background:#1d4ed8;color:#ffffff;text-decoration:none;font-weight:600;font-size:16px;border-radius:8px;box-shadow:0 4px 12px rgba(29,78,216,0.3);">✉️ Conferma la tua Email</a>
+        <a href="${verificationLink}" style="display:inline-block;padding:14px 32px;background:${tenantConfig.colors.primary};color:#ffffff;text-decoration:none;font-weight:600;font-size:16px;border-radius:8px;box-shadow:0 4px 12px rgba(29,78,216,0.3);">✉️ Conferma la tua Email</a>
       </div>
 
       <div style="margin-top:32px;padding:16px;background:#fefce8;border:1px solid #fde68a;border-radius:8px;text-align:left;">
@@ -40,8 +41,8 @@ function buildRegistrationEmailHtml(nome: string, displayName: string, verificat
       </div>
     </div>
     <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-      <p style="margin:0 0 4px;font-size:13px;color:#374151;font-weight:500;">A presto,<br/><strong>Azione Cattolica Chiari</strong></p>
-      <p style="margin:8px 0 0;font-size:11px;color:#9ca3af;">© ${new Date().getFullYear()} AC Chiari — Sistema Gestione</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#374151;font-weight:500;">A presto,<br/><strong>Azione Cattolica ${tenantConfig.name}</strong></p>
+      <p style="margin:8px 0 0;font-size:11px;color:#9ca3af;">© ${new Date().getFullYear()} ${tenantConfig.name} — Sistema Gestione</p>
     </div>
   </div>
 </body>
@@ -59,6 +60,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Dati mancanti (email o displayName)' }, { status: 400 });
     }
 
+    // ── Determina Tenant e Hostname Dinamici ──────────────────────────────────
+    const headersList = headers();
+    const tenantId = headersList.get('x-tenant-id') || DEFAULT_TENANT_ID;
+    const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
+
+    const host = headersList.get('host') || 'localhost:3000';
+    const proto = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
+    const dynamicBaseUrl = `${proto}://${host}`;
+
     // ── Controlla SMTP ────────────────────────────────────────────────────────
     const smtpUser = process.env.SMTP_USER;
     const smtpPassword = process.env.SMTP_PASSWORD;
@@ -68,39 +78,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'SMTP non configurato', fallback: true }, { status: 500 });
     }
 
-    // Generate Firebase verification link.
-    // With handleCodeInApp: false (default), Firebase's hosted page handles the oobCode
-    // and then redirects to `url` (our continueUrl). Our /auth/action page then shows
-    // a branded success message and redirects to /login.
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
-
-    const actionCodeSettings: admin.auth.ActionCodeSettings | undefined = baseUrl
-      ? {
-          url: `${baseUrl}/auth/action`,
-          // handleCodeInApp: false (default) — Firebase hosted page handles the code,
-          // then redirects to our continueUrl. handleCodeInApp:true is for mobile apps only.
-        }
-      : undefined;
+    const actionCodeSettings: admin.auth.ActionCodeSettings = {
+      url: `${dynamicBaseUrl}/auth/action`,
+    };
 
     let verificationLink = '';
     try {
       verificationLink = await admin.auth().generateEmailVerificationLink(
         email,
-        actionCodeSettings ?? undefined
+        actionCodeSettings
       );
 
       // Bypassa la pagina predefinita di Firebase reindirizzando direttamente alla nostra pagina custom /auth/action
-      if (verificationLink && baseUrl) {
+      if (verificationLink) {
         verificationLink = verificationLink.replace(
           /https:\/\/[^/]+\/__\/auth\/action/,
-          `${baseUrl}/auth/action`
+          `${dynamicBaseUrl}/auth/action`
         );
       }
     } catch (firebaseErr: any) {
       console.warn('[email] Errore generazione link con continueUrl, provo senza continueUrl:', firebaseErr.message);
       try {
-        // Fallback: genera il link senza url di continuazione (usando le impostazioni predefinite di Firebase)
+        // Fallback: genera il link senza url di continuazione
         verificationLink = await admin.auth().generateEmailVerificationLink(email);
       } catch (fallbackErr: any) {
         console.error('[email] Errore generazione link Firebase anche senza continueUrl:', fallbackErr.message);
@@ -116,12 +115,13 @@ export async function POST(request: NextRequest) {
       auth: { user: smtpUser, pass: smtpPassword },
     });
 
-    const htmlBody = buildRegistrationEmailHtml(nome || '', displayName, verificationLink);
+    const htmlBody = buildRegistrationEmailHtml(nome || '', displayName, verificationLink, tenantConfig);
 
     await transporter.sendMail({
-      from: `"AC Chiari" <${smtpUser}>`,
+      from: `"${tenantConfig.name}" <${smtpUser}>`,
       to: email,
-      subject: '👋 Conferma la tua registrazione su AC Chiari',
+      replyTo: tenantConfig.email,
+      subject: `👋 Conferma la tua registrazione su ${tenantConfig.name}`,
       html: htmlBody,
     });
 

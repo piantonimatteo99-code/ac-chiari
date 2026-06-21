@@ -3,6 +3,7 @@ import { initAdminApp, adminDb } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import { TENANTS, DEFAULT_TENANT_ID, TenantConfig } from '@/lib/tenants';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,22 +13,23 @@ function buildPinEmailHtml(
   recipientName: string,
   requesterName: string,
   requesterEmail: string,
-  pin: string
+  pin: string,
+  tenantConfig: TenantConfig
 ): string {
   return `<!DOCTYPE html>
 <html lang="it">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:Inter,Arial,sans-serif;">
   <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-    <div style="background:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 100%);padding:32px;color:white;text-align:center;">
-      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">AC Chiari</p>
+    <div style="background:linear-gradient(135deg,${tenantConfig.colors.primary} 0%,#3b82f6 100%);padding:32px;color:white;text-align:center;">
+      <p style="margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;opacity:.8;">${tenantConfig.name}</p>
       <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;">🔐 Richiesta di Collegamento Familiare</h1>
     </div>
     <div style="padding:32px;">
       <p style="font-size:15px;color:#374151;margin:0 0 16px;">
         Ciao <strong>${recipientName}</strong>,<br/><br/>
-        <strong>${requesterName}</strong> (<a href="mailto:${requesterEmail}" style="color:#1d4ed8;">${requesterEmail}</a>)
-        vuole unirsi al tuo nucleo familiare su AC Chiari.
+        <strong>${requesterName}</strong> (<a href="mailto:${requesterEmail}" style="color:${tenantConfig.colors.primary};">${requesterEmail}</a>)
+        vuole unirsi al tuo nucleo familiare su ${tenantConfig.name}.
       </p>
       <p style="font-size:14px;color:#6b7280;margin:0 0 24px;">
         Se conosci questa persona e fa parte della tua famiglia, <strong>comunica il seguente codice</strong> a ${requesterName}.
@@ -46,7 +48,7 @@ function buildPinEmailHtml(
       </div>
     </div>
     <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center;">
-      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} AC Chiari — Sistema Gestione</p>
+      <p style="margin:0;font-size:12px;color:#9ca3af;">© ${new Date().getFullYear()} ${tenantConfig.name} — Sistema Gestione</p>
     </div>
   </div>
 </body>
@@ -57,6 +59,10 @@ export async function POST(request: NextRequest) {
   try {
     initAdminApp();
     const db = adminDb;
+
+    // ── Determina Tenant ───────────────────────────────────────────────────────
+    const tenantId = request.headers.get('x-tenant-id') || DEFAULT_TENANT_ID;
+    const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
 
     const body = await request.json();
     const {
@@ -166,10 +172,11 @@ export async function POST(request: NextRequest) {
     for (const recipient of notifyEmails) {
       try {
         await transporter.sendMail({
-          from: `"AC Chiari" <${smtpUser}>`,
+          from: `"${tenantConfig.name}" <${smtpUser}>`,
           to: recipient.email,
+          replyTo: tenantConfig.email,
           subject: `🔐 Codice di collegamento familiare — ${requesterName}`,
-          html: buildPinEmailHtml(recipient.name, requesterName, requesterEmail, pin),
+          html: buildPinEmailHtml(recipient.name, requesterName, requesterEmail, pin, tenantConfig),
         });
         sentCount++;
         console.log(`[family/send-pin] PIN inviato a ${recipient.email}`);

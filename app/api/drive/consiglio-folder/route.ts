@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDriveAccessToken, initAdminApp } from '@/lib/firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getDriveAccessToken, initAdminApp, getDriveRootFolderName, adminDb } from '@/lib/firebase-admin';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
-const ROOT_FOLDER_NAME = 'App AC Chiari';
 const CONSIGLIO_FOLDER_NAME = 'Consiglio';
 const CONSIGLIO_CONFIG_DOC = 'consiglio'; // document in 'app-config' collection
 
 /**
  * Finds or creates the root "App AC Chiari" folder on Drive.
  */
-async function getOrCreateRootFolder(accessToken: string): Promise<string> {
+async function getOrCreateRootFolder(accessToken: string, rootFolderName: string): Promise<string> {
   const searchRes = await fetch(
-    `${DRIVE_API}/files?q=name='${ROOT_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`,
+    `${DRIVE_API}/files?q=name='${rootFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const searchData = await searchRes.json();
@@ -23,7 +21,7 @@ async function getOrCreateRootFolder(accessToken: string): Promise<string> {
   const createRes = await fetch(`${DRIVE_API}/files`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: ROOT_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' }),
+    body: JSON.stringify({ name: rootFolderName, mimeType: 'application/vnd.google-apps.folder' }),
   });
   const folder = await createRes.json();
   return folder.id as string;
@@ -35,8 +33,7 @@ async function getOrCreateRootFolder(accessToken: string): Promise<string> {
  */
 export async function GET() {
   try {
-    initAdminApp();
-    const db = getFirestore();
+    const db = adminDb;
     const snap = await db.collection('app-config').doc(CONSIGLIO_CONFIG_DOC).get();
     const folderId = snap.exists ? (snap.data()?.verbali_drive_folder_id ?? null) : null;
     return NextResponse.json({ folderId });
@@ -53,9 +50,10 @@ export async function GET() {
 export async function POST(_request: NextRequest) {
   try {
     const accessToken = await getDriveAccessToken();
+    const rootFolderName = getDriveRootFolderName();
 
     // 1. Get / create root folder
-    const rootFolderId = await getOrCreateRootFolder(accessToken);
+    const rootFolderId = await getOrCreateRootFolder(accessToken, rootFolderName);
 
     // 2. Check if Consiglio subfolder already exists under root
     const searchRes = await fetch(
@@ -87,8 +85,7 @@ export async function POST(_request: NextRequest) {
     }
 
     // 3. Save to Firestore
-    initAdminApp();
-    const db = getFirestore();
+    const db = adminDb;
     await db.collection('app-config').doc(CONSIGLIO_CONFIG_DOC).set(
       { verbali_drive_folder_id: folderId },
       { merge: true }

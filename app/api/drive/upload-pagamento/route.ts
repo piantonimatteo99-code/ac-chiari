@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDriveAccessToken } from '@/lib/firebase-admin';
+import { getDriveAccessToken, getDriveRootFolderName } from '@/lib/firebase-admin';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
-const ROOT_FOLDER_NAME = 'App AC Chiari';
 const PAGAMENTI_FOLDER_NAME = 'Pagamenti';
 
 /**
@@ -62,9 +61,10 @@ export async function POST(request: NextRequest) {
 
     const fileName = name || file.name;
     const accessToken = await getDriveAccessToken();
+    const rootFolderName = getDriveRootFolderName();
 
     // 1. Get or create root folder
-    const rootFolderId = await getOrCreateFolder(accessToken, ROOT_FOLDER_NAME);
+    const rootFolderId = await getOrCreateFolder(accessToken, rootFolderName);
     
     // 2. Get or create "Pagamenti" folder inside root
     const pagamentiFolderId = await getOrCreateFolder(accessToken, PAGAMENTI_FOLDER_NAME, rootFolderId);
