@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTenant } from "@/src/hooks/useTenant";
 
 // ── Foto del carosello ───────────────────────────────────────────
 // Aggiungi o sostituisci con le tue foto reali (in /public/)
@@ -17,6 +18,10 @@ export default function HomePage() {
   const [fading, setFading] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const router = useRouter();
+  const { tenantConfig } = useTenant();
+
+  // Estrai la "città" dall'id tenant (es. "acchiari" → "Chiari", "acbrescia" → "Brescia")
+  const cityName = tenantConfig.name.replace(/^AC\s*/i, '').trim();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -69,7 +74,7 @@ export default function HomePage() {
       <main className="ac-center">
         <Image
           src="/icon-512.png"
-          alt="Logo Azione Cattolica Chiari"
+          alt={`Logo Azione Cattolica ${cityName}`}
           width={110}
           height={110}
           className="ac-logo"
@@ -77,7 +82,7 @@ export default function HomePage() {
         />
         <div className="ac-title-wrap">
           <span className="ac-title-main">Azione Cattolica</span>
-          <span className="ac-title-sub">Chiari</span>
+          <span className="ac-title-sub">{cityName}</span>
         </div>
         <button onClick={() => navigate('/login')} className="ac-cta">
           Accedi al gestionale
@@ -98,7 +103,7 @@ export default function HomePage() {
 
       {/* ── FOOTER ── */}
       <footer className="ac-footer">
-        <span>© {new Date().getFullYear()} Azione Cattolica di Chiari · dal 1867</span>
+        <span>© {new Date().getFullYear()} Azione Cattolica di {cityName} · dal 1867</span>
         <button onClick={() => navigate('/privacy')} className="ac-footer-link">Privacy Policy</button>
       </footer>
 
