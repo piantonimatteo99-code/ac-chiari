@@ -4,8 +4,11 @@ import Link from 'next/link';
 
 import SidebarLinks from './sidebar-links';
 import { AcChiariLogo } from './ac-logo';
+import { useTenant } from '@/src/hooks/useTenant';
 
 export default function Sidebar() {
+  const { tenantConfig } = useTenant();
+
   return (
     <aside className="fixed inset-y-0 left-0 z-10 hidden w-64 flex-col shadow-sidebar bg-sidebar-bg sm:flex">
 
@@ -17,7 +20,7 @@ export default function Sidebar() {
         >
           <AcChiariLogo size={40} className="shrink-0" />
           <div>
-            <p className="text-sm font-bold leading-tight text-sidebar-fg">AC Chiari</p>
+            <p className="text-sm font-bold leading-tight text-sidebar-fg">{tenantConfig.name}</p>
             <p className="text-xs leading-tight text-sidebar-muted">Azione Cattolica</p>
           </div>
         </Link>

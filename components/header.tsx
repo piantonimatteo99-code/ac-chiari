@@ -20,8 +20,10 @@ import { AcChiariLogo } from './ac-logo';
 import { FeedbackDialog } from './feedback-dialog';
 import { NotificationBell } from './notification-bell';
 import { UserProfileDialog } from './user-profile-dialog';
+import { useTenant } from '@/src/hooks/useTenant';
 
 export default function Header() {
+  const { tenantConfig } = useTenant();
   const auth = useAuth();
   const { user } = useUser();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -54,7 +56,7 @@ export default function Header() {
           <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
             <AcChiariLogo size={36} />
             <Link href="/dashboard" onClick={closeSheet}>
-              <p className="text-sm font-bold text-sidebar-fg">AC Chiari</p>
+              <p className="text-sm font-bold text-sidebar-fg">{tenantConfig.name}</p>
               <p className="text-xs text-sidebar-muted">Azione Cattolica</p>
             </Link>
           </div>

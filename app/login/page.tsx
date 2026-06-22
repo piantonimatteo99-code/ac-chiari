@@ -12,9 +12,12 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Eye, EyeOff, AlertCircle, InfoIcon, ShieldCheck, X } from 'lucide-react';
 import { AcChiariLogo } from '@/components/ac-logo';
 import { triggerNotification } from '@/lib/trigger-notification';
+import { useTenant } from '@/src/hooks/useTenant';
 
 // ---- Componente interno che usa useSearchParams ----
 function LoginForm() {
+  const { tenantConfig } = useTenant();
+  const cityName = tenantConfig.name.replace(/^AC\s*/i, '').trim();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -343,7 +346,7 @@ function LoginForm() {
           <AcChiariLogo size={96} />
           <div>
             <h1 className="text-3xl font-bold text-sidebar-fg tracking-tight">Azione Cattolica</h1>
-            <p className="text-lg font-medium text-sidebar-muted mt-1">Chiari</p>
+            <p className="text-lg font-medium text-sidebar-muted mt-1">{cityName}</p>
           </div>
         </div>
       </div>
@@ -355,7 +358,7 @@ function LoginForm() {
           {/* Logo mobile */}
           <div className="flex flex-col items-center mb-8 lg:hidden">
             <AcChiariLogo size={64} />
-            <h1 className="mt-4 text-2xl font-bold text-foreground">AC Chiari</h1>
+            <h1 className="mt-4 text-2xl font-bold text-foreground">{tenantConfig.name}</h1>
             <p className="text-sm text-muted-foreground">Azione Cattolica</p>
           </div>
 

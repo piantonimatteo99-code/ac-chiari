@@ -9,10 +9,14 @@ import { useAuth } from '@/src/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { AlertCircle, CheckCircle2, ArrowLeft, Mail, InfoIcon } from 'lucide-react';
 import { AcChiariLogo } from '@/components/ac-logo';
+import { useTenant } from '@/src/hooks/useTenant';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
 export default function PasswordDimenticataPage() {
+  const { tenantConfig } = useTenant();
+  const cityName = tenantConfig.name.replace(/^AC\s*/i, '').trim();
+
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const [errorMessage, setErrorMessage] = useState('');
@@ -80,7 +84,7 @@ export default function PasswordDimenticataPage() {
           <AcChiariLogo size={96} />
           <div>
             <h1 className="text-3xl font-bold text-sidebar-fg tracking-tight">Azione Cattolica</h1>
-            <p className="text-lg font-medium text-sidebar-muted mt-1">Chiari</p>
+            <p className="text-lg font-medium text-sidebar-muted mt-1">{cityName}</p>
           </div>
 
         </div>
@@ -93,7 +97,7 @@ export default function PasswordDimenticataPage() {
           {/* Logo mobile */}
           <div className="flex flex-col items-center mb-8 lg:hidden">
             <AcChiariLogo size={64} />
-            <h1 className="mt-4 text-2xl font-bold text-foreground">AC Chiari</h1>
+            <h1 className="mt-4 text-2xl font-bold text-foreground">{tenantConfig.name}</h1>
             <p className="text-sm text-muted-foreground">Azione Cattolica</p>
           </div>
 
