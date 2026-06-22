@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initAdminApp, adminDb } from '@/lib/firebase-admin';
+import { initAdminApp, adminDb, getSMTPOptions } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
@@ -146,10 +146,10 @@ export async function POST(request: NextRequest) {
     });
 
     // ── Send PIN emails ───────────────────────────────────────────────────────
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD;
+    // ── Send PIN emails ───────────────────────────────────────────────────────
+    const smtpOptions = await getSMTPOptions(tenantId);
 
-    if (!smtpUser || !smtpPassword) {
+    if (!smtpOptions.auth.user || !smtpOptions.auth.pass) {
       // Dev mode — return PIN in response so you can test locally
       console.warn(`[family/send-pin] SMTP non configurato. PIN (DEV ONLY): ${pin}`);
       return NextResponse.json({
@@ -161,18 +161,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: smtpUser, pass: smtpPassword },
-    });
+    const transporter = nodemailer.createTransport(smtpOptions);
 
     let sentCount = 0;
     for (const recipient of notifyEmails) {
       try {
         await transporter.sendMail({
-          from: `"${tenantConfig.name}" <${smtpUser}>`,
+          from: `"${tenantConfig.name}" <${smtpOptions.auth.user}>`,
           to: recipient.email,
           replyTo: tenantConfig.email,
           subject: `🔐 Codice di collegamento familiare — ${requesterName}`,

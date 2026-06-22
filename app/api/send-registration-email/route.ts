@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
-import { initAdminApp, adminDb } from '@/lib/firebase-admin';
+import { initAdminApp, adminDb, getSMTPOptions } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
 import { TENANTS, DEFAULT_TENANT_ID, TenantConfig } from '@/lib/tenants';
@@ -70,10 +70,9 @@ export async function POST(request: NextRequest) {
     const dynamicBaseUrl = `${proto}://${host}`;
 
     // ── Controlla SMTP ────────────────────────────────────────────────────────
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD;
+    const smtpOptions = await getSMTPOptions(tenantId);
 
-    if (!smtpUser || !smtpPassword) {
+    if (!smtpOptions.auth.user || !smtpOptions.auth.pass) {
       console.warn('[email] SMTP non configurato. Ritorno errore per forzare il fallback Firebase.');
       return NextResponse.json({ error: 'SMTP non configurato', fallback: true }, { status: 500 });
     }
@@ -108,17 +107,12 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Invia email ───────────────────────────────────────────────────────────
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: smtpUser, pass: smtpPassword },
-    });
+    const transporter = nodemailer.createTransport(smtpOptions);
 
     const htmlBody = buildRegistrationEmailHtml(nome || '', displayName, verificationLink, tenantConfig);
 
     await transporter.sendMail({
-      from: `"${tenantConfig.name}" <${smtpUser}>`,
+      from: `"${tenantConfig.name}" <${smtpOptions.auth.user}>`,
       to: email,
       replyTo: tenantConfig.email,
       subject: `👋 Conferma la tua registrazione su ${tenantConfig.name}`,

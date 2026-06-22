@@ -44,7 +44,10 @@ export function useDoc<T = any>(
   type StateDataType = WithId<T> | null;
 
   const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  // Initialize isLoading=true when a valid docRef is provided.
+  // This prevents a race condition where the layout sees isLoading=false+data=null
+  // before the onSnapshot listener has had a chance to fire.
+  const [isLoading, setIsLoading] = useState<boolean>(memoizedDocRef != null);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
-import { initAdminApp, adminDb } from '@/lib/firebase-admin';
+import { initAdminApp, adminDb, getSMTPOptions } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import nodemailer from 'nodemailer';
 import { headers } from 'next/headers';
@@ -112,19 +112,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Send notification email to the requester
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD;
-    if (smtpUser && smtpPassword) {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: { user: smtpUser, pass: smtpPassword },
-      });
+    const smtpOptions = await getSMTPOptions(tenantId);
+    if (smtpOptions.auth.user && smtpOptions.auth.pass) {
+      const transporter = nodemailer.createTransport(smtpOptions);
 
       try {
         await transporter.sendMail({
-          from: `"${tenantConfig.name}" <${smtpUser}>`,
+          from: `"${tenantConfig.name}" <${smtpOptions.auth.user}>`,
           to: reqData.requesterEmail,
           replyTo: tenantConfig.email,
           subject: approved

@@ -344,9 +344,33 @@ export default function DocumentManager({
 
         <CardContent>
           {error && (
-            <div className="flex items-center gap-2 text-sm text-destructive mb-4">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{error}</span>
+            <div className="flex flex-col gap-2 mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span className="font-semibold">Errore Google Drive</span>
+              </div>
+              <p className="text-xs opacity-90">
+                {error.includes('File not found') || error.includes('404')
+                  ? 'La cartella di questo progetto non è stata trovata su Google Drive. Potrebbe essere stata creata con un account Google differente o essere stata eliminata.'
+                  : error}
+              </p>
+              {canEdit && (error.includes('File not found') || error.includes('404')) && (
+                <div className="mt-1">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleCreateFolder}
+                    disabled={isCreatingFolder}
+                  >
+                    {isCreatingFolder ? (
+                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                    ) : (
+                      <FolderOpen className="mr-1.5 h-3 w-3" />
+                    )}
+                    Ricrea cartella su Google Drive
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 

@@ -7,29 +7,21 @@ import { getFirestore } from 'firebase/firestore'
 import { getStorage } from "firebase/storage";
 import { getFunctions } from 'firebase/functions';
 
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
-export function initializeFirebase() {
+export function initializeFirebase(databaseId?: string) {
   // If an app is already initialized, use it. Otherwise, initialize a new one with the full config.
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  return getSdks(app);
+  return getSdks(app, databaseId);
 }
 
-function getDatabaseId(): string {
-  if (typeof window === 'undefined') {
-    return '(default)';
-  }
-  const match = document.cookie.match(/(^| )tenant_id=([^;]+)/);
-  const tenantId = match ? match[2] : undefined;
-  return !tenantId || tenantId === 'acchiari' ? '(default)' : tenantId;
-}
-
-export function getSdks(firebaseApp: FirebaseApp) {
-  const databaseId = getDatabaseId();
+export function getSdks(firebaseApp: FirebaseApp, databaseId?: string) {
+  const dbId = databaseId && databaseId !== '(default)' ? databaseId : undefined;
   // Ensure that getStorage is called with the app instance that includes the storageBucket config.
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp, databaseId),
+    // When dbId is undefined, getFirestore uses the default database.
+    // Explicitly passing '(default)' can create a separate instance and cause conflicts.
+    firestore: dbId ? getFirestore(firebaseApp, dbId) : getFirestore(firebaseApp),
     storage: getStorage(firebaseApp),
     functions: getFunctions(firebaseApp, 'us-central1'),
   };

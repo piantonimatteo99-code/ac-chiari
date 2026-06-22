@@ -101,7 +101,7 @@ const SITE_MAP: SiteMapNode[] = [
       { label: 'Area Educatori', icon: GraduationCap, children: [{ label: 'Educatori', path: '/admin/area-educatori/educatori' }, { label: 'Ruoli Educatori', path: '/admin/area-educatori/ruoli-educatori' }] },
       { label: 'Gestione Gruppi', icon: Users, children: [{ label: 'Tutti i Gruppi', path: '/admin/gestione-gruppi/tutti-i-gruppi' }] },
       { label: 'Gestione Utenti', icon: UserCog, children: [{ label: 'Database Utenti', path: '/admin/gestione-utenti/users' }, { label: 'Permessi', path: '/admin/gestione-utenti/permessi' }] },
-      { label: 'Configurazione', icon: FileCog, children: [{ label: 'Integrazione Drive', path: '/admin/configurazione/integrazione-drive' }, { label: 'Gestione Pagine', path: '/admin/configurazione/gestione-pagine' }, { label: 'Gestione Notifiche', path: '/admin/configurazione/gestione-notifiche' }, { label: 'Modalità Programmazione', path: '/admin/configurazione/modalita-programmazione' }] },
+      { label: 'Configurazione', icon: FileCog, children: [{ label: 'Integrazione Drive', path: '/admin/configurazione/integrazione-drive' }, { label: 'Configurazione Email (SMTP)', path: '/admin/configurazione/configurazione-smtp' }, { label: 'Gestione Pagine', path: '/admin/configurazione/gestione-pagine' }, { label: 'Gestione Notifiche', path: '/admin/configurazione/gestione-notifiche' }, { label: 'Modalità Programmazione', path: '/admin/configurazione/modalita-programmazione' }] },
       { label: 'Segnalazioni', icon: CircleHelp, children: [{ label: 'Gestione Feedback / Problemi', path: '/admin/segnalazioni' }] },
     ],
   },

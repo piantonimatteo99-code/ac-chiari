@@ -136,3 +136,54 @@ export async function getDriveAccessToken(): Promise<string> {
   
   return data.access_token as string;
 }
+
+export interface SMTPOptions {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: {
+    user: string;
+    pass: string;
+  };
+}
+
+/**
+ * Recupera le opzioni di configurazione SMTP per il tenant specificato.
+ * Se non configurato nel database del tenant, restituisce le credenziali globali (fallback).
+ */
+export async function getSMTPOptions(tenantId: string): Promise<SMTPOptions> {
+  initAdminApp();
+  const db = getFirestoreForTenant(tenantId);
+  
+  try {
+    const smtpDoc = await db.collection('config').doc('smtp').get();
+    if (smtpDoc.exists) {
+      const data = smtpDoc.data()!;
+      if (data.host && data.user && data.pass) {
+        return {
+          host: data.host,
+          port: parseInt(data.port || '587'),
+          secure: data.secure === true || data.secure === 'true',
+          auth: {
+            user: data.user,
+            pass: data.pass,
+          },
+        };
+      }
+    }
+  } catch (e) {
+    console.warn(`[smtp] Errore nel caricamento della configurazione SMTP per il tenant ${tenantId}, uso fallback global:`, e);
+  }
+  
+  // Fallback to global env variables
+  return {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASSWORD || '',
+    },
+  };
+}
+

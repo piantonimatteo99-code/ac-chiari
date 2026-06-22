@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import * as admin from 'firebase-admin';
-import { initAdminApp, adminDb } from '@/lib/firebase-admin';
+import { initAdminApp, adminDb, getSMTPOptions } from '@/lib/firebase-admin';
 import { headers } from 'next/headers';
 import { TENANTS, DEFAULT_TENANT_ID, TenantConfig } from '@/lib/tenants';
 
@@ -318,19 +318,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Dati mancanti' }, { status: 400 });
     }
 
-    // ── Controlla SMTP ────────────────────────────────────────────────────────
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD;
-
-    if (!smtpUser || !smtpPassword) {
-      console.warn('[member-email] SMTP non configurato — salto invio.');
-      return NextResponse.json({ success: true, skipped: true, reason: 'SMTP non configurato' });
-    }
-
     // ── Determina Tenant Dinamico ────────────────────────────────────────────
     const headersList = headers();
     const tenantId = headersList.get('x-tenant-id') || DEFAULT_TENANT_ID;
     const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
+
+    // ── Controlla SMTP ────────────────────────────────────────────────────────
+    const smtpOptions = await getSMTPOptions(tenantId);
+
+    if (!smtpOptions.auth.user || !smtpOptions.auth.pass) {
+      console.warn('[member-email] SMTP non configurato — salto invio.');
+      return NextResponse.json({ success: true, skipped: true, reason: 'SMTP non configurato' });
+    }
 
     // ── Recupera destinatari (capofamiglia + membri collegati) ────────────────
     const familyHead = await getFamilyHeadEmail(familyHeadId);
@@ -358,12 +357,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Invia ────────────────────────────────────────────────────────────────
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: smtpUser, pass: smtpPassword },
-    });
+    const transporter = nodemailer.createTransport(smtpOptions);
 
     const fullName = `${membroData.nome} ${membroData.cognome}`.trim();
     const subject = isEdit
@@ -375,7 +369,7 @@ export async function POST(request: NextRequest) {
       const html = buildMemberSummaryHtml(recipient.displayName, membroData, anagraficaData, isEdit, tenantConfig);
       try {
         await transporter.sendMail({
-          from: `"${tenantConfig.name}" <${smtpUser}>`,
+          from: `"${tenantConfig.name}" <${smtpOptions.auth.user}>`,
           to: recipient.email,
           replyTo: tenantConfig.email,
           subject,

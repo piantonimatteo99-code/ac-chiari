@@ -47,6 +47,12 @@ export const metadata: Metadata = {
   },
 };
 
+/** Maps a tenantId to its Firestore database ID. */
+function getDatabaseIdForTenant(tenantId: string): string {
+  if (tenantId === 'acbrescia') return 'acbrescia';
+  return '(default)';
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -54,6 +60,7 @@ export default function RootLayout({
 }>) {
   const headersList = headers();
   const tenantId = headersList.get("x-tenant-id") || DEFAULT_TENANT_ID;
+  const databaseId = getDatabaseIdForTenant(tenantId);
 
   return (
     <html lang="it" suppressHydrationWarning>
@@ -94,7 +101,7 @@ export default function RootLayout({
           nunito.variable
         )}
       >
-        <FirebaseClientProvider>
+        <FirebaseClientProvider databaseId={databaseId}>
           <TenantProvider tenantId={tenantId}>
             {children}
           </TenantProvider>

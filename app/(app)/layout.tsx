@@ -45,11 +45,10 @@ export default function AppLayout({
       return;
     }
 
-    // Se l'utente è autenticato ma non è registrato in questo tenant
+    // Se l'utente è autenticato ma non è registrato in questo tenant,
+    // redirigiamo senza fare signOut (il signOut avviene nella pagina di login
+    // se necessario, non qui dove potremmo avere un falso negativo da Firestore).
     if (!userData) {
-      if (auth) {
-        signOut(auth);
-      }
       router.push('/login?error=not_registered_tenant');
     }
   }, [user, isUserLoading, userData, isUserDataLoading, router, auth]);

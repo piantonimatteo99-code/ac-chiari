@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
-import { initAdminApp, adminDb } from '@/lib/firebase-admin';
+import { initAdminApp, adminDb, getSMTPOptions } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
@@ -140,20 +140,14 @@ export async function POST(request: NextRequest) {
     });
 
     // Send approval emails
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD;
+    const smtpOptions = await getSMTPOptions(tenantId);
 
-    if (!smtpUser || !smtpPassword) {
+    if (!smtpOptions.auth.user || !smtpOptions.auth.pass) {
       console.warn('[family] SMTP non configurato. Richiesta creata ma email non inviata.');
       return NextResponse.json({ success: true, skipped: true, requestId: requestRef.id });
     }
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: smtpUser, pass: smtpPassword },
-    });
+    const transporter = nodemailer.createTransport(smtpOptions);
 
     // Send to each family member
     for (const recipient of notifyEmails) {
@@ -171,7 +165,7 @@ export async function POST(request: NextRequest) {
 
       try {
         await transporter.sendMail({
-          from: `"${tenantConfig.name}" <${smtpUser}>`,
+          from: `"${tenantConfig.name}" <${smtpOptions.auth.user}>`,
           to: recipient.email,
           replyTo: tenantConfig.email,
           subject: `👨‍👩‍👧 ${requesterName} vuole unirsi al tuo nucleo familiare`,
