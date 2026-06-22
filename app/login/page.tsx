@@ -13,7 +13,6 @@ import { Eye, EyeOff, AlertCircle, InfoIcon, ShieldCheck, X } from 'lucide-react
 import { AcChiariLogo } from '@/components/ac-logo';
 import { triggerNotification } from '@/lib/trigger-notification';
 import { useTenant } from '@/src/hooks/useTenant';
-import { TENANTS } from '@/lib/tenants';
 
 // ---- Componente interno che usa useSearchParams ----
 function LoginForm() {
@@ -48,11 +47,6 @@ function LoginForm() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const handleSwitchTenant = (tenantId: string) => {
-    document.cookie = `tenant_id=${tenantId}; path=/; max-age=31536000`;
-    window.location.reload();
-  };
 
   // Countdown timer for resend button
   useEffect(() => {
@@ -94,7 +88,7 @@ function LoginForm() {
         } catch (err) {
           console.error("Errore durante il controllo del documento utente:", err);
           if (auth) await signOut(auth);
-          setError('Si è verificato un errore di connessione. Assicurati che il database dell\'associazione sia attivo.');
+          setError('Questo account non è registrato per questa associazione.');
         }
       }
     };
@@ -555,26 +549,6 @@ function LoginForm() {
               </Link>
             </div>
 
-            {/* Selettore associazione per sviluppo locale/comodità */}
-            <div className="mt-5 border-t border-border pt-4 text-center">
-              <p className="text-xs text-muted-foreground mb-2">
-                Associazione attiva: <strong className="text-foreground">{tenantConfig.name}</strong>
-              </p>
-              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
-                {Object.values(TENANTS).map((t) => (
-                  t.id !== tenantConfig.id && (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => handleSwitchTenant(t.id)}
-                      className="text-xs text-primary font-semibold hover:underline"
-                    >
-                      Accedi come {t.name}
-                    </button>
-                  )
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </div>
