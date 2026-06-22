@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     const tenantId = headersList.get('x-tenant-id') || DEFAULT_TENANT_ID;
     const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
 
-    const host = headersList.get('host') || 'localhost:3000';
+    const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000';
     const proto = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
     const dynamicBaseUrl = `${proto}://${host}`;
 

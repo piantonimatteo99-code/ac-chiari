@@ -19,7 +19,7 @@ function getRedirectUri(request: NextRequest): string {
   }
   // Fallback: derive from request host (works for localhost and any custom domain)
   const proto = request.headers.get('x-forwarded-proto') ?? 'http';
-  const host = request.headers.get('host') ?? 'localhost:3000';
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000';
   return `${proto}://${host}/api/drive/callback`;
 }
 

@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Analytics } from "@vercel/analytics/next";
 import { headers } from "next/headers";
 import { TenantProvider } from "@/src/hooks/useTenant";
-import { DEFAULT_TENANT_ID } from "@/lib/tenants";
+import { DEFAULT_TENANT_ID, getTenantFromHostname } from "@/lib/tenants";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -23,29 +23,35 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
-export const metadata: Metadata = {
-  title: "AC Chiari — Azione Cattolica",
-  description: "Gestionale interno per l'associazione Azione Cattolica di Chiari. Gestione iscrizioni, contabilità, gruppi e calendario.",
-  manifest: "/manifest.json",
-  verification: {
-    google: "RLDx_7oK20JRYrUZcA096fJTFwuGwLKKGRD9_guHMcM",
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "AC Chiari",
-  },
-  icons: {
-    apple: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const headersList = headers();
+  const hostname = headersList.get("x-forwarded-host") || headersList.get("host");
+  const tenant = getTenantFromHostname(hostname);
+
+  return {
+    title: `${tenant.name} — Azione Cattolica`,
+    description: `Gestionale interno per l'associazione Azione Cattolica di ${tenant.name.replace(/^AC\s*/i, '').trim()}. Gestione iscrizioni, contabilità, gruppi e calendario.`,
+    manifest: "/manifest.json",
+    verification: {
+      google: "RLDx_7oK20JRYrUZcA096fJTFwuGwLKKGRD9_guHMcM",
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: tenant.name,
+    },
+    icons: {
+      apple: [
+        { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+      icon: [
+        { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+    },
+  };
+}
 
 /** Maps a tenantId to its Firestore database ID. */
 function getDatabaseIdForTenant(tenantId: string): string {

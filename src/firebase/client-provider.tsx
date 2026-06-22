@@ -10,13 +10,25 @@ interface FirebaseClientProviderProps {
 }
 
 export function FirebaseClientProvider({ children, databaseId }: FirebaseClientProviderProps) {
-  // Initialize Firebase once with the databaseId determined server-side from the tenant.
-  // This ensures the correct Firestore instance is used from the very first render,
-  // without relying on client-side cookies that may be stale or missing.
+  const resolvedDbId = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      const parts = hostname.split('.');
+      if (parts.length >= 2) {
+        const subdomain = parts[0].toLowerCase();
+        const tenantSubdomain = subdomain === 'www' ? parts[1].toLowerCase() : subdomain;
+        if (tenantSubdomain === 'acbrescia') {
+          return 'acbrescia';
+        }
+      }
+    }
+    return databaseId;
+  }, [databaseId]);
+
+  // Initialize Firebase once with the databaseId determined client/server-side from the tenant.
   const { firebaseApp, auth, firestore, storage, functions } = useMemo(
-    () => initializeFirebase(databaseId),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [] // intentionally static: Firebase can only be initialized once per page load
+    () => initializeFirebase(resolvedDbId),
+    [resolvedDbId]
   );
 
   return (

@@ -14,8 +14,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 1. Riconoscimento tramite Hostname
-  const hostname = request.headers.get('host');
+  // 1. Riconoscimento tramite Hostname (usa x-forwarded-host prima di host per compatibilità con proxy/Vercel)
+  const hostname = request.headers.get('x-forwarded-host') || request.headers.get('host');
   let tenant = getTenantFromHostname(hostname);
 
   // 2. Override tramite Query Parameter (utile in sviluppo locale: ?tenant=acbrescia)

@@ -8,7 +8,7 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
 function getRedirectUri(request: NextRequest): string {
   if (process.env.GOOGLE_CALENDAR_REDIRECT_URI) return process.env.GOOGLE_CALENDAR_REDIRECT_URI;
   const proto = request.headers.get('x-forwarded-proto') ?? 'http';
-  const host = request.headers.get('host') ?? 'localhost:3000';
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000';
   return `${proto}://${host}/api/calendar/callback`;
 }
 
