@@ -13,6 +13,7 @@ import { ProfileOnboardingDialog, PostOnboardingDialog } from '@/components/prof
 import { AiAssistant } from '@/components/ai-assistant';
 import { OnboardingTutorial, useOnboardingTutorial } from '@/components/onboarding-tutorial';
 import { PullToRefresh } from '@/components/pull-to-refresh';
+import { useUserData } from '@/src/hooks/use-user-data';
 
 export default function AppLayout({
   children,
@@ -20,6 +21,7 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const { user, isUserLoading } = useUser();
+  const { userData, isLoading: isUserDataLoading } = useUserData();
   const router = useRouter();
   const auth = useAuth();
 
@@ -28,7 +30,7 @@ export default function AppLayout({
   const [showPostDialog, setShowPostDialog] = useState(false);
 
   useEffect(() => {
-    if (isUserLoading) return;
+    if (isUserLoading || isUserDataLoading) return;
 
     if (!user) {
       router.push('/login');
@@ -40,10 +42,19 @@ export default function AppLayout({
         signOut(auth);
       }
       router.push('/login?error=email_not_verified');
+      return;
     }
-  }, [user, isUserLoading, router, auth]);
 
-  if (isUserLoading || !user || !user.emailVerified) {
+    // Se l'utente è autenticato ma non è registrato in questo tenant
+    if (!userData) {
+      if (auth) {
+        signOut(auth);
+      }
+      router.push('/login?error=not_registered_tenant');
+    }
+  }, [user, isUserLoading, userData, isUserDataLoading, router, auth]);
+
+  if (isUserLoading || isUserDataLoading || !user || !user.emailVerified || !userData) {
     return <div className="flex items-center justify-center min-h-screen">Caricamento...</div>;
   }
 

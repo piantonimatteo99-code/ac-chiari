@@ -61,6 +61,8 @@ function LoginForm() {
     const errorParam = searchParams.get('error');
     if (errorParam === 'email_not_verified') {
       setError('Devi prima verificare la tua email. Controlla la tua casella di posta e clicca il link che ti abbiamo inviato.');
+    } else if (errorParam === 'not_registered_tenant') {
+      setError('Questo account non è registrato per questa associazione.');
     }
     const successParam = searchParams.get('signup_success');
     if (successParam === 'true') {
@@ -73,10 +75,23 @@ function LoginForm() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!isUserLoading && user && user.emailVerified) {
-      router.push('/dashboard');
-    }
-  }, [user, isUserLoading, router]);
+    const checkUserDoc = async () => {
+      if (!isUserLoading && user && user.emailVerified && firestore) {
+        try {
+          const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+          if (userDoc.exists()) {
+            router.push('/dashboard');
+          } else {
+            if (auth) await signOut(auth);
+            setError('Questo account non è registrato per questa associazione.');
+          }
+        } catch (err) {
+          console.error("Errore durante il controllo del documento utente:", err);
+        }
+      }
+    };
+    checkUserDoc();
+  }, [user, isUserLoading, router, firestore, auth]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +103,18 @@ function LoginForm() {
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+      // Controllo se l'utente esiste nel database di questo tenant
+      if (firestore) {
+        const userDoc = await getDoc(doc(firestore, 'users', userCredential.user.uid));
+        if (!userDoc.exists()) {
+          await signOut(auth);
+          setError('Questo account non è registrato per questa associazione.');
+          setIsLoading(false);
+          return;
+        }
+      }
+
       if (!userCredential.user.emailVerified) {
         let nome = '';
         let cognome = '';
