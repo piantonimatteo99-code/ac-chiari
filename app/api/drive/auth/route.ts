@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
@@ -32,11 +33,15 @@ export async function GET(request: NextRequest) {
 
   const redirectUri = getRedirectUri(request);
 
+  const headersList = headers();
+  const tenantId = headersList.get('x-tenant-id') || 'acchiari';
+
   const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   authUrl.searchParams.set('client_id', GOOGLE_CLIENT_ID);
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('response_type', 'code');
   authUrl.searchParams.set('scope', SCOPES);
+  authUrl.searchParams.set('state', tenantId);
   authUrl.searchParams.set('access_type', 'offline');
   authUrl.searchParams.set('prompt', 'consent'); // Forces new refresh token every time
 

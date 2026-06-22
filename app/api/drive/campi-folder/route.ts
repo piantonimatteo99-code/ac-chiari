@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDriveAccessToken, initAdminApp, getDriveRootFolderName } from '@/lib/firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getDriveAccessToken, initAdminApp, getDriveRootFolderName, adminDb } from '@/lib/firebase-admin';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const CAMPI_SUBFOLDER_NAME = 'campi';
@@ -110,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Save folderId to Firestore campo document
     initAdminApp();
-    const db = getFirestore();
+    const db = adminDb;
     await db.collection('campi').doc(campoId).update({
       driveFolderId: folderId,
     });

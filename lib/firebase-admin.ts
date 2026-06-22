@@ -58,12 +58,16 @@ export function getDriveRootFolderName(): string {
   }
 }
 
-function getTenantFirestoreInstance(): admin.firestore.Firestore {
+export function getFirestoreForTenant(tenantId: string): admin.firestore.Firestore {
   initAdminApp();
-  const tenantId = getTenantIdFromServer();
   const databaseId = tenantId === 'acchiari' ? '(default)' : tenantId;
   const app = admin.apps[0];
   return getFirestore(app, databaseId);
+}
+
+function getTenantFirestoreInstance(): admin.firestore.Firestore {
+  const tenantId = getTenantIdFromServer();
+  return getFirestoreForTenant(tenantId);
 }
 
 // Convenience accessors — call initAdminApp() first

@@ -110,6 +110,24 @@ export async function POST(request: NextRequest) {
 
     const file = await createRes.json();
 
+    // Imposta i permessi per permettere a chiunque abbia il link di modificare il documento (role: writer, type: anyone)
+    const permissionsRes = await fetch(`${DRIVE_API}/files/${file.id}/permissions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        role: 'writer',
+        type: 'anyone',
+      }),
+    });
+
+    if (!permissionsRes.ok) {
+      const err = await permissionsRes.json();
+      console.warn('Impossibile impostare i permessi di scrittura sul documento:', err.error?.message || err);
+    }
+
     // Fetch the full file details including webViewLink
     const detailsRes = await fetch(
       `${DRIVE_API}/files/${file.id}?fields=id,name,mimeType,webViewLink,modifiedTime`,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initAdminApp } from '@/lib/firebase-admin';
+import { initAdminApp, getFirestoreForTenant } from '@/lib/firebase-admin';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
@@ -18,6 +17,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
+  const tenantId = searchParams.get('state') || 'acchiari';
 
   if (error) {
     return NextResponse.redirect(new URL(`/admin/configurazione?drive_error=${error}`, BASE_URL));
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     // Save refresh token to Firestore (admin SDK for server-side)
     initAdminApp();
-    const db = getFirestore();
+    const db = getFirestoreForTenant(tenantId);
     await db.collection('config').doc('google-drive').set({
       refreshToken: tokens.refresh_token,
       accessToken: tokens.access_token,
