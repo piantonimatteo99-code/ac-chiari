@@ -50,6 +50,7 @@ export function FirebaseClientProvider({ children, databaseId }: FirebaseClientP
 
   return (
     <FirebaseProvider
+      key={resolvedDbId}
       firebaseApp={firebaseApp}
       auth={auth}
       firestore={firestore}

@@ -77,6 +77,24 @@ function LoginForm() {
   useEffect(() => {
     const checkUserDoc = async () => {
       if (!isUserLoading && user && user.emailVerified && firestore) {
+        // Sicurezza anti-race: verifica che il Firestore in uso corrisponda al tenant attuale.
+        // Durante l'hydration, FirebaseClientProvider potrebbe ancora avere il db sbagliato.
+        // Aspettiamo che window sia disponibile e confrontiamo il tenant.
+        if (typeof window !== 'undefined') {
+          const { getTenantFromHostname } = await import('@/lib/tenants');
+          const expectedTenant = getTenantFromHostname(window.location.hostname);
+          const expectedDbId = expectedTenant.id === 'acbrescia' ? 'acbrescia' : '(default)';
+          
+          // Recupera il databaseId effettivamente in uso dall'istanza Firestore
+          const actualDbId = (firestore as any)._databaseId?.database || '(default)';
+          
+          if (actualDbId !== expectedDbId) {
+            // Il Firestore non è ancora sincronizzato con il tenant corretto — aspetta
+            console.warn(`[login] Firestore non sincronizzato: atteso "${expectedDbId}", ho "${actualDbId}". Aspetto...`);
+            return;
+          }
+        }
+
         try {
           const userDoc = await getDoc(doc(firestore, 'users', user.uid));
           if (userDoc.exists()) {
