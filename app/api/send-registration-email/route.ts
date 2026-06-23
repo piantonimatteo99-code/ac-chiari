@@ -65,16 +65,55 @@ export async function POST(request: NextRequest) {
     const tenantId = headersList.get('x-tenant-id') || DEFAULT_TENANT_ID;
     const tenantConfig = TENANTS[tenantId] || TENANTS[DEFAULT_TENANT_ID];
 
+    console.log(`[email] Tenant rilevato: ${tenantId}`);
+
     const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'localhost:3000';
     const proto = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
     const dynamicBaseUrl = `${proto}://${host}`;
+
+    // ── Crea documento utente su Firestore PRIMA di qualsiasi altra cosa ──────
+    // (garantisce che l'utente esista nel database corretto del tenant anche se SMTP fallisce)
+    if (uid && adminDb) {
+      try {
+        const userRef = adminDb.collection('users').doc(uid);
+        const existing = await userRef.get();
+        if (!existing.exists) {
+          await userRef.set({
+            id: uid,
+            nome: nome || '',
+            cognome: cognome || '',
+            displayName: displayName,
+            email: email,
+            roles: ['utente'],
+            createdAt: Timestamp.now(),
+          });
+          console.log(`[email] ✅ Documento utente creato su Firestore (tenant: ${tenantId}) per uid: ${uid}`);
+        } else {
+          const data = existing.data()!;
+          if (!data.nome && !data.cognome) {
+            await userRef.update({
+              nome: nome || '',
+              cognome: cognome || '',
+              displayName: displayName,
+            });
+          }
+          console.log(`[email] ℹ️ Documento utente già esistente in Firestore (tenant: ${tenantId})`);
+        }
+      } catch (fsErr: any) {
+        console.warn('[email] Scrittura documento utente fallita (non bloccante):', fsErr.message);
+      }
+    }
 
     // ── Controlla SMTP ────────────────────────────────────────────────────────
     const smtpOptions = await getSMTPOptions(tenantId);
 
     if (!smtpOptions.auth.user || !smtpOptions.auth.pass) {
-      console.warn('[email] SMTP non configurato. Ritorno errore per forzare il fallback Firebase.');
-      return NextResponse.json({ error: 'SMTP non configurato', fallback: true }, { status: 500 });
+      console.warn('[email] SMTP non configurato per il tenant', tenantId, '. Ritorno fallback per usare Firebase email verification.');
+      return NextResponse.json({ 
+        error: 'SMTP non configurato', 
+        fallback: true, 
+        userDocCreated: !!uid 
+      }, { status: 500 });
     }
 
     const actionCodeSettings: admin.auth.ActionCodeSettings = {
@@ -121,37 +160,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[email] ✅ Email di registrazione inviata a', email);
 
-    // ── Crea documento utente su Firestore via Admin SDK (affidabile, bypassa le rules) ──
-    if (uid && adminDb) {
-      try {
-        const userRef = adminDb.collection('users').doc(uid);
-        const existing = await userRef.get();
-        if (!existing.exists) {
-          await userRef.set({
-            id: uid,
-            nome: nome || '',
-            cognome: cognome || '',
-            displayName: displayName,
-            email: email,
-            roles: ['utente'],
-            createdAt: Timestamp.now(),
-          });
-          console.log('[email] ✅ Documento utente creato su Firestore per', uid);
-        } else {
-          // Aggiorna solo nome/cognome se vuoti
-          const data = existing.data()!;
-          if (!data.nome && !data.cognome) {
-            await userRef.update({
-              nome: nome || '',
-              cognome: cognome || '',
-              displayName: displayName,
-            });
-          }
-        }
-      } catch (fsErr: any) {
-        console.warn('[email] Scrittura documento utente fallita (non bloccante):', fsErr.message);
-      }
-    }
+    // (Il documento utente è già stato creato prima del controllo SMTP)
 
     // ── Notifica admin: nuovo utente registrato ───────────────────────────────
     try {
