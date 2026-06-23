@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // ── 3. Validazione dati ──────────────────────────────────────────────────
     const body = await request.json();
-    const { host, port, secure, user, pass } = body;
+    const { host, port, secure, user, pass, fromName, replyTo } = body;
 
     if (!host || !user || !pass) {
       return NextResponse.json({ error: 'Host, utente e password sono obbligatori' }, { status: 400 });
@@ -53,6 +53,8 @@ export async function POST(request: NextRequest) {
       secure: secure === true || secure === 'true',
       user,
       pass,
+      fromName: fromName || null,
+      replyTo: replyTo || null,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedBy: decodedToken.uid,
     });

@@ -145,6 +145,10 @@ export interface SMTPOptions {
     user: string;
     pass: string;
   };
+  /** Nome visualizzato come mittente, es: "AC Brescia" */
+  fromName?: string;
+  /** Indirizzo Reply-To, es: "info@acbrescia.it" */
+  replyTo?: string;
 }
 
 /**
@@ -168,6 +172,8 @@ export async function getSMTPOptions(tenantId: string): Promise<SMTPOptions> {
             user: data.user,
             pass: data.pass,
           },
+          fromName: data.fromName || undefined,
+          replyTo: data.replyTo || undefined,
         };
       }
     }

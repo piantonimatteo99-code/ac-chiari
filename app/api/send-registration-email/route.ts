@@ -150,9 +150,9 @@ export async function POST(request: NextRequest) {
     const htmlBody = buildRegistrationEmailHtml(nome || '', displayName, verificationLink, tenantConfig);
 
     await transporter.sendMail({
-      from: `"${tenantConfig.name}" <${smtpOptions.auth.user}>`,
+      from: `"${smtpOptions.fromName || tenantConfig.name}" <${smtpOptions.auth.user}>`,
       to: email,
-      replyTo: tenantConfig.email,
+      replyTo: smtpOptions.replyTo || tenantConfig.email,
       subject: `👋 Conferma la tua registrazione su ${tenantConfig.name}`,
       html: htmlBody,
     });

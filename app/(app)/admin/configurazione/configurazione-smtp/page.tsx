@@ -1,28 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { useUser } from '@/src/firebase';
+import { useFirestore } from '@/src/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import {
   AlertCircle,
   CheckCircle2,
   Loader2,
   Mail,
+  Reply,
   Save,
   Send,
   ServerCog,
   ShieldAlert,
+  User,
 } from 'lucide-react';
 
 export default function ConfigurazioneSMTPPage() {
   const { userData, isLoading: isUserLoading } = useUserData();
   const { user } = useUser();
+  const firestore = useFirestore();
   const isAdmin = userData?.roles?.includes('admin');
 
   const [host, setHost] = useState('');
@@ -30,14 +36,47 @@ export default function ConfigurazioneSMTPPage() {
   const [secure, setSecure] = useState(false);
   const [smtpUser, setSmtpUser] = useState('');
   const [smtpPass, setSmtpPass] = useState('');
+  const [fromName, setFromName] = useState('');
+  const [replyTo, setReplyTo] = useState('');
   const [testRecipient, setTestRecipient] = useState('');
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [currentConfig, setCurrentConfig] = useState<Record<string, any> | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [saveResult, setSaveResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [testResult, setTestResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  if (isUserLoading) {
+  // Carica la configurazione attuale dal Firestore
+  useEffect(() => {
+    if (!firestore || !isAdmin) return;
+
+    const loadConfig = async () => {
+      try {
+        const smtpDoc = await getDoc(doc(firestore, 'config', 'smtp'));
+        if (smtpDoc.exists()) {
+          const data = smtpDoc.data();
+          setCurrentConfig(data);
+          // Pre-popola il form con i valori attuali
+          setHost(data.host || '');
+          setPort(String(data.port || '587'));
+          setSecure(data.secure === true || data.secure === 'true');
+          setSmtpUser(data.user || '');
+          // NON pre-popolare la password per sicurezza (lascia vuoto)
+          setFromName(data.fromName || '');
+          setReplyTo(data.replyTo || '');
+        }
+      } catch (err) {
+        console.error('Errore caricamento config SMTP:', err);
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+
+    loadConfig();
+  }, [firestore, isAdmin]);
+
+  if (isUserLoading || isLoadingConfig) {
     return (
       <div className="flex items-center justify-center min-h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -68,8 +107,12 @@ export default function ConfigurazioneSMTPPage() {
   };
 
   const handleSave = async () => {
-    if (!host || !smtpUser || !smtpPass) {
-      setSaveResult({ type: 'error', message: 'Host, utente e password sono obbligatori.' });
+    if (!host || !smtpUser) {
+      setSaveResult({ type: 'error', message: 'Host e utente SMTP sono obbligatori.' });
+      return;
+    }
+    if (!smtpPass && !currentConfig?.pass) {
+      setSaveResult({ type: 'error', message: 'La password è obbligatoria.' });
       return;
     }
 
@@ -89,13 +132,18 @@ export default function ConfigurazioneSMTPPage() {
           port,
           secure,
           user: smtpUser,
-          pass: smtpPass,
+          // Se la password è vuota, mantieni quella esistente inviando un marker
+          pass: smtpPass || currentConfig?.pass,
+          fromName: fromName || null,
+          replyTo: replyTo || null,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore nel salvataggio');
-      setSaveResult({ type: 'success', message: 'Configurazione SMTP salvata correttamente nel database.' });
+      setSaveResult({ type: 'success', message: 'Configurazione SMTP salvata correttamente.' });
+      // Aggiorna currentConfig locale
+      setCurrentConfig(prev => ({ ...prev, host, port, secure, user: smtpUser, fromName, replyTo }));
     } catch (err: any) {
       setSaveResult({ type: 'error', message: err.message });
     } finally {
@@ -104,8 +152,12 @@ export default function ConfigurazioneSMTPPage() {
   };
 
   const handleTest = async () => {
-    if (!host || !smtpUser || !smtpPass || !testRecipient) {
-      setTestResult({ type: 'error', message: 'Compila tutti i campi e inserisci un\'email destinatario per il test.' });
+    if (!host || !smtpUser || !testRecipient) {
+      setTestResult({ type: 'error', message: 'Compila host, utente e destinatario di test.' });
+      return;
+    }
+    if (!smtpPass && !currentConfig?.pass) {
+      setTestResult({ type: 'error', message: 'Inserisci la password per il test.' });
       return;
     }
 
@@ -125,7 +177,9 @@ export default function ConfigurazioneSMTPPage() {
           port,
           secure,
           user: smtpUser,
-          pass: smtpPass,
+          pass: smtpPass || currentConfig?.pass,
+          fromName: fromName || null,
+          replyTo: replyTo || null,
           testRecipient,
         }),
       });
@@ -149,17 +203,37 @@ export default function ConfigurazioneSMTPPage() {
           Configurazione Email (SMTP)
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Configura il server di posta elettronica specifico per questa associazione. Le impostazioni salvate qui sovrascrivono le credenziali globali di sistema.
+          Configura il server di posta e il mittente per questa associazione.
         </p>
       </div>
 
-      {/* Info card */}
-      <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-        <AlertCircle className="h-4 w-4 text-blue-600" />
-        <AlertDescription className="text-blue-800 dark:text-blue-300 text-sm">
-          <strong>Come funziona:</strong> Le email (registrazione, reset password, pagamenti, ecc.) vengono inviate tramite il server SMTP qui configurato. Se non configurato, il sistema utilizzerà automaticamente le credenziali globali di GemmaFlow.
-        </AlertDescription>
-      </Alert>
+      {/* Stato attuale */}
+      {currentConfig && (
+        <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800 dark:text-green-300 text-sm">
+            <strong>Configurazione attiva:</strong>{' '}
+            <Badge variant="outline" className="ml-1 text-green-700 border-green-400">
+              {currentConfig.user}
+            </Badge>
+            {currentConfig.fromName && (
+              <span className="ml-2">· Mittente: <strong>{currentConfig.fromName}</strong></span>
+            )}
+            {currentConfig.replyTo && (
+              <span className="ml-2">· Reply-To: <strong>{currentConfig.replyTo}</strong></span>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!currentConfig && (
+        <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800 dark:text-amber-300 text-sm">
+            <strong>Nessuna configurazione salvata.</strong> Le email useranno le credenziali globali di GemmaFlow.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* SMTP Configuration Form */}
       <Card>
@@ -173,7 +247,7 @@ export default function ConfigurazioneSMTPPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* Host */}
+          {/* Host + Porta */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2 space-y-1.5">
               <Label htmlFor="smtp-host">Host SMTP</Label>
@@ -201,13 +275,13 @@ export default function ConfigurazioneSMTPPage() {
             <div className="space-y-0.5">
               <Label className="text-base font-medium">Connessione SSL/TLS</Label>
               <p className="text-sm text-muted-foreground">
-                Abilita se il server richiede SSL (porta 465). Disabilita per STARTTLS (porta 587).
+                Abilita per porta 465 (SSL). Disabilita per porta 587 (STARTTLS).
               </p>
             </div>
             <Switch checked={secure} onCheckedChange={setSecure} />
           </div>
 
-          {/* Credentials */}
+          {/* Credenziali */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="smtp-user">Email / Utente SMTP</Label>
@@ -220,14 +294,57 @@ export default function ConfigurazioneSMTPPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="smtp-pass">Password / App Password</Label>
+              <Label htmlFor="smtp-pass">
+                Password / App Password
+                {currentConfig?.pass && (
+                  <span className="ml-2 text-xs text-muted-foreground font-normal">(lascia vuoto per mantenerla)</span>
+                )}
+              </Label>
               <Input
                 id="smtp-pass"
-                placeholder="••••••••••••••••"
+                placeholder={currentConfig?.pass ? '••••••••••••••••' : 'Inserisci la password'}
                 type="password"
                 value={smtpPass}
                 onChange={(e) => setSmtpPass(e.target.value)}
               />
+            </div>
+          </div>
+
+          {/* Separatore visivo */}
+          <div className="border-t pt-4">
+            <p className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Personalizzazione mittente
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="from-name">Nome mittente</Label>
+                <Input
+                  id="from-name"
+                  placeholder="AC Brescia"
+                  value={fromName}
+                  onChange={(e) => setFromName(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Nome visualizzato nelle email (es. &quot;AC Brescia&quot;). Se vuoto usa il nome dell&apos;associazione.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="reply-to" className="flex items-center gap-1.5">
+                  <Reply className="h-3.5 w-3.5" />
+                  Indirizzo Reply-To
+                </Label>
+                <Input
+                  id="reply-to"
+                  placeholder="info@acbrescia.it"
+                  type="email"
+                  value={replyTo}
+                  onChange={(e) => setReplyTo(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Quando gli utenti rispondono alle email, la risposta va a questo indirizzo.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -268,7 +385,7 @@ export default function ConfigurazioneSMTPPage() {
             Invia Email di Test
           </CardTitle>
           <CardDescription>
-            Verifica che la configurazione inserita funzioni prima di salvare. L'email viene inviata usando i parametri inseriti nel form sopra (anche se non ancora salvati).
+            Verifica che la configurazione funzioni. Usa i parametri del form sopra (anche non ancora salvati).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -321,7 +438,7 @@ export default function ConfigurazioneSMTPPage() {
         <CardContent className="text-xs text-amber-700 dark:text-amber-400 space-y-1">
           <p>• <strong>Host:</strong> <code className="bg-amber-100 px-1 rounded">smtp.gmail.com</code> — <strong>Porta:</strong> <code className="bg-amber-100 px-1 rounded">587</code> — <strong>SSL:</strong> Disabilitato</p>
           <p>• Per Gmail, usa una <strong>App Password</strong> (non la password normale). Generala da: <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="underline font-medium">myaccount.google.com/apppasswords</a></p>
-          <p>• Richiede la <strong>verifica in 2 passaggi</strong> attiva sull'account Google.</p>
+          <p>• Richiede la <strong>verifica in 2 passaggi</strong> attiva sull&apos;account Google.</p>
         </CardContent>
       </Card>
     </div>

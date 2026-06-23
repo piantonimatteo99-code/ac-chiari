@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // ── 3. Estrazione dati dal body ──────────────────────────────────────────
     const body = await request.json();
-    const { host, port, secure, user, pass, testRecipient } = body;
+    const { host, port, secure, user, pass, testRecipient, fromName, replyTo } = body;
 
     if (!host || !port || !user || !pass || !testRecipient) {
       return NextResponse.json({ error: 'Tutti i campi (Host, Porta, Utente, Password, Email di test) sono obbligatori' }, { status: 400 });
@@ -85,9 +85,9 @@ export async function POST(request: NextRequest) {
 </html>`;
 
     await transporter.sendMail({
-      from: `"${tenantConfig.name} (Test)" <${user}>`,
+      from: `"${fromName || tenantConfig.name} (Test)" <${user}>`,
       to: testRecipient,
-      replyTo: tenantConfig.email,
+      replyTo: replyTo || tenantConfig.email,
       subject: `📧 GemmaFlow — Test Connessione SMTP per ${tenantConfig.name}`,
       html: htmlBody,
     });
