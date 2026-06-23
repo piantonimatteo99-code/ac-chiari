@@ -72,7 +72,10 @@ export default function SignupPage() {
       } catch (emailErr) {
         console.warn("Invio custom email fallito, uso fallback Firebase:", emailErr);
         try {
-          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://olicachiari.vercel.app';
+          // Usa l'hostname corrente (non NEXT_PUBLIC_BASE_URL hardcoded, che punterebbe sempre ad acchiari)
+          const baseUrl = typeof window !== 'undefined'
+            ? window.location.origin
+            : (process.env.NEXT_PUBLIC_BASE_URL || 'https://acchiari.gemmaflow.it');
           await sendEmailVerification(userCredential.user, {
             url: `${baseUrl}/auth/action`,
             handleCodeInApp: false,
