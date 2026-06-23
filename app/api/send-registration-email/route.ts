@@ -116,18 +116,20 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    const actionCodeSettings: admin.auth.ActionCodeSettings = {
-      url: `${dynamicBaseUrl}/auth/action`,
-    };
-
+    // ── Genera link di verifica ──────────────────────────────────────────────
+    // NOTA: NON usiamo continueUrl nelle ActionCodeSettings perché richiede che
+    // il dominio sia autorizzato in Firebase Console (Authentication > Settings).
+    // Generiamo il link senza continueUrl, poi sostituiamo il dominio base
+    // con quello del tenant corrente nel link generato.
     let verificationLink = '';
     try {
-      verificationLink = await admin.auth().generateEmailVerificationLink(
-        email,
-        actionCodeSettings
-      );
+      // Genera il link senza continueUrl (funziona su tutti i domini)
+      verificationLink = await admin.auth().generateEmailVerificationLink(email);
+      console.log('[email] ✅ Link di verifica generato per:', email);
 
-      // Bypassa la pagina predefinita di Firebase reindirizzando direttamente alla nostra pagina custom /auth/action
+      // Sostituisce il dominio __/auth/action di Firebase con la nostra pagina custom
+      // es: https://ac-chiari-import-2024.firebaseapp.com/__/auth/action?... 
+      //  → https://acbrescia.gemmaflow.it/auth/action?...
       if (verificationLink) {
         verificationLink = verificationLink.replace(
           /https:\/\/[^/]+\/__\/auth\/action/,
@@ -135,14 +137,11 @@ export async function POST(request: NextRequest) {
         );
       }
     } catch (firebaseErr: any) {
-      console.warn('[email] Errore generazione link con continueUrl, provo senza continueUrl:', firebaseErr.message);
-      try {
-        // Fallback: genera il link senza url di continuazione
-        verificationLink = await admin.auth().generateEmailVerificationLink(email);
-      } catch (fallbackErr: any) {
-        console.error('[email] Errore generazione link Firebase anche senza continueUrl:', fallbackErr.message);
-        return NextResponse.json({ error: 'Impossibile generare il link di verifica' }, { status: 500 });
-      }
+      console.error('[email] Errore generazione link di verifica Firebase:', firebaseErr.message);
+      return NextResponse.json({ 
+        error: 'Impossibile generare il link di verifica', 
+        detail: firebaseErr.message 
+      }, { status: 500 });
     }
 
     // ── Invia email ───────────────────────────────────────────────────────────
