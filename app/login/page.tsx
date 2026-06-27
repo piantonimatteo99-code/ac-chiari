@@ -76,6 +76,10 @@ function LoginForm() {
 
   useEffect(() => {
     const checkUserDoc = async () => {
+      // Se l'autenticazione Google è in corso o il modal della privacy è aperto, non fare il controllo di auto-logout
+      if (isGoogleLoading || showPrivacyModal || pendingGoogleUser) {
+        return;
+      }
       if (!isUserLoading && user && user.emailVerified && firestore) {
         // Sicurezza anti-race: verifica che il Firestore in uso corrisponda al tenant attuale.
         // Durante l'hydration, FirebaseClientProvider potrebbe ancora avere il db sbagliato.
@@ -111,7 +115,7 @@ function LoginForm() {
       }
     };
     checkUserDoc();
-  }, [user, isUserLoading, router, firestore, auth]);
+  }, [user, isUserLoading, router, firestore, auth, isGoogleLoading, showPrivacyModal, pendingGoogleUser]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
