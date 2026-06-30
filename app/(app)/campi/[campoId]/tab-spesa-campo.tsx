@@ -18,18 +18,36 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, Pencil, ShoppingCart, Users, AlertTriangle, ChevronDown, ChevronUp, Save, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { Piatto, GiornoMenu, SlotMenu, TipoPasto } from '../tab-spesa';
-import { PASTO_LABELS, CAT_LABELS, ALLERGENI_PREDEFINITI, UNITA_MISURA, normalizzaUnita, formattaQuantita, chiaveAggregazione, etichettaPrezzoUnita, fattoreConversione } from '../tab-spesa';
+import type { Piatto, GiornoMenu, SlotMenu, TipoPasto, SlotSelezionato } from '../tab-spesa';
+import { PASTO_LABELS, CAT_LABELS, ALLERGENI_PREDEFINITI, UNITA_MISURA, normalizzaUnita, formattaQuantita, chiaveAggregazione, etichettaPrezzoUnita, fattoreConversione, normalizeSlots, makeSlot, makeGiorno } from '../tab-spesa';
 
 // ─── SlotSelector (same as parent) ───────────────────────────────────────────
 
-function SlotSelector({ value, onChange, piatti, label, tipoPasto }: {
+function SlotSelector({ value, onChange, piatti, label, categoria, tipoPasto }: {
   value?: string; onChange: (id: string | undefined) => void;
-  piatti: Piatto[]; label: string; tipoPasto: TipoPasto;
+  piatti: Piatto[]; label: string; categoria: string; tipoPasto: TipoPasto;
 }) {
-  const catFiltro = tipoPasto === 'colazione' || tipoPasto === 'merenda_mattina' || tipoPasto === 'merenda'
-    ? ['colazione', 'merenda', 'frutta', 'dolce', 'altro']
-    : ['primo', 'secondo', 'contorno', 'frutta', 'dolce', 'altro'];
+  const isColMer = tipoPasto === 'colazione' || tipoPasto === 'merenda_mattina' || tipoPasto === 'merenda';
+  let catFiltro: string[];
+
+  const c = categoria?.toLowerCase();
+  if (c === 'primo') {
+    catFiltro = ['primo', 'altro'];
+  } else if (c === 'secondo') {
+    catFiltro = ['secondo', 'altro'];
+  } else if (c === 'contorno') {
+    catFiltro = ['contorno', 'altro'];
+  } else if (c === 'frutta') {
+    catFiltro = ['frutta', 'altro'];
+  } else if (c === 'colazione') {
+    catFiltro = ['colazione', 'dolce', 'dessert', 'altro'];
+  } else if (c === 'merenda' || c === 'merenda_mattina') {
+    catFiltro = ['merenda', 'dolce', 'dessert', 'altro'];
+  } else {
+    catFiltro = isColMer
+      ? ['colazione', 'merenda', 'dolce', 'dessert', 'altro']
+      : ['primo', 'secondo', 'contorno', 'frutta', 'dolce', 'dessert', 'altro'];
+  }
 
   // Confronto case-insensitive per compatibilità con piatti salvati con maiuscola
   const piattiFiltered = piatti.filter(p => catFiltro.includes(p.categoria?.toLowerCase()));
@@ -72,8 +90,10 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
     const PASTO_KEYS = ['colazione', 'merenda_mattina', 'pranzo', 'merenda', 'cena'] as const;
     for (const giorno of menu) {
       for (const key of PASTO_KEYS) {
-        const slot = giorno[key] as SlotMenu;
-        for (const id of [slot.piattoPrincipaleId, slot.contornoId, slot.fruttaId].filter(Boolean)) {
+        const slots = normalizeSlots(giorno[key], key);
+        for (const slot of slots) {
+          const id = slot.piattoId;
+          if (!id) continue;
           const piatto = piatti.find(p => p.id === id);
           if (!piatto) continue;
           costo += (piatto.costoPorzione || 0) * nPersone;
@@ -327,9 +347,6 @@ interface TabSpesaCampoProps {
   campoId: string;
 }
 
-const makeSlot = (): SlotMenu => ({});
-const makeGiorno = (g: number): GiornoMenu => ({ giorno: g, colazione: makeSlot(), merenda_mattina: makeSlot(), pranzo: makeSlot(), merenda: makeSlot(), cena: makeSlot() });
-
 export default function TabSpesaCampo({ campoId }: TabSpesaCampoProps) {
   const firestore = useFirestore();
   const { user } = useUser();
@@ -376,8 +393,38 @@ export default function TabSpesaCampo({ campoId }: TabSpesaCampoProps) {
 
   const addGiorno = () => setMenu(m => [...m, makeGiorno(m.length + 1)]);
   const removeGiorno = (idx: number) => setMenu(m => m.filter((_, i) => i !== idx).map((g, i) => ({ ...g, giorno: i + 1 })));
-  const updateSlot = (giornoIdx: number, pasto: TipoPasto, field: keyof SlotMenu, value: string | undefined) => {
-    setMenu(m => m.map((g, i) => i === giornoIdx ? { ...g, [pasto]: { ...g[pasto], [field]: value } } : g));
+
+  const updateSlotNew = (giornoIdx: number, pasto: TipoPasto, slotIdx: number, field: keyof SlotSelezionato, value: any) => {
+    setMenu(m => m.map((g, i) => {
+      if (i === giornoIdx) {
+        const slots = normalizeSlots(g[pasto], pasto);
+        const newSlots = slots.map((s, si) => si === slotIdx ? { ...s, [field]: value } : s);
+        return { ...g, [pasto]: newSlots };
+      }
+      return g;
+    }));
+  };
+
+  const addSlotNew = (giornoIdx: number, pasto: TipoPasto) => {
+    setMenu(m => m.map((g, i) => {
+      if (i === giornoIdx) {
+        const slots = normalizeSlots(g[pasto], pasto);
+        const newSlots = [...slots, { piattoId: '', categoria: 'altro', label: 'Altro', isCustom: true }];
+        return { ...g, [pasto]: newSlots };
+      }
+      return g;
+    }));
+  };
+
+  const deleteSlotNew = (giornoIdx: number, pasto: TipoPasto, slotIdx: number) => {
+    setMenu(m => m.map((g, i) => {
+      if (i === giornoIdx) {
+        const slots = normalizeSlots(g[pasto], pasto);
+        const newSlots = slots.filter((_, si) => si !== slotIdx);
+        return { ...g, [pasto]: newSlots };
+      }
+      return g;
+    }));
   };
 
   const savePiatto = async (data: Partial<Piatto>, id?: string) => {
@@ -440,18 +487,44 @@ export default function TabSpesaCampo({ campoId }: TabSpesaCampoProps) {
                   <CardContent className="space-y-3 pt-0">
                     <Separator />
                     {(Object.keys(PASTO_LABELS) as TipoPasto[]).map(pasto => {
-                      const slot = giorno[pasto] as SlotMenu;
-                      const isColMer = pasto === 'colazione' || pasto === 'merenda_mattina' || pasto === 'merenda';
+                      const slots = normalizeSlots(giorno[pasto], pasto);
                       return (
-                        <div key={pasto} className="space-y-1.5">
-                          <p className="text-sm font-medium">{PASTO_LABELS[pasto]}</p>
-                          <div className="pl-3 space-y-1.5">
-                            <SlotSelector value={slot.piattoPrincipaleId} onChange={id => updateSlot(gi, pasto, 'piattoPrincipaleId', id)} piatti={piatti} label={isColMer ? 'Cibo' : 'Principale'} tipoPasto={pasto} />
-                            {!isColMer && (
-                              <>
-                                <SlotSelector value={slot.contornoId} onChange={id => updateSlot(gi, pasto, 'contornoId', id)} piatti={piatti} label="Contorno" tipoPasto={pasto} />
-                                <SlotSelector value={slot.fruttaId} onChange={id => updateSlot(gi, pasto, 'fruttaId', id)} piatti={piatti} label="Frutta" tipoPasto={pasto} />
-                              </>
+                        <div key={pasto} className="space-y-1.5 border-l-2 border-primary/20 pl-3 py-1">
+                          <p className="text-sm font-semibold text-foreground/90">{PASTO_LABELS[pasto]}</p>
+                          <div className="space-y-1.5">
+                            {slots.map((slot, slotIdx) => (
+                              <div key={slotIdx} className="flex items-center gap-2">
+                                <div className="flex-1">
+                                  <SlotSelector
+                                    value={slot.piattoId}
+                                    onChange={id => updateSlotNew(gi, pasto, slotIdx, 'piattoId', id)}
+                                    piatti={piatti}
+                                    label={slot.label}
+                                    categoria={slot.categoria}
+                                    tipoPasto={pasto}
+                                  />
+                                </div>
+                                {isAdmin && slot.isCustom && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive h-8 w-8 p-0"
+                                    onClick={() => deleteSlotNew(gi, pasto, slotIdx)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-xs text-primary flex items-center gap-1 h-7 pl-20 hover:bg-primary/5"
+                                onClick={() => addSlotNew(gi, pasto)}
+                              >
+                                <Plus className="h-3 w-3" /> Aggiungi piatto
+                              </Button>
                             )}
                           </div>
                         </div>
