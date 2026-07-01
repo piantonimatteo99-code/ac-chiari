@@ -210,20 +210,25 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
   // Refs per auto-save
   const isReadyToAutoSave = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasInitialized = useRef(false); // carica da Firestore solo al primo load
 
-  // Load data from Firestore into local state
+  // Inizializza lo stato dal documento Firestore UNA SOLA VOLTA.
+  // useDoc è un listener real-time: senza questo guard, ogni salvataggio
+  // triggererebbe il refetch da Firestore sovrascrivendo le modifiche locali.
   useEffect(() => {
+    if (isLoadingMenu) return;          // aspetta che il caricamento finisca
+    if (hasInitialized.current) return; // già inizializzato, ignora gli update successivi
+    hasInitialized.current = true;
+
     if (menuDoc) {
       setNPersone(menuDoc.nPersone ?? 20);
       if (menuDoc.giorni && menuDoc.giorni.length > 0) {
         setMenu(menuDoc.giorni);
       }
     }
-    // Dopo il primo caricamento (anche se vuoto), abilita l'auto-save
-    if (!isLoadingMenu) {
-      const t = setTimeout(() => { isReadyToAutoSave.current = true; }, 600);
-      return () => clearTimeout(t);
-    }
+    // Abilita l'auto-save dopo un piccolo delay (lascia stabilizzare lo stato)
+    const t = setTimeout(() => { isReadyToAutoSave.current = true; }, 400);
+    return () => clearTimeout(t);
   }, [menuDoc, isLoadingMenu]);
 
   // Calculate spesa cost and propagate upward
@@ -271,7 +276,7 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
   useEffect(() => {
     if (!isReadyToAutoSave.current) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => doSave(menu, nPersone), 1500);
+    saveTimerRef.current = setTimeout(() => doSave(menu, nPersone), 600);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [menu, nPersone, doSave]);
 

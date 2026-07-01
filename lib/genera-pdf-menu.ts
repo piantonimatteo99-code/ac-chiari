@@ -311,9 +311,10 @@ export async function generaPdfMenu(
   const allergeniList = Array.from(allergeniSet).sort().slice(0, 6);
 
   // Calcolo larghezze colonne
-  // #:8  Ingrediente:?  Qtà:22  U.M.:13  [allergeni]:12 each  Acq.:13
-  const fixedW  = 8 + 22 + 13 + 13 + (allergeniList.length * 12);
-  const ingColW = Math.max(40, contentW - fixedW);
+  // #:8  Ingrediente:?  Qtà:20  U.M.:12  [allergeni]:17 each  Acq.:13
+  const allerColW = 17;
+  const fixedW    = 8 + 20 + 12 + 13 + (allergeniList.length * allerColW);
+  const ingColW   = Math.max(35, contentW - fixedW);
 
   sectionTitle(`C  -  Lista della spesa  (${nPersone} persone)`);
 
@@ -329,9 +330,8 @@ export async function generaPdfMenu(
     doc.setTextColor(...GRAY_500);
     doc.text('Nessun ingrediente. Verifica che i piatti abbiano ingredienti inseriti.', marginL, y + 8);
   } else {
-    // Header con colonne allergeni abbreviate
-    const allergBrevi = allergeniList.map(a => a.length > 8 ? a.substring(0, 7) + '.' : a);
-    const head = [['#', 'Ingrediente', `Qtà (${nPersone}p.)`, 'U.M.', ...allergBrevi, 'Acq.']];
+    // Header: usa i nomi completi degli allergeni (la larghezza colonna è sufficiente)
+    const head = [['#', 'Ingrediente', `Qtà (${nPersone}p.)`, 'U.M.', ...allergeniList, 'Acq.']];
 
     tbl({
       head,
@@ -344,26 +344,36 @@ export async function generaPdfMenu(
         '[ ]',
       ]),
       styles: { fontSize: 8.5, cellPadding: 2.5, halign: 'left' },
-      headStyles: { fillColor: BRAND_BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 8 },
+      headStyles: { fillColor: BRAND_BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 7.5 },
       columnStyles: {
-        0: { cellWidth: 8,         halign: 'center', textColor: GRAY_500 },
+        0: { cellWidth: 8,          halign: 'center', textColor: GRAY_500 },
         1: { cellWidth: ingColW },
-        2: { cellWidth: 22,        halign: 'right' },
-        3: { cellWidth: 13,        halign: 'center' },
+        2: { cellWidth: 20,         halign: 'right' },
+        3: { cellWidth: 12,         halign: 'center' },
         // Colonne allergeni dinamiche
         ...Object.fromEntries(allergeniList.map((_, ci) => [
           4 + ci,
-          { cellWidth: 12, halign: 'center' as const, fontStyle: 'bold' as const },
+          { cellWidth: allerColW, halign: 'center' as const, fontStyle: 'bold' as const },
         ])),
         // Colonna checkbox
         [4 + allergeniList.length]: { cellWidth: 13, halign: 'center' as const },
       },
-      // Evidenzia in arancione le celle con "!" (allergene presente)
       didParseCell: (data: any) => {
+        // Header allergeni: font piccolo + testo su riga singola (no wrap)
+        if (
+          data.section === 'head' &&
+          data.column.index >= 4 &&
+          data.column.index < 4 + allergeniList.length
+        ) {
+          data.cell.styles.fontSize = 6.5;
+          data.cell.styles.overflow = 'ellipsize';
+          data.cell.styles.cellPadding = { top: 3, right: 1, bottom: 3, left: 1 };
+        }
+        // Corpo: evidenzia in arancione le celle con "!" (allergene presente)
         if (data.section === 'body' && data.cell.raw === '!') {
-          data.cell.styles.textColor  = [180, 60, 20];
-          data.cell.styles.fillColor  = [255, 237, 213];
-          data.cell.styles.fontStyle  = 'bold';
+          data.cell.styles.textColor = [180, 60, 20];
+          data.cell.styles.fillColor = [255, 237, 213];
+          data.cell.styles.fontStyle = 'bold';
         }
       },
       alternateRowStyles: { fillColor: [249, 250, 251] },
