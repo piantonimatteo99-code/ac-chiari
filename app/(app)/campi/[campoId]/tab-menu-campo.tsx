@@ -13,9 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Trash2, Save, Loader2, Users, ShoppingCart, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Save, Loader2, Users, ShoppingCart, AlertTriangle, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import type { Piatto, TipoPasto, SlotMenu, GiornoMenu, SlotSelezionato } from '../tab-spesa';
 import { PASTO_LABELS, CAT_LABELS, normalizzaUnita, formattaQuantita, chiaveAggregazione, normalizeSlots, makeSlot, makeGiorno } from '../tab-spesa';
+import { generaPdfMenu } from '@/lib/genera-pdf-menu';
 
 interface MenuCampoDoc {
   nPersone: number;
@@ -201,6 +202,7 @@ export default function TabMenuCampo({ campoId, canEdit, onCostoSpesaChange }: T
   const [nPersone, setNPersone] = useState(20);
   const [menu, setMenu] = useState<GiornoMenu[]>([makeGiorno(1)]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [expandedGiorno, setExpandedGiorno] = useState<number>(0);
 
@@ -237,23 +239,51 @@ export default function TabMenuCampo({ campoId, canEdit, onCostoSpesaChange }: T
     onCostoSpesaChange?.(costoSpesa);
   }, [costoSpesa, onCostoSpesaChange]);
 
+  /**
+   * Rimuove tutti i valori undefined/stringa vuota da un oggetto
+   * prima di salvare su Firestore (che non accetta undefined).
+   */
+  const cleanMenuForFirestore = useCallback((giorni: GiornoMenu[]) => {
+    return JSON.parse(JSON.stringify(giorni, (_key, value) => {
+      // Converti undefined → null per compatibilità Firestore
+      // (in realtà JSON.stringify già omette undefined, ma con il replacer
+      // ci assicuriamo che piattoId vuoto diventi null invece di scomparire)
+      if (value === undefined) return null;
+      return value;
+    }));
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (!firestore || !campoId) return;
     setIsSaving(true);
     try {
+      const giorniPuliti = cleanMenuForFirestore(menu);
       await setDoc(doc(firestore, 'campi', campoId, 'dati', 'menu'), {
         nPersone,
-        giorni: menu,
+        giorni: giorniPuliti,
         updatedAt: serverTimestamp(),
       });
       setIsDirty(false);
-      toast({ title: 'Menù salvato' });
-    } catch {
-      toast({ title: 'Errore nel salvataggio', variant: 'destructive' });
+      toast({ title: 'Menù salvato ✓' });
+    } catch (err) {
+      console.error('Errore salvataggio menù:', err);
+      toast({ title: 'Errore nel salvataggio', description: String(err), variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
-  }, [firestore, campoId, nPersone, menu, toast]);
+  }, [firestore, campoId, nPersone, menu, toast, cleanMenuForFirestore]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    setIsDownloading(true);
+    try {
+      await generaPdfMenu(menu, piatti, nPersone);
+    } catch (err) {
+      console.error('Errore generazione PDF:', err);
+      toast({ title: 'Errore generazione PDF', description: String(err), variant: 'destructive' });
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [menu, piatti, nPersone, toast]);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
 
@@ -339,6 +369,19 @@ export default function TabMenuCampo({ campoId, canEdit, onCostoSpesaChange }: T
           {!isDirty && !isLoadingMenu && (
             <span className="text-xs text-muted-foreground">Salvato ✓</span>
           )}
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleDownloadPdf}
+            disabled={isDownloading || menu.length === 0}
+            title="Scarica PDF del menù"
+          >
+            {isDownloading
+              ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              : <Download className="h-4 w-4 mr-1" />
+            }
+            Scarica PDF
+          </Button>
         </div>
       </div>
 
