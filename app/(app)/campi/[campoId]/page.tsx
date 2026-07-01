@@ -613,6 +613,7 @@ export default function CampoDetailPage() {
             <TabMenuCampo
               campoId={campoId}
               canEdit={canEdit}
+              raccoltaId={(campo as any).raccoltaId}
               onCostoSpesaChange={setCostoSpesaMenu}
             />
           )}

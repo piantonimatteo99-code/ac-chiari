@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/src/firebase';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, collectionGroup, doc, setDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Plus, Trash2, Save, Loader2, Users, ShoppingCart, AlertTriangle, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import type { Piatto, TipoPasto, SlotMenu, GiornoMenu, SlotSelezionato } from '../tab-spesa';
 import { PASTO_LABELS, CAT_LABELS, normalizzaUnita, formattaQuantita, chiaveAggregazione, normalizeSlots, makeSlot, makeGiorno } from '../tab-spesa';
-import { generaPdfMenu } from '@/lib/genera-pdf-menu';
+import { generaPdfMenu, type PartecipantePdf } from '@/lib/genera-pdf-menu';
 
 interface MenuCampoDoc {
   nPersone: number;
@@ -27,6 +27,7 @@ interface MenuCampoDoc {
 interface TabMenuCampoProps {
   campoId: string;
   canEdit: boolean;
+  raccoltaId?: string;        // ID della raccolta fondi collegata, per caricare i partecipanti
   onCostoSpesaChange?: (costo: number) => void;
 }
 
@@ -182,7 +183,7 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function TabMenuCampo({ campoId, canEdit, onCostoSpesaChange }: TabMenuCampoProps) {
+export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpesaChange }: TabMenuCampoProps) {
   const firestore = useFirestore();
   const { userData } = useUserData();
   const { toast } = useToast();
@@ -276,14 +277,41 @@ export default function TabMenuCampo({ campoId, canEdit, onCostoSpesaChange }: T
   const handleDownloadPdf = useCallback(async () => {
     setIsDownloading(true);
     try {
-      await generaPdfMenu(menu, piatti, nPersone);
+      // Carica i partecipanti iscritti con le loro allergie
+      let partecipanti: PartecipantePdf[] | undefined;
+
+      if (firestore && raccoltaId) {
+        // 1. Leggi il documento raccolta per ottenere confermatiIds
+        const { getDoc } = await import('firebase/firestore');
+        const raccoltaSnap = await getDoc(doc(firestore, 'raccolte', raccoltaId));
+        const raccoltaData = raccoltaSnap.data();
+        const confermatiIds: string[] = raccoltaData?.confermatiIds ?? [];
+
+        if (confermatiIds.length > 0) {
+          // 2. Cerca tutti i membri in tutte le famiglie (collectionGroup 'membri')
+          const membriSnap = await getDocs(collectionGroup(firestore, 'membri'));
+          partecipanti = membriSnap.docs
+            .filter(d => confermatiIds.includes(d.id))
+            .map(d => {
+              const data = d.data();
+              return {
+                nome: data.nome ?? '',
+                cognome: data.cognome ?? '',
+                classe: data.groupName ?? data.groupId ?? '',
+                allergie: data.allergie ?? '',
+              } as PartecipantePdf;
+            });
+        }
+      }
+
+      await generaPdfMenu(menu, piatti, nPersone, undefined, partecipanti);
     } catch (err) {
       console.error('Errore generazione PDF:', err);
       toast({ title: 'Errore generazione PDF', description: String(err), variant: 'destructive' });
     } finally {
       setIsDownloading(false);
     }
-  }, [menu, piatti, nPersone, toast]);
+  }, [firestore, raccoltaId, menu, piatti, nPersone, toast]);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
 
