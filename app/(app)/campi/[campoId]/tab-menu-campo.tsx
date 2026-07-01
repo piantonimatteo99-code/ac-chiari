@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/src/firebase';
 import { collection, collectionGroup, doc, setDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Trash2, Save, Loader2, Users, ShoppingCart, AlertTriangle, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Plus, Trash2, Loader2, Users, ShoppingCart, AlertTriangle, ChevronDown, ChevronUp, Download, CheckCheck } from 'lucide-react';
 import type { Piatto, TipoPasto, SlotMenu, GiornoMenu, SlotSelezionato } from '../tab-spesa';
 import { PASTO_LABELS, CAT_LABELS, normalizzaUnita, formattaQuantita, chiaveAggregazione, normalizeSlots, makeSlot, makeGiorno } from '../tab-spesa';
 import { generaPdfMenu, type PartecipantePdf } from '@/lib/genera-pdf-menu';
@@ -202,10 +202,14 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
 
   const [nPersone, setNPersone] = useState(20);
   const [menu, setMenu] = useState<GiornoMenu[]>([makeGiorno(1)]);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingAuto, setIsSavingAuto] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [expandedGiorno, setExpandedGiorno] = useState<number>(0);
+
+  // Refs per auto-save
+  const isReadyToAutoSave = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load data from Firestore into local state
   useEffect(() => {
@@ -214,9 +218,13 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
       if (menuDoc.giorni && menuDoc.giorni.length > 0) {
         setMenu(menuDoc.giorni);
       }
-      setIsDirty(false);
     }
-  }, [menuDoc]);
+    // Dopo il primo caricamento (anche se vuoto), abilita l'auto-save
+    if (!isLoadingMenu) {
+      const t = setTimeout(() => { isReadyToAutoSave.current = true; }, 600);
+      return () => clearTimeout(t);
+    }
+  }, [menuDoc, isLoadingMenu]);
 
   // Calculate spesa cost and propagate upward
   const costoSpesa = useMemo(() => {
@@ -240,39 +248,32 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
     onCostoSpesaChange?.(costoSpesa);
   }, [costoSpesa, onCostoSpesaChange]);
 
-  /**
-   * Rimuove tutti i valori undefined/stringa vuota da un oggetto
-   * prima di salvare su Firestore (che non accetta undefined).
-   */
-  const cleanMenuForFirestore = useCallback((giorni: GiornoMenu[]) => {
-    return JSON.parse(JSON.stringify(giorni, (_key, value) => {
-      // Converti undefined → null per compatibilità Firestore
-      // (in realtà JSON.stringify già omette undefined, ma con il replacer
-      // ci assicuriamo che piattoId vuoto diventi null invece di scomparire)
-      if (value === undefined) return null;
-      return value;
-    }));
-  }, []);
-
-  const handleSave = useCallback(async () => {
+  // ─── Auto-save (debounced 1.5s) ──────────────────────────────────────────
+  const doSave = useCallback(async (menuToSave: GiornoMenu[], np: number) => {
     if (!firestore || !campoId) return;
-    setIsSaving(true);
+    setIsSavingAuto(true);
     try {
-      const giorniPuliti = cleanMenuForFirestore(menu);
+      const giorniPuliti = JSON.parse(JSON.stringify(menuToSave, (_, v) => v === undefined ? null : v));
       await setDoc(doc(firestore, 'campi', campoId, 'dati', 'menu'), {
-        nPersone,
+        nPersone: np,
         giorni: giorniPuliti,
         updatedAt: serverTimestamp(),
       });
-      setIsDirty(false);
-      toast({ title: 'Menù salvato ✓' });
+      setLastSaved(new Date());
     } catch (err) {
-      console.error('Errore salvataggio menù:', err);
-      toast({ title: 'Errore nel salvataggio', description: String(err), variant: 'destructive' });
+      console.error('Auto-save errore:', err);
+      toast({ title: 'Errore nel salvataggio automatico', description: String(err), variant: 'destructive' });
     } finally {
-      setIsSaving(false);
+      setIsSavingAuto(false);
     }
-  }, [firestore, campoId, nPersone, menu, toast, cleanMenuForFirestore]);
+  }, [firestore, campoId, toast]);
+
+  useEffect(() => {
+    if (!isReadyToAutoSave.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => doSave(menu, nPersone), 1500);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [menu, nPersone, doSave]);
 
   const handleDownloadPdf = useCallback(async () => {
     setIsDownloading(true);
@@ -313,15 +314,11 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
     }
   }, [firestore, raccoltaId, menu, piatti, nPersone, toast]);
 
-  const markDirty = useCallback(() => setIsDirty(true), []);
-
   const addGiorno = () => {
     setMenu(m => [...m, makeGiorno(m.length + 1)]);
-    markDirty();
   };
   const removeGiorno = (idx: number) => {
     setMenu(m => m.filter((_, i) => i !== idx).map((g, i) => ({ ...g, giorno: i + 1 })));
-    markDirty();
   };
 
   const updateSlotNew = (giornoIdx: number, pasto: TipoPasto, slotIdx: number, field: keyof SlotSelezionato, value: any) => {
@@ -333,7 +330,6 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
       }
       return g;
     }));
-    markDirty();
   };
 
   const addSlotNew = (giornoIdx: number, pasto: TipoPasto) => {
@@ -345,7 +341,6 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
       }
       return g;
     }));
-    markDirty();
   };
 
   const deleteSlotNew = (giornoIdx: number, pasto: TipoPasto, slotIdx: number) => {
@@ -357,7 +352,6 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
       }
       return g;
     }));
-    markDirty();
   };
 
   if (isLoadingMenu) {
@@ -377,32 +371,30 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
           <Label>Partecipanti</Label>
           <Input
             type="number" min={1} value={nPersone}
-            onChange={e => { setNPersone(parseInt(e.target.value) || 1); markDirty(); }}
+          onChange={e => { setNPersone(parseInt(e.target.value) || 1); }}
             className="w-24"
             disabled={!canEdit}
           />
         </div>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
           {canEdit && (
             <Button size="sm" variant="outline" onClick={addGiorno}>
               <Plus className="h-4 w-4 mr-1" />Aggiungi giorno
             </Button>
           )}
-          {canEdit && isDirty && (
-            <Button size="sm" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-              Salva menù
-            </Button>
-          )}
-          {!isDirty && !isLoadingMenu && (
-            <span className="text-xs text-muted-foreground">Salvato ✓</span>
-          )}
+          {/* Stato auto-save */}
+          {isSavingAuto
+            ? <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Salvataggio...</span>
+            : lastSaved
+              ? <span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCheck className="h-3 w-3 text-green-500" />Salvato {lastSaved.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
+              : <span className="text-xs text-muted-foreground">Non ancora salvato</span>
+          }
           <Button
             size="sm"
             variant="secondary"
             onClick={handleDownloadPdf}
             disabled={isDownloading || menu.length === 0}
-            title="Scarica PDF del menù"
+            title="Scarica PDF del menu"
           >
             {isDownloading
               ? <Loader2 className="h-4 w-4 mr-1 animate-spin" />

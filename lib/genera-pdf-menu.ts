@@ -1,16 +1,15 @@
 /**
- * Generatore PDF del Menù Campo
+ * Generatore PDF del Menu Campo
  *
- * Produce un PDF con 4 sezioni:
- *  A – Menù completo per giorno
- *  B – Quantità ingredienti per singolo pasto
- *  C – Lista della spesa totale con colonna checkbox
+ * Sezioni:
+ *  A – Menu completo per giorno
+ *  B – Quantita ingredienti per singolo pasto
+ *  C – Lista della spesa con colonne allergeni e checkbox
  *  D – Lista partecipanti con allergie dichiarate
  */
 
 import type { GiornoMenu, Piatto, TipoPasto } from '@/app/(app)/campi/tab-spesa';
 import {
-  PASTO_LABELS,
   normalizeSlots,
   normalizzaUnita,
   formattaQuantita,
@@ -26,28 +25,48 @@ export interface PartecipantePdf {
   allergie?: string;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+type IngTotale = {
+  nome: string;
+  quantita: number;
+  unita: string;
+  allergeni: Set<string>;
+};
+
+// ─── Costanti ────────────────────────────────────────────────────────────────
 
 const PASTO_KEYS: TipoPasto[] = ['colazione', 'merenda_mattina', 'pranzo', 'merenda', 'cena'];
 
-/** Colori del brand */
-const BRAND_BLUE  = [37, 99, 235] as [number, number, number];
+// Etichette SENZA emoji (jsPDF non le supporta)
+const PASTO_PLAIN: Record<TipoPasto, string> = {
+  colazione:      'Colazione',
+  merenda_mattina:'Merenda mattina',
+  pranzo:         'Pranzo',
+  merenda:        'Merenda',
+  cena:           'Cena',
+};
+
+const BRAND_BLUE  = [37, 99, 235]   as [number, number, number];
 const BRAND_LIGHT = [239, 246, 255] as [number, number, number];
-const GRAY_700    = [55, 65, 81] as [number, number, number];
+const GRAY_700    = [55, 65, 81]    as [number, number, number];
 const GRAY_500    = [107, 114, 128] as [number, number, number];
 const GRAY_200    = [229, 231, 235] as [number, number, number];
 const WHITE       = [255, 255, 255] as [number, number, number];
-const RED_DARK    = [185, 60, 40] as [number, number, number];
+const RED_DARK    = [185, 60, 40]   as [number, number, number];
 
-type IngTotale = { nome: string; quantita: number; unita: string };
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-/** Calcola gli ingredienti totali per una lista di piattoId */
+/** Calcola ingredienti totali aggregati, includendo gli allergeni di ogni piatto */
 function calcolaIngredienti(
   piattoIds: string[],
   piatti: Piatto[],
   nPersone: number,
 ): IngTotale[] {
-  const totali: Record<string, { valoreBase: number; base: 'g' | 'ml' | 'altro'; unitaOriginale: string }> = {};
+  const totali: Record<string, {
+    valoreBase: number;
+    base: 'g' | 'ml' | 'altro';
+    unitaOriginale: string;
+    allergeni: Set<string>;
+  }> = {};
 
   for (const id of piattoIds) {
     if (!id) continue;
@@ -58,8 +77,10 @@ function calcolaIngredienti(
       const nomeDisplay = usaNomePiatto ? piatto.nome : (ing.nome?.trim() || piatto.nome);
       const { valore, base } = normalizzaUnita(ing.quantitaPerPersona, ing.unita);
       const k = chiaveAggregazione(nomeDisplay, ing.unita);
-      if (!totali[k]) totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita };
+      if (!totali[k]) totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita, allergeni: new Set() };
       totali[k].valoreBase += valore * nPersone;
+      // Allergeni del piatto che contiene questo ingrediente
+      piatto.intolleranze?.forEach(a => totali[k].allergeni.add(a));
     });
   }
 
@@ -67,7 +88,7 @@ function calcolaIngredienti(
     .map(([k, v]) => {
       const nome = k.split('__')[0];
       const { quantita, unita } = formattaQuantita(v.valoreBase, v.base, v.unitaOriginale);
-      return { nome, quantita, unita };
+      return { nome, quantita, unita, allergeni: v.allergeni };
     })
     .sort((a, b) => a.nome.localeCompare(b.nome));
 }
@@ -81,55 +102,50 @@ export async function generaPdfMenu(
   nomeCampo?: string,
   partecipanti?: PartecipantePdf[],
 ): Promise<void> {
-  // Import dinamici (evita problemi SSR)
-  const { default: jsPDF } = await import('jspdf');
+  const { default: jsPDF }    = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
 
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageW = 210;
-  const marginL = 14;
-  const marginR = 14;
-  const contentW = pageW - marginL - marginR;
+  const doc      = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW    = 210;
+  const marginL  = 14;
+  const marginR  = 14;
+  const contentW = pageW - marginL - marginR; // 182 mm
 
   let y = 0;
 
-  // ── Utilità ────────────────────────────────────────────────────────────────
+  // ── Utilità locali ─────────────────────────────────────────────────────────
 
   const addPageIfNeeded = (needed = 30) => {
-    if (y + needed > 270) {
-      doc.addPage();
-      y = 16;
-    }
+    if (y + needed > 272) { doc.addPage(); y = 16; }
   };
 
-  /** Chiama autoTable e aggiorna y con finalY */
-  const table = (options: any) => {
-    autoTable(doc, { ...options, startY: y });
+  const tbl = (opts: any) => {
+    autoTable(doc, { ...opts, startY: y, margin: { left: marginL, right: marginR } });
     y = (doc as any).lastAutoTable.finalY;
   };
 
   const sectionTitle = (text: string) => {
-    addPageIfNeeded(20);
+    addPageIfNeeded(18);
     doc.setFillColor(...BRAND_BLUE);
     doc.rect(marginL, y, contentW, 10, 'F');
     doc.setTextColor(...WHITE);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
+    doc.setFontSize(12);
     doc.text(text, marginL + 4, y + 7);
     doc.setTextColor(...GRAY_700);
-    y += 14;
+    y += 13;
   };
 
   const subTitle = (text: string) => {
-    addPageIfNeeded(14);
+    addPageIfNeeded(12);
     doc.setFillColor(...BRAND_LIGHT);
-    doc.rect(marginL, y, contentW, 8, 'F');
+    doc.rect(marginL, y, contentW, 7, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...BRAND_BLUE);
-    doc.text(text, marginL + 3, y + 5.5);
+    doc.text(text, marginL + 3, y + 5);
     doc.setTextColor(...GRAY_700);
-    y += 11;
+    y += 10;
   };
 
   // ── Copertina ──────────────────────────────────────────────────────────────
@@ -138,219 +154,233 @@ export async function generaPdfMenu(
   doc.rect(0, 0, pageW, 45, 'F');
   doc.setTextColor(...WHITE);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(26);
-  doc.text('Menu Campo', pageW / 2, 22, { align: 'center' });
-
+  doc.setFontSize(24);
+  doc.text('Menu Campo', pageW / 2, 21, { align: 'center' });
   if (nomeCampo) {
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setFont('helvetica', 'normal');
-    doc.text(nomeCampo, pageW / 2, 33, { align: 'center' });
+    doc.text(nomeCampo, pageW / 2, 32, { align: 'center' });
   }
 
   // Info box
   const oggi = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
   doc.setFillColor(...BRAND_LIGHT);
-  doc.rect(marginL, 52, contentW, 18, 'F');
+  doc.rect(marginL, 52, contentW, 16, 'F');
   doc.setTextColor(...GRAY_700);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`Data generazione: ${oggi}`, marginL + 4, 60);
-  doc.text(`Numero partecipanti: ${nPersone}`, marginL + 4, 66);
-  doc.text(`Giorni di campo: ${menu.length}`, marginL + 100, 60);
-  doc.text(`Pasti totali: ${menu.length * PASTO_KEYS.length}`, marginL + 100, 66);
+  doc.setFontSize(9.5);
+  doc.text(`Data: ${oggi}`, marginL + 4, 59);
+  doc.text(`Partecipanti: ${nPersone}`, marginL + 4, 65);
+  doc.text(`Giorni: ${menu.length}`, marginL + 90, 59);
+  doc.text(`Pasti: ${menu.length * PASTO_KEYS.length}`, marginL + 90, 65);
 
   // Indice
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(...GRAY_700);
-  doc.text('Contenuto del documento', marginL, 80);
-  doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
+  doc.text('Contenuto', marginL, 78);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
   doc.setTextColor(...GRAY_500);
   const hasPartecipanti = (partecipanti?.length ?? 0) > 0;
-  doc.text('  A  —  Menu completo per giorno', marginL + 4, 88);
-  doc.text('  B  —  Quantita ingredienti per singolo pasto', marginL + 4, 95);
-  doc.text('  C  —  Lista della spesa totale con checkbox', marginL + 4, 102);
-  if (hasPartecipanti) {
-    doc.text('  D  —  Lista partecipanti con allergie dichiarate', marginL + 4, 109);
-  }
+  doc.text('A  -  Menu completo per giorno', marginL + 4, 85);
+  doc.text('B  -  Quantita ingredienti per singolo pasto', marginL + 4, 91);
+  doc.text('C  -  Lista della spesa con allergeni e checkbox', marginL + 4, 97);
+  if (hasPartecipanti) doc.text('D  -  Lista partecipanti con allergie dichiarate', marginL + 4, 103);
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SEZIONE A – Menù per giorno
+  // SEZIONE A – Menu per giorno
   // ══════════════════════════════════════════════════════════════════════════
 
   doc.addPage();
   y = 16;
-  sectionTitle('A  —  Menu completo per giorno');
+  sectionTitle('A  -  Menu completo per giorno');
 
   for (const giorno of menu) {
     addPageIfNeeded(50);
     subTitle(`Giorno ${giorno.giorno}`);
 
-    const tableRows: [string, string][] = [];
-
+    const rows: [string, string][] = [];
     for (const pasto of PASTO_KEYS) {
       const slots = normalizeSlots(giorno[pasto], pasto);
-      const labelEmoji = PASTO_LABELS[pasto];
+      const righe = slots
+        .map(s => s.piattoId ? piatti.find(p => p.id === s.piattoId) : null)
+        .filter(Boolean) as Piatto[];
 
-      const righe: { label: string; nome: string }[] = [];
-      for (const slot of slots) {
-        const piatto = slot.piattoId ? piatti.find(p => p.id === slot.piattoId) : null;
-        if (piatto) {
-          righe.push({ label: slot.label, nome: piatto.nome });
-        }
-      }
-
+      const label = PASTO_PLAIN[pasto];
       if (righe.length === 0) {
-        tableRows.push([labelEmoji, '—']);
+        rows.push([label, '-']);
       } else if (righe.length === 1) {
-        tableRows.push([labelEmoji, righe[0].nome]);
+        rows.push([label, righe[0].nome]);
       } else {
-        tableRows.push([labelEmoji, righe.map(r => `${r.label}: ${r.nome}`).join('\n')]);
+        const slotLabels = normalizeSlots(giorno[pasto], pasto);
+        rows.push([label, righe.map((p, i) => `${slotLabels[i]?.label}: ${p.nome}`).join('\n')]);
       }
     }
 
-    table({
-      margin: { left: marginL, right: marginR },
+    tbl({
       head: [['Pasto', 'Piatti']],
-      body: tableRows,
-      styles: { fontSize: 10, cellPadding: 4 },
-      headStyles: { fillColor: GRAY_200, textColor: GRAY_700, fontStyle: 'bold', fontSize: 10 },
+      body: rows,
+      styles: { fontSize: 9.5, cellPadding: 3 },
+      headStyles: { fillColor: GRAY_200, textColor: GRAY_700, fontStyle: 'bold', fontSize: 9 },
       columnStyles: {
-        0: { cellWidth: 45, fontStyle: 'bold', textColor: BRAND_BLUE },
-        1: { cellWidth: contentW - 45 },
+        0: { cellWidth: 40, fontStyle: 'bold', textColor: BRAND_BLUE },
+        1: { cellWidth: contentW - 40 },
       },
       theme: 'grid',
     });
-    y += 8;
+    y += 7;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SEZIONE B – Quantità ingredienti per pasto
+  // SEZIONE B – Quantita per pasto
   // ══════════════════════════════════════════════════════════════════════════
 
   doc.addPage();
   y = 16;
-  sectionTitle(`B  —  Quantita ingredienti per singolo pasto  (${nPersone} persone)`);
+  sectionTitle(`B  -  Quantita ingredienti per singolo pasto  (${nPersone} persone)`);
 
   for (const giorno of menu) {
     for (const pasto of PASTO_KEYS) {
-      const slots = normalizeSlots(giorno[pasto], pasto);
-      const piattoIds = slots.map(s => s.piattoId ?? '').filter(Boolean);
-      if (piattoIds.length === 0) continue;
+      const slots    = normalizeSlots(giorno[pasto], pasto);
+      const ids      = slots.map(s => s.piattoId ?? '').filter(Boolean);
+      if (ids.length === 0) continue;
+      const ings     = calcolaIngredienti(ids, piatti, nPersone);
+      if (ings.length === 0) continue;
 
-      const ingredienti = calcolaIngredienti(piattoIds, piatti, nPersone);
-      if (ingredienti.length === 0) continue;
-
-      const nomiPiattiPasto = piattoIds
-        .map(id => piatti.find(p => p.id === id)?.nome)
-        .filter(Boolean)
-        .join(', ');
-
-      addPageIfNeeded(30);
-      subTitle(`Giorno ${giorno.giorno} — ${PASTO_LABELS[pasto]}`);
+      const nomiPiatti = ids.map(id => piatti.find(p => p.id === id)?.nome).filter(Boolean).join(', ');
+      addPageIfNeeded(28);
+      subTitle(`Giorno ${giorno.giorno} - ${PASTO_PLAIN[pasto]}`);
 
       doc.setFont('helvetica', 'italic');
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setTextColor(...GRAY_500);
-      doc.text(`Piatti: ${nomiPiattiPasto}`, marginL + 2, y);
-      y += 5;
+      doc.text(`Piatti: ${nomiPiatti}`, marginL + 2, y);
+      y += 4;
 
-      table({
-        margin: { left: marginL, right: marginR },
-        head: [['Ingrediente', `Quantita (${nPersone} pers.)`, 'Unita']],
-        body: ingredienti.map(ing => [ing.nome, String(ing.quantita), ing.unita]),
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: GRAY_200, textColor: GRAY_700, fontStyle: 'bold', fontSize: 9 },
+      tbl({
+        head: [['Ingrediente', `Qtà (${nPersone} pers.)`, 'U.M.']],
+        body: ings.map(i => [i.nome, String(i.quantita), i.unita]),
+        styles: { fontSize: 8.5, cellPadding: 2.5 },
+        headStyles: { fillColor: GRAY_200, textColor: GRAY_700, fontStyle: 'bold', fontSize: 8.5 },
         columnStyles: {
-          0: { cellWidth: contentW - 50 },
+          0: { cellWidth: contentW - 46 },
           1: { cellWidth: 30, halign: 'right' },
-          2: { cellWidth: 20, halign: 'center' },
+          2: { cellWidth: 16, halign: 'center' },
         },
         theme: 'striped',
         alternateRowStyles: { fillColor: [249, 250, 251] },
       });
-      y += 10;
+      y += 8;
     }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SEZIONE C – Lista della spesa totale con checkbox
+  // SEZIONE C – Lista della spesa con allergeni
   // ══════════════════════════════════════════════════════════════════════════
 
   doc.addPage();
   y = 16;
-  sectionTitle(`C  —  Lista della spesa totale  (${nPersone} persone)`);
 
+  // Raccoglie tutti gli id usati nel menu
   const tuttiGliId: string[] = [];
   for (const giorno of menu) {
     for (const pasto of PASTO_KEYS) {
-      const slots = normalizeSlots(giorno[pasto], pasto);
-      slots.forEach(s => { if (s.piattoId) tuttiGliId.push(s.piattoId); });
+      normalizeSlots(giorno[pasto], pasto).forEach(s => { if (s.piattoId) tuttiGliId.push(s.piattoId); });
     }
   }
   const ingredientiTotali = calcolaIngredienti(tuttiGliId, piatti, nPersone);
 
+  // Raccoglie gli allergeni unici usati (max 6 per colonna)
+  const allergeniSet = new Set<string>();
+  ingredientiTotali.forEach(i => i.allergeni.forEach(a => allergeniSet.add(a)));
+  const allergeniList = Array.from(allergeniSet).sort().slice(0, 6);
+
+  // Calcolo larghezze colonne
+  // #:8  Ingrediente:?  Qtà:22  U.M.:13  [allergeni]:12 each  Acq.:13
+  const fixedW  = 8 + 22 + 13 + 13 + (allergeniList.length * 12);
+  const ingColW = Math.max(40, contentW - fixedW);
+
+  sectionTitle(`C  -  Lista della spesa  (${nPersone} persone)`);
+
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY_500);
+  doc.text("Segna 'X' nella colonna 'Acq.' una volta acquistato. Le colonne allergeni mostrano quali intolleranze contiene il prodotto.", marginL, y);
+  y += 5;
+
   if (ingredientiTotali.length === 0) {
     doc.setFont('helvetica', 'italic');
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...GRAY_500);
-    doc.text('Nessun ingrediente calcolato. Controlla che i piatti abbiano ingredienti inseriti.', marginL, y + 10);
+    doc.text('Nessun ingrediente. Verifica che i piatti abbiano ingredienti inseriti.', marginL, y + 8);
   } else {
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(9);
-    doc.setTextColor(...GRAY_500);
-    doc.text("Spunta la casella a destra una volta acquistato l'ingrediente.", marginL, y);
-    y += 6;
+    // Header con colonne allergeni abbreviate
+    const allergBrevi = allergeniList.map(a => a.length > 8 ? a.substring(0, 7) + '.' : a);
+    const head = [['#', 'Ingrediente', `Qtà (${nPersone}p.)`, 'U.M.', ...allergBrevi, 'Acq.']];
 
-    table({
-      margin: { left: marginL, right: marginR },
-      head: [['#', 'Ingrediente', `Quantita (${nPersone} pers.)`, 'Unita', 'v']],
+    tbl({
+      head,
       body: ingredientiTotali.map((ing, i) => [
         String(i + 1),
         ing.nome,
         String(ing.quantita),
         ing.unita,
+        ...allergeniList.map(a => ing.allergeni.has(a) ? '!' : ''),
         '[ ]',
       ]),
-      styles: { fontSize: 10, cellPadding: 4 },
-      headStyles: {
-        fillColor: BRAND_BLUE,
-        textColor: WHITE,
-        fontStyle: 'bold',
-        fontSize: 10,
-      },
+      styles: { fontSize: 8.5, cellPadding: 2.5, halign: 'left' },
+      headStyles: { fillColor: BRAND_BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 8 },
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center', textColor: GRAY_500 },
-        1: { cellWidth: contentW - 60 },
-        2: { cellWidth: 25, halign: 'right' },
-        3: { cellWidth: 15, halign: 'center' },
-        4: { cellWidth: 10, halign: 'center' },
+        0: { cellWidth: 8,         halign: 'center', textColor: GRAY_500 },
+        1: { cellWidth: ingColW },
+        2: { cellWidth: 22,        halign: 'right' },
+        3: { cellWidth: 13,        halign: 'center' },
+        // Colonne allergeni dinamiche
+        ...Object.fromEntries(allergeniList.map((_, ci) => [
+          4 + ci,
+          { cellWidth: 12, halign: 'center' as const, fontStyle: 'bold' as const },
+        ])),
+        // Colonna checkbox
+        [4 + allergeniList.length]: { cellWidth: 13, halign: 'center' as const },
+      },
+      // Evidenzia in arancione le celle con "!" (allergene presente)
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.cell.raw === '!') {
+          data.cell.styles.textColor  = [180, 60, 20];
+          data.cell.styles.fillColor  = [255, 237, 213];
+          data.cell.styles.fontStyle  = 'bold';
+        }
       },
       alternateRowStyles: { fillColor: [249, 250, 251] },
       theme: 'grid',
     });
-    y += 8;
+    y += 6;
+
+    // Legenda allergeni
+    if (allergeniList.length > 0) {
+      addPageIfNeeded(16);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...GRAY_500);
+      doc.text('Legenda allergeni: ' + allergeniList.join('  |  '), marginL, y);
+      y += 5;
+    }
 
     // Costo totale
     const costoTotale = tuttiGliId.reduce((acc, id) => {
-      const piatto = piatti.find(p => p.id === id);
-      return acc + (piatto?.costoPorzione ?? 0) * nPersone;
+      const p = piatti.find(pp => pp.id === id);
+      return acc + (p?.costoPorzione ?? 0) * nPersone;
     }, 0);
 
     if (costoTotale > 0) {
-      addPageIfNeeded(20);
+      addPageIfNeeded(14);
       doc.setFillColor(...BRAND_LIGHT);
-      doc.rect(marginL, y, contentW, 14, 'F');
+      doc.rect(marginL, y, contentW, 12, 'F');
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
+      doc.setFontSize(10);
       doc.setTextColor(...BRAND_BLUE);
-      doc.text(`Costo totale stimato: EUR ${costoTotale.toFixed(2)}`, marginL + 4, y + 6);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(...GRAY_500);
-      doc.text(`(EUR ${(costoTotale / nPersone).toFixed(2)} a persona)`, marginL + 4, y + 11);
-      y += 18;
+      doc.text(`Costo totale stimato: EUR ${costoTotale.toFixed(2)}  (EUR ${(costoTotale / nPersone).toFixed(2)} a persona)`, marginL + 4, y + 7.5);
+      y += 16;
     }
   }
 
@@ -361,51 +391,36 @@ export async function generaPdfMenu(
   if (hasPartecipanti && partecipanti) {
     doc.addPage();
     y = 16;
-    sectionTitle('D  —  Lista partecipanti con allergie dichiarate');
+    sectionTitle('D  -  Lista partecipanti con allergie dichiarate');
 
-    const ordinati = [...partecipanti].sort((a, b) =>
-      (a.cognome + a.nome).localeCompare(b.cognome + b.nome)
-    );
+    const ordinati   = [...partecipanti].sort((a, b) => (a.cognome + a.nome).localeCompare(b.cognome + b.nome));
     const conAllergie = ordinati.filter(p => p.allergie && p.allergie.trim());
 
-    // Riepilogo testuale
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(...GRAY_500);
     doc.text(
-      `Totale partecipanti: ${ordinati.length}   |   Con allergie/intolleranze dichiarate: ${conAllergie.length}`,
+      `Totale: ${ordinati.length} partecipanti  |  Con allergie/intolleranze: ${conAllergie.length}`,
       marginL, y
     );
-    y += 7;
+    y += 6;
 
-    // Tabella completa tutti i partecipanti
-    table({
-      margin: { left: marginL, right: marginR },
+    // Tabella completa
+    tbl({
       head: [['#', 'Cognome', 'Nome', 'Classe / Gruppo', 'Allergie / Intolleranze']],
-      body: ordinati.map((p, i) => [
-        String(i + 1),
-        p.cognome,
-        p.nome,
-        p.classe || '—',
-        p.allergie || '—',
-      ]),
-      styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: { fillColor: BRAND_BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 9 },
+      body: ordinati.map((p, i) => [String(i + 1), p.cognome, p.nome, p.classe || '-', p.allergie || '-']),
+      styles: { fontSize: 8.5, cellPadding: 2.5 },
+      headStyles: { fillColor: BRAND_BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 8.5 },
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center', textColor: GRAY_500 },
+        0: { cellWidth: 8,  halign: 'center', textColor: GRAY_500 },
         1: { cellWidth: 38 },
         2: { cellWidth: 38 },
-        3: { cellWidth: 35 },
-        4: { cellWidth: contentW - 121 },
+        3: { cellWidth: 34 },
+        4: { cellWidth: contentW - 118 },
       },
       alternateRowStyles: { fillColor: [249, 250, 251] },
       didParseCell: (data: any) => {
-        if (
-          data.section === 'body' &&
-          data.column.index === 4 &&
-          data.cell.raw !== '—' &&
-          data.cell.raw !== ''
-        ) {
+        if (data.section === 'body' && data.column.index === 4 && data.cell.raw !== '-') {
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.textColor = RED_DARK;
           data.cell.styles.fillColor = [255, 251, 235];
@@ -413,32 +428,25 @@ export async function generaPdfMenu(
       },
       theme: 'grid',
     });
-    y += 14;
+    y += 12;
 
-    // Riquadro riepilogo SOLO partecipanti con allergie
+    // Riquadro solo con allergie
     if (conAllergie.length > 0) {
-      addPageIfNeeded(50);
-
-      // Header rosso
+      addPageIfNeeded(40);
       doc.setFillColor(254, 243, 199);
-      doc.rect(marginL, y, contentW, 8, 'F');
+      doc.rect(marginL, y, contentW, 7, 'F');
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
+      doc.setFontSize(9.5);
       doc.setTextColor(...RED_DARK);
-      doc.text('ATTENZIONE — Partecipanti con allergie / intolleranze', marginL + 4, y + 5.5);
+      doc.text('ATTENZIONE - Partecipanti CON allergie / intolleranze', marginL + 4, y + 5);
       doc.setTextColor(...GRAY_700);
-      y += 11;
+      y += 10;
 
-      table({
-        margin: { left: marginL, right: marginR },
+      tbl({
         head: [['Cognome e Nome', 'Classe / Gruppo', 'Allergia / Intolleranza']],
-        body: conAllergie.map(p => [
-          `${p.cognome} ${p.nome}`,
-          p.classe || '—',
-          p.allergie || '',
-        ]),
-        styles: { fontSize: 10, cellPadding: 4 },
-        headStyles: { fillColor: RED_DARK, textColor: WHITE, fontStyle: 'bold', fontSize: 10 },
+        body: conAllergie.map(p => [`${p.cognome} ${p.nome}`, p.classe || '-', p.allergie || '']),
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: RED_DARK, textColor: WHITE, fontStyle: 'bold', fontSize: 9 },
         columnStyles: {
           0: { cellWidth: 55, fontStyle: 'bold' },
           1: { cellWidth: 40 },
@@ -450,18 +458,18 @@ export async function generaPdfMenu(
     }
   }
 
-  // ── Footer su tutte le pagine ───────────────────────────────────────────────
+  // ── Footer su tutte le pagine ─────────────────────────────────────────────
   const totalPages = (doc as any).getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     (doc as any).setPage(i);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setTextColor(...GRAY_500);
-    doc.text(`Menu Campo${nomeCampo ? ` — ${nomeCampo}` : ''}`, marginL, 290);
-    doc.text(`Pagina ${i} / ${totalPages}`, pageW - marginR, 290, { align: 'right' });
+    doc.text(`Menu Campo${nomeCampo ? ` - ${nomeCampo}` : ''}`, marginL, 291);
+    doc.text(`Pagina ${i} / ${totalPages}`, pageW - marginR, 291, { align: 'right' });
   }
 
-  // ── Download ────────────────────────────────────────────────────────────────
+  // ── Download ──────────────────────────────────────────────────────────────
   const fileName = `menu-campo${nomeCampo ? `-${nomeCampo.replace(/\s+/g, '-').toLowerCase()}` : ''}.pdf`;
   doc.save(fileName);
 }
