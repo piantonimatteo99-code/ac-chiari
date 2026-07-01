@@ -55,6 +55,19 @@ const RED_DARK    = [185, 60, 40]   as [number, number, number];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/** Estrae gli allergeni dal campo `note` del piatto.
+ *  Formato: "Lattosio, Glutine | Note libere..."
+ *  Gli allergeni sono nella parte prima del primo "|"
+ */
+function allergeniDaNota(note?: string): string[] {
+  if (!note || !note.trim()) return [];
+  const parteAllergeni = note.split('|')[0]; // prende solo la parte prima del "|"
+  return parteAllergeni
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
 /** Calcola ingredienti totali aggregati, includendo gli allergeni di ogni piatto */
 function calcolaIngredienti(
   piattoIds: string[],
@@ -73,14 +86,15 @@ function calcolaIngredienti(
     const piatto = piatti.find(p => p.id === id);
     if (!piatto) continue;
     const usaNomePiatto = (piatto.ingredienti?.length ?? 0) === 1;
+    // Allergie lette dal campo 'note' (formato CSV prima del "|")
+    const allergeniPiatto = allergeniDaNota(piatto.note);
     piatto.ingredienti?.forEach(ing => {
       const nomeDisplay = usaNomePiatto ? piatto.nome : (ing.nome?.trim() || piatto.nome);
       const { valore, base } = normalizzaUnita(ing.quantitaPerPersona, ing.unita);
       const k = chiaveAggregazione(nomeDisplay, ing.unita);
       if (!totali[k]) totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita, allergeni: new Set() };
       totali[k].valoreBase += valore * nPersone;
-      // Allergeni del piatto che contiene questo ingrediente
-      piatto.intolleranze?.forEach(a => totali[k].allergeni.add(a));
+      allergeniPiatto.forEach(a => totali[k].allergeni.add(a));
     });
   }
 
@@ -92,6 +106,7 @@ function calcolaIngredienti(
     })
     .sort((a, b) => a.nome.localeCompare(b.nome));
 }
+
 
 // ─── Generatore principale ──────────────────────────────────────────────────
 
