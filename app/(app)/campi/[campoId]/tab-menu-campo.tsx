@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/src/firebase';
-import { collection, collectionGroup, doc, setDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
+import { collection, collectionGroup, doc, setDoc, getDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -193,16 +193,11 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
   const { data: piattiData } = useCollection<Piatto>(piattiQ);
   const piatti = piattiData ?? [];
 
-  // Load persisted menu for this campo
-  const menuDocRef = useMemoFirebase(
-    () => firestore && campoId ? doc(firestore, 'campi', campoId, 'dati', 'menu') : null,
-    [firestore, campoId]
-  );
-  const { data: menuDoc, isLoading: isLoadingMenu } = useDoc<MenuCampoDoc>(menuDocRef);
-
   const [nPersone, setNPersone] = useState(20);
   const [menu, setMenu] = useState<GiornoMenu[]>([makeGiorno(1)]);
   const [isSavingAuto, setIsSavingAuto] = useState(false);
+  const [isLoadingMenu, setIsLoadingMenu] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [expandedGiorno, setExpandedGiorno] = useState<number>(0);
@@ -210,26 +205,50 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
   // Refs per auto-save
   const isReadyToAutoSave = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasInitialized = useRef(false); // carica da Firestore solo al primo load
 
-  // Inizializza lo stato dal documento Firestore UNA SOLA VOLTA.
-  // useDoc è un listener real-time: senza questo guard, ogni salvataggio
-  // triggererebbe il refetch da Firestore sovrascrivendo le modifiche locali.
+  // ── Caricamento ONE-SHOT da Firestore ────────────────────────────────────
+  // Usiamo getDoc invece del listener real-time per evitare problemi di sync:
+  // leggiamo una volta sola al mount, poi scriviamo senza mai ricevere
+  // aggiornamenti da Firestore (nessun rischio di sovrascrittura locale).
+  //
+  // PROTEZIONE DATI: l'auto-save viene abilitato SOLO dopo un caricamento
+  // riuscito. Se getDoc fallisce (rete assente, permessi, ecc.) il componente
+  // mostra un errore e NON salva mai nulla, impedendo la perdita di dati.
   useEffect(() => {
-    if (isLoadingMenu) return;          // aspetta che il caricamento finisca
-    if (hasInitialized.current) return; // già inizializzato, ignora gli update successivi
-    hasInitialized.current = true;
+    if (!firestore || !campoId) return;
+    let cancelled = false;
 
-    if (menuDoc) {
-      setNPersone(menuDoc.nPersone ?? 20);
-      if (menuDoc.giorni && menuDoc.giorni.length > 0) {
-        setMenu(menuDoc.giorni);
+    const load = async () => {
+      try {
+        const snap = await getDoc(doc(firestore, 'campi', campoId, 'dati', 'menu'));
+        if (cancelled) return;
+
+        if (snap.exists()) {
+          const data = snap.data() as MenuCampoDoc;
+          setNPersone(data.nPersone ?? 20);
+          if (data.giorni && data.giorni.length > 0) setMenu(data.giorni);
+        }
+
+        // Caricamento riuscito (anche se il doc non esiste = campo nuovo)
+        setIsLoadingMenu(false);
+        // Abilita auto-save con un piccolo delay per lasciar stabilizzare lo stato
+        setTimeout(() => { isReadyToAutoSave.current = true; }, 400);
+
+      } catch (err) {
+        console.error('Errore caricamento menu:', err);
+        if (!cancelled) {
+          setIsLoadingMenu(false);
+          setLoadError(true);
+          // NON abilitiamo l'auto-save: evita che lo stato vuoto di default
+          // sovrascriva i dati reali su Firestore in caso di errore di rete.
+        }
       }
-    }
-    // Abilita l'auto-save dopo un piccolo delay (lascia stabilizzare lo stato)
-    const t = setTimeout(() => { isReadyToAutoSave.current = true; }, 400);
-    return () => clearTimeout(t);
-  }, [menuDoc, isLoadingMenu]);
+    };
+
+    load();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // [] = solo al mount, mai più
 
   // Calculate spesa cost and propagate upward
   const costoSpesa = useMemo(() => {
@@ -288,7 +307,6 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
 
       if (firestore && raccoltaId) {
         // 1. Leggi il documento raccolta per ottenere confermatiIds
-        const { getDoc } = await import('firebase/firestore');
         const raccoltaSnap = await getDoc(doc(firestore, 'raccolte', raccoltaId));
         const raccoltaData = raccoltaSnap.data();
         const confermatiIds: string[] = raccoltaData?.confermatiIds ?? [];
@@ -358,6 +376,23 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
       return g;
     }));
   };
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+        <AlertTriangle className="h-10 w-10 text-destructive" />
+        <div>
+          <p className="font-semibold text-destructive">Impossibile caricare il menù</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Errore di connessione a Firestore. I dati NON verranno sovrascritti.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Riprova
+        </Button>
+      </div>
+    );
+  }
 
   if (isLoadingMenu) {
     return (
