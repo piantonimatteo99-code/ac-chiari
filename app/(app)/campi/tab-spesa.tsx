@@ -25,6 +25,7 @@ export interface Piatto {
   id: string;
   nome: string;
   categoria: string;
+  porzioniBase?: number; // numero persone di riferimento
   costoPorzione?: number; // € per persona (opzionale, auto-calcolato da ingredienti)
   ingredienti: { nome: string; quantitaPerPersona: number; unita: string; prezzoPerUnita?: number }[];
   intolleranze: string[];
@@ -440,6 +441,19 @@ function SlotSelector({ value, onChange, piatti, label, categoria, tipoPasto }: 
   );
 }
 
+function calcolaCostoPiattoPersona(piatto: Piatto): number {
+  if (piatto.costoPorzione !== undefined && piatto.costoPorzione > 0) return piatto.costoPorzione;
+  if (!piatto.ingredienti || piatto.ingredienti.length === 0) return 0;
+  const porzioniRef = piatto.porzioniBase || 10;
+  const costo = piatto.ingredienti.reduce((acc, ing) => {
+    const prezzo = ing.prezzoPerUnita || 0;
+    const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
+    const fattore = fattoreConversione(ing.unita);
+    return acc + (qPersona * fattore * prezzo);
+  }, 0);
+  return Math.round(costo * 100) / 100;
+}
+
 // ─── Lista Spesa ──────────────────────────────────────────────────────────────
 
 function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: Piatto[]; nPersone: number }) {
@@ -457,7 +471,7 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
           if (!id) continue;
           const piatto = piatti.find(p => p.id === id);
           if (!piatto) continue;
-          costo += (piatto.costoPorzione || 0) * nPersone;
+          costo += calcolaCostoPiattoPersona(piatto) * nPersone;
           piatto.intolleranze?.forEach(i => intSet.add(i));
           // Se il piatto ha 1 solo ingrediente usa il nome del piatto (evita disallineamenti tipo "Latteo" vs "Latte")
           const usaNomePiatto = (piatto.ingredienti?.length ?? 0) === 1;

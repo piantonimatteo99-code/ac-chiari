@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Plus, Trash2, Loader2, Users, ShoppingCart, AlertTriangle, ChevronDown, ChevronUp, Download, CheckCheck } from 'lucide-react';
 import type { Piatto, TipoPasto, SlotMenu, GiornoMenu, SlotSelezionato } from '../tab-spesa';
-import { PASTO_LABELS, CAT_LABELS, normalizzaUnita, formattaQuantita, chiaveAggregazione, normalizeSlots, makeSlot, makeGiorno } from '../tab-spesa';
+import { PASTO_LABELS, CAT_LABELS, normalizzaUnita, formattaQuantita, chiaveAggregazione, normalizeSlots, makeSlot, makeGiorno, fattoreConversione } from '../tab-spesa';
 import { generaPdfMenu, type PartecipantePdf } from '@/lib/genera-pdf-menu';
 
 interface MenuCampoDoc {
@@ -92,6 +92,19 @@ function SlotSelector({ value, onChange, piatti, label, categoria, tipoPasto }: 
   );
 }
 
+function calcolaCostoPiattoPersona(piatto: Piatto): number {
+  if (piatto.costoPorzione !== undefined && piatto.costoPorzione > 0) return piatto.costoPorzione;
+  if (!piatto.ingredienti || piatto.ingredienti.length === 0) return 0;
+  const porzioniRef = piatto.porzioniBase || 10;
+  const costo = piatto.ingredienti.reduce((acc, ing) => {
+    const prezzo = ing.prezzoPerUnita || 0;
+    const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
+    const fattore = fattoreConversione(ing.unita);
+    return acc + (qPersona * fattore * prezzo);
+  }, 0);
+  return Math.round(costo * 100) / 100;
+}
+
 // ─── Lista Spesa Calcolata ────────────────────────────────────────────────────
 function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: Piatto[]; nPersone: number }) {
   const { ingredientiTotali, costoTotale, intolleranzeUniche } = useMemo(() => {
@@ -108,7 +121,7 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
           if (!id) continue;
           const piatto = piatti.find(p => p.id === id);
           if (!piatto) continue;
-          costo += (piatto.costoPorzione || 0) * nPersone;
+          costo += calcolaCostoPiattoPersona(piatto) * nPersone;
           piatto.intolleranze?.forEach(i => intSet.add(i));
           const usaNomePiatto = (piatto.ingredienti?.length ?? 0) === 1;
           piatto.ingredienti?.forEach(ing => {
@@ -261,7 +274,7 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
           const id = slot.piattoId;
           if (!id) continue;
           const piatto = piatti.find(p => p.id === id);
-          if (piatto) costo += (piatto.costoPorzione || 0) * nPersone;
+          if (piatto) costo += calcolaCostoPiattoPersona(piatto) * nPersone;
         }
       }
     }

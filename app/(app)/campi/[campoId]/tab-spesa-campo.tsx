@@ -1,93 +1,151 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/src/firebase';
-import { collection, addDoc, deleteDoc, doc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { useUserData } from '@/src/hooks/use-user-data';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
+import { collection, doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, Pencil, ShoppingCart, Users, AlertTriangle, ChevronDown, ChevronUp, Save, Loader2 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { Piatto, GiornoMenu, SlotMenu, TipoPasto, SlotSelezionato } from '../tab-spesa';
-import { PASTO_LABELS, CAT_LABELS, ALLERGENI_PREDEFINITI, UNITA_MISURA, normalizzaUnita, formattaQuantita, chiaveAggregazione, etichettaPrezzoUnita, fattoreConversione, normalizeSlots, makeSlot, makeGiorno } from '../tab-spesa';
+import { Separator } from '@/components/ui/separator';
+import { ShoppingCart, Users, AlertTriangle, Loader2, RefreshCw, CheckCircle2, Circle } from 'lucide-react';
+import type { Piatto, GiornoMenu, TipoPasto } from '../tab-spesa';
+import { normalizzaUnita, formattaQuantita, chiaveAggregazione, normalizeSlots, makeGiorno, fattoreConversione } from '../tab-spesa';
 
-// ─── SlotSelector (same as parent) ───────────────────────────────────────────
-
-function SlotSelector({ value, onChange, piatti, label, categoria, tipoPasto }: {
-  value?: string; onChange: (id: string | undefined) => void;
-  piatti: Piatto[]; label: string; categoria: string; tipoPasto: TipoPasto;
-}) {
-  const isColMer = tipoPasto === 'colazione' || tipoPasto === 'merenda_mattina' || tipoPasto === 'merenda';
-  let catFiltro: string[];
-
-  const c = categoria?.toLowerCase();
-  if (c === 'primo') {
-    catFiltro = ['primo', 'altro'];
-  } else if (c === 'secondo') {
-    catFiltro = ['secondo', 'altro'];
-  } else if (c === 'contorno') {
-    catFiltro = ['contorno', 'altro'];
-  } else if (c === 'frutta') {
-    catFiltro = ['frutta', 'altro'];
-  } else if (c === 'colazione') {
-    catFiltro = ['colazione', 'dolce', 'dessert', 'altro'];
-  } else if (c === 'merenda' || c === 'merenda_mattina') {
-    catFiltro = ['merenda', 'dolce', 'dessert', 'altro'];
-  } else {
-    catFiltro = isColMer
-      ? ['colazione', 'merenda', 'dolce', 'dessert', 'altro']
-      : ['primo', 'secondo', 'contorno', 'frutta', 'dolce', 'dessert', 'altro'];
-  }
-
-  // Confronto case-insensitive per compatibilità con piatti salvati con maiuscola
-  const piattiFiltered = piatti.filter(p => catFiltro.includes(p.categoria?.toLowerCase()));
-  const selectedPiatto = piatti.find(p => p.id === value);
-
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-muted-foreground w-20 shrink-0">{label}</span>
-      <Select value={value ?? '__none__'} onValueChange={v => onChange(v === '__none__' ? undefined : v)}>
-        <SelectTrigger className="h-8 text-xs flex-1">
-          <SelectValue placeholder="— nessuno —" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__none__">— nessuno —</SelectItem>
-          {piattiFiltered.map(p => (
-            <SelectItem key={p.id} value={p.id}>
-              {p.nome} {p.costoPorzione > 0 ? `(€${p.costoPorzione.toFixed(2)}/p)` : ''}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {selectedPiatto?.intolleranze?.length ? (
-        <Badge variant="outline" className="text-[10px] border-orange-400 text-orange-600 shrink-0">
-          <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-          {selectedPiatto.intolleranze.join(', ')}
-        </Badge>
-      ) : null}
-    </div>
-  );
+interface SpesaStatoDoc {
+  acquistati: string[];
 }
 
-// ─── Lista Spesa ──────────────────────────────────────────────────────────────
+interface MenuCampoDoc {
+  nPersone: number;
+  giorni: GiornoMenu[];
+}
 
-function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: Piatto[]; nPersone: number }) {
-  const { ingredientiTotali, costoTotale, intolleranzeUniche } = useMemo(() => {
-    const totali: Record<string, { valoreBase: number; base: 'g' | 'ml' | 'altro'; unitaOriginale: string }> = {};
+export default function TabSpesaCampo({ campoId }: { campoId: string }) {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const [nPersone, setNPersone] = useState(20);
+  const [menu, setMenu] = useState<GiornoMenu[]>([makeGiorno(1)]);
+  const [acquistati, setAcquistati] = useState<string[]>([]);
+  
+  const [isLoadingMenu, setIsLoadingMenu] = useState(true);
+  const [isLoadingStato, setIsLoadingStato] = useState(true);
+  const [isSavingStato, setIsSavingStato] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+
+  // Load global piatti database
+  const piattiQ = useMemoFirebase(() => firestore ? collection(firestore, 'campi-piatti') : null, [firestore]);
+  const { data: piattiData } = useCollection<Piatto>(piattiQ);
+  const piatti = piattiData ?? [];
+
+  // Helper per calcolare costo a porzione dinamico dagli ingredienti
+  const calcolaCostoPiattoPersona = useCallback((p: Piatto) => {
+    if (p.costoPorzione !== undefined && p.costoPorzione > 0) return p.costoPorzione;
+    if (!p.ingredienti || p.ingredienti.length === 0) return 0;
+    const porzioniRef = p.porzioniBase || 10;
+    const costo = p.ingredienti.reduce((acc, ing) => {
+      const prezzo = ing.prezzoPerUnita || 0;
+      const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
+      const fattore = fattoreConversione(ing.unita);
+      return acc + (qPersona * fattore * prezzo);
+    }, 0);
+    return Math.round(costo * 100) / 100;
+  }, []);
+
+  // 1. Carica il menù ed il numero partecipanti
+  const loadMenu = useCallback(async () => {
+    if (!firestore || !campoId) return;
+    setIsLoadingMenu(true);
+    setLoadError(false);
+    try {
+      const snap = await getDoc(doc(firestore, 'campi', campoId, 'dati', 'menu'));
+      if (snap.exists()) {
+        const data = snap.data() as MenuCampoDoc;
+        setNPersone(data.nPersone ?? 20);
+        if (data.giorni && data.giorni.length > 0) {
+          setMenu(data.giorni);
+        }
+      }
+    } catch (err) {
+      console.error('Errore caricamento menu:', err);
+      setLoadError(true);
+    } finally {
+      setIsLoadingMenu(false);
+    }
+  }, [firestore, campoId]);
+
+  // 2. Carica lo stato degli ingredienti acquistati
+  const loadStatoSpesa = useCallback(async () => {
+    if (!firestore || !campoId) return;
+    setIsLoadingStato(true);
+    try {
+      const snap = await getDoc(doc(firestore, 'campi', campoId, 'dati', 'spesa'));
+      if (snap.exists()) {
+        const data = snap.data() as SpesaStatoDoc;
+        setAcquistati(data.acquistati ?? []);
+      } else {
+        setAcquistati([]);
+      }
+    } catch (err) {
+      console.error('Errore caricamento stato spesa:', err);
+    } finally {
+      setIsLoadingStato(false);
+    }
+  }, [firestore, campoId]);
+
+  useEffect(() => {
+    loadMenu();
+    loadStatoSpesa();
+  }, [loadMenu, loadStatoSpesa]);
+
+  // 3. Aggiorna lo stato su Firestore al click della checkbox
+  const handleToggleAcquistato = async (nomeIngrediente: string, check: boolean) => {
+    if (!firestore || !campoId) return;
+    setIsSavingStato(true);
+    
+    let newAcquistati = [...acquistati];
+    if (check) {
+      if (!newAcquistati.includes(nomeIngrediente)) {
+        newAcquistati.push(nomeIngrediente);
+      }
+    } else {
+      newAcquistati = newAcquistati.filter(name => name !== nomeIngrediente);
+    }
+
+    setAcquistati(newAcquistati);
+
+    try {
+      await setDoc(doc(firestore, 'campi', campoId, 'dati', 'spesa'), {
+        acquistati: newAcquistati
+      });
+    } catch (err) {
+      console.error('Errore salvataggio stato spesa:', err);
+      toast({
+        title: 'Errore nel salvare lo stato',
+        description: 'Connessione a internet non stabile.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSavingStato(false);
+    }
+  };
+
+  // 4. Calcola e aggrega tutti gli ingredienti dal menù
+  const spesaDati = useMemo(() => {
+    const totali: Record<string, { 
+      valoreBase: number; 
+      base: 'g' | 'ml' | 'altro'; 
+      unitaOriginale: string;
+      allergeni: Set<string>;
+    }> = {};
     let costo = 0;
     const intSet = new Set<string>();
-
     const PASTO_KEYS = ['colazione', 'merenda_mattina', 'pranzo', 'merenda', 'cena'] as const;
+
     for (const giorno of menu) {
       for (const key of PASTO_KEYS) {
         const slots = normalizeSlots(giorno[key], key);
@@ -96,523 +154,233 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
           if (!id) continue;
           const piatto = piatti.find(p => p.id === id);
           if (!piatto) continue;
-          costo += (piatto.costoPorzione || 0) * nPersone;
+          
+          costo += calcolaCostoPiattoPersona(piatto) * nPersone;
           piatto.intolleranze?.forEach(i => intSet.add(i));
+          
           const usaNomePiatto = (piatto.ingredienti?.length ?? 0) === 1;
+          const allergeniPiatto = piatto.intolleranze ?? [];
+
           piatto.ingredienti?.forEach(ing => {
             const nomeDisplay = usaNomePiatto ? piatto.nome : (ing.nome?.trim() || piatto.nome);
             const { valore, base } = normalizzaUnita(ing.quantitaPerPersona, ing.unita);
             const k = chiaveAggregazione(nomeDisplay, ing.unita);
-            if (!totali[k]) totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita };
+            
+            if (!totali[k]) {
+              totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita, allergeni: new Set() };
+            }
             totali[k].valoreBase += valore * nPersone;
+            allergeniPiatto.forEach(all => totali[k].allergeni.add(all));
           });
         }
       }
     }
 
-    const ingredientiTotali = Object.entries(totali)
+    const ingredientiTutti = Object.entries(totali)
       .map(([k, v]) => {
         const nome = k.split('__')[0];
         const { quantita, unita } = formattaQuantita(v.valoreBase, v.base, v.unitaOriginale);
-        return { nome, quantita, unita };
+        return { 
+          nome, 
+          quantita, 
+          unita,
+          allergeni: Array.from(v.allergeni)
+        };
       })
       .sort((a, b) => a.nome.localeCompare(b.nome));
 
-    return { ingredientiTotali, costoTotale: costo, intolleranzeUniche: Array.from(intSet) };
-  }, [menu, piatti, nPersone]);
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-4">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Costo totale spesa</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-primary">€ {costoTotale.toFixed(2)}</p></CardContent>
-        </Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Per persona</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">€ {nPersone > 0 ? (costoTotale / nPersone).toFixed(2) : '0.00'}</p></CardContent>
-        </Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Intolleranze</CardTitle></CardHeader>
-          <CardContent>
-            {intolleranzeUniche.length === 0
-              ? <p className="text-sm text-muted-foreground">Nessuna</p>
-              : <div className="flex flex-wrap gap-1">{intolleranzeUniche.map(i => <Badge key={i} variant="outline" className="border-orange-400 text-orange-600 text-xs">{i}</Badge>)}</div>
-            }
-          </CardContent>
-        </Card>
-      </div>
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><ShoppingCart className="h-4 w-4" />Lista della spesa ({nPersone} persone)</CardTitle></CardHeader>
-        <CardContent>
-          {ingredientiTotali.length === 0
-            ? <p className="text-muted-foreground text-sm">Nessun ingrediente calcolato. Inserisci il menù prima.</p>
-            : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {ingredientiTotali.map(ing => (
-                  <div key={`${ing.nome}-${ing.unita}`} className="flex items-center justify-between p-2 border rounded text-sm">
-                    <span className="font-medium">{ing.nome}</span>
-                    <span className="text-muted-foreground tabular-nums">{ing.quantita} {ing.unita}</span>
-                  </div>
-                ))}
-              </div>
-            )
-          }
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ─── IngredienteAutoRow ───────────────────────────────────────────────────────
-
-function IngredienteAutoRow({ ing, suggestions, onUpdate, onRemove }: {
-  ing: Piatto['ingredienti'][0];
-  suggestions: { nome: string; unita?: string; prezzoPerUnita?: number }[];
-  onUpdate: (field: keyof Piatto['ingredienti'][0], value: any) => void;
-  onRemove: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const filtered = ing.nome.trim().length > 0
-    ? suggestions.filter(s => s.nome.toLowerCase().includes(ing.nome.toLowerCase())).slice(0, 8)
-    : [];
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    return { 
+      ingredientiTutti, 
+      costoTotale: costo, 
+      intolleranzeUniche: Array.from(intSet) 
     };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
+  }, [menu, piatti, nPersone, calcolaCostoPiattoPersona]);
 
-  return (
-    <div className="grid grid-cols-[minmax(0,6.5rem)_3.5rem_4rem_6.5rem_2rem] gap-1.5 items-center">
-      <div className="relative" ref={wrapRef}>
-        <Input value={ing.nome}
-          onChange={e => { onUpdate('nome', e.target.value); setOpen(true); }}
-          onFocus={() => ing.nome.trim().length > 0 && setOpen(true)}
-          placeholder="ingrediente" autoComplete="off" className="text-sm" />
-        {open && filtered.length > 0 && (
-          <div className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-popover border rounded-md shadow-md max-h-36 overflow-y-auto">
-            {filtered.map((s, idx) => (
-              <button key={idx} type="button"
-                className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent flex justify-between"
-                onMouseDown={e => {
-                  e.preventDefault();
-                  onUpdate('nome', s.nome);
-                  if (s.unita) onUpdate('unita', s.unita);
-                  if (s.prezzoPerUnita) onUpdate('prezzoPerUnita', s.prezzoPerUnita);
-                  setOpen(false);
-                }}>
-                <span>{s.nome}</span>
-                <span className="text-muted-foreground text-xs">{s.unita}{s.prezzoPerUnita ? ` · €${s.prezzoPerUnita}` : ''}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <Input type="number" min={0} step={0.1} value={ing.quantitaPerPersona || ''}
-        onChange={e => onUpdate('quantitaPerPersona', parseFloat(e.target.value) || 0)} className="text-sm" />
-      <Select value={ing.unita} onValueChange={v => onUpdate('unita', v)}>
-        <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-        <SelectContent>{UNITA_MISURA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-      </Select>
-      <div className="relative">
-        <Input type="number" min={0} step={0.01} value={ing.prezzoPerUnita ?? ''}
-          onChange={e => onUpdate('prezzoPerUnita', parseFloat(e.target.value) || undefined)}
-          placeholder="0.00" className="pl-7 pr-1 text-xs" />
-        <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[10px] leading-none text-muted-foreground whitespace-nowrap">
-          {etichettaPrezzoUnita(ing.unita)}
-        </span>
-      </div>
-      <Button size="sm" variant="ghost" className="text-destructive h-8 w-8 p-0" onClick={onRemove}>
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
-    </div>
-  );
-}
+  // 5. Separa in Da Acquistare e Acquistati
+  const { daAcquistare, acquistatiList } = useMemo(() => {
+    const daAcq = spesaDati.ingredientiTutti.filter(ing => !acquistati.includes(ing.nome));
+    const acq = spesaDati.ingredientiTutti.filter(ing => acquistati.includes(ing.nome));
+    return { daAcquistare: daAcq, acquistatiList: acq };
+  }, [spesaDati.ingredientiTutti, acquistati]);
 
-// ─── PiattoForm ───────────────────────────────────────────────────────────────
-
-function PiattoForm({ initial, onSave, onClose, piatti = [] }: { initial?: Partial<Piatto>; onSave: (d: Partial<Piatto>) => Promise<void>; onClose: () => void; piatti?: Piatto[] }) {
-  const [nome, setNome] = useState(initial?.nome ?? '');
-  const [categoria, setCategoria] = useState<string>(initial?.categoria ?? 'primo');
-  const [costoPorzione, setCostoPorzione] = useState(initial?.costoPorzione ?? 0);
-  const [note, setNote] = useState(initial?.note ?? '');
-  const [ingredienti, setIngredienti] = useState<Piatto['ingredienti']>(initial?.ingredienti ?? [{ nome: '', quantitaPerPersona: 0, unita: 'ml' }]);
-  const [saving, setSaving] = useState(false);
-
-  // ── Gestione intolleranze con checkbox ──
-  const existingExtra = (initial?.intolleranze ?? []).filter(i => !ALLERGENI_PREDEFINITI.includes(i));
-  const [checkedAllergeni, setCheckedAllergeni] = useState<Set<string>>(
-    new Set((initial?.intolleranze ?? []).filter(i => ALLERGENI_PREDEFINITI.includes(i)))
-  );
-  const [extraAllergeni, setExtraAllergeni] = useState(existingExtra.join(', '));
-
-  const toggleAllergene = (a: string) =>
-    setCheckedAllergeni(prev => { const s = new Set(prev); s.has(a) ? s.delete(a) : s.add(a); return s; });
-
-  // ── Suggerimenti da ingredienti nel database ──
-  const suggestions = useMemo(() => {
-    const map = new Map<string, { nome: string; unita?: string; prezzoPerUnita?: number }>();
-    piatti.forEach(p => p.ingredienti?.forEach(ing => {
-      const k = ing.nome?.trim().toLowerCase();
-      if (k && !map.has(k)) map.set(k, { nome: ing.nome.trim(), unita: ing.unita, prezzoPerUnita: ing.prezzoPerUnita });
-    }));
-    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
-  }, [piatti]);
-
-  const addIngrediente = () => setIngredienti(p => [...p, { nome: '', quantitaPerPersona: 0, unita: 'ml' }]);
-  const removeIngrediente = (i: number) => setIngredienti(p => p.filter((_, idx) => idx !== i));
-  const updateIngrediente = (i: number, field: keyof Piatto['ingredienti'][0], value: any) =>
-    setIngredienti(p => p.map((ing, idx) => idx === i ? { ...ing, [field]: value } : ing));
-
-  const handleSave = async () => {
-    if (!nome) return;
-    setSaving(true);
-    const extra = extraAllergeni.split(',').map(s => s.trim()).filter(Boolean);
-    const intolleranze = [...Array.from(checkedAllergeni), ...extra];
-    await onSave({
-      nome, categoria, costoPorzione,
-      intolleranze,
-      ingredienti: ingredienti.filter(i => i.nome),
-      note,
-    });
-    setSaving(false);
-    onClose();
+  const handleRefresh = () => {
+    loadMenu();
+    loadStatoSpesa();
   };
 
-  return (
-    <div className="space-y-4 py-2">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1 col-span-2"><Label>Nome piatto *</Label><Input value={nome} onChange={e => setNome(e.target.value)} placeholder="es. Pasta al pomodoro" /></div>
-        <div className="space-y-1">
-          <Label>Categoria</Label>
-          <Select value={categoria} onValueChange={v => setCategoria(v)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
-          </Select>
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+        <AlertTriangle className="h-10 w-10 text-destructive" />
+        <div>
+          <p className="font-semibold text-destructive">Impossibile caricare la spesa</p>
+          <p className="text-sm text-muted-foreground mt-1">Controlla la connessione internet.</p>
         </div>
-        <div className="space-y-1"><Label>Costo per persona (€)</Label><Input type="number" min={0} step={0.01} value={costoPorzione} onChange={e => setCostoPorzione(parseFloat(e.target.value) || 0)} /></div>
-
-        {/* Intolleranze con checkbox */}
-        <div className="space-y-2 col-span-2">
-          <Label>Allergeni / Intolleranze</Label>
-          <div className="flex flex-wrap gap-4">
-            {ALLERGENI_PREDEFINITI.map(a => (
-              <label key={a} className="flex items-center gap-2 cursor-pointer select-none">
-                <Checkbox
-                  checked={checkedAllergeni.has(a)}
-                  onCheckedChange={() => toggleAllergene(a)}
-                  className="rounded-full"
-                />
-                <span className="text-sm">{a}</span>
-              </label>
-            ))}
-          </div>
-          <Input
-            value={extraAllergeni}
-            onChange={e => setExtraAllergeni(e.target.value)}
-            placeholder="Altro (es. frutta secca, uova) — separati da virgola"
-          />
-        </div>
-
-        <div className="space-y-1 col-span-2"><Label>Note</Label><Input value={note} onChange={e => setNote(e.target.value)} /></div>
+        <Button variant="outline" onClick={handleRefresh}>
+          <RefreshCw className="h-4 w-4 mr-2" /> Riprova
+        </Button>
       </div>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label>Ingredienti (per persona)</Label>
-          <Button size="sm" variant="outline" onClick={addIngrediente}><Plus className="h-3 w-3 mr-1" />Aggiungi</Button>
-        </div>
-        {ingredienti.length > 0 && (
-          <div className="grid grid-cols-[minmax(0,6.5rem)_3.5rem_4rem_6.5rem_2rem] gap-1.5 text-xs text-muted-foreground px-0.5 mb-1">
-            <span>Ingrediente</span><span>Qtà</span><span>Unità</span><span>Prezzo</span><span />
-          </div>
-        )}
-        {ingredienti.map((ing, i) => (
-          <IngredienteAutoRow key={i} ing={ing} suggestions={suggestions}
-            onUpdate={(field, val) => updateIngrediente(i, field, val)}
-            onRemove={() => removeIngrediente(i)} />
-        ))}
+    );
+  }
+
+  if (isLoadingMenu || isLoadingStato) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
-      <div className="flex justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={onClose}>Annulla</Button>
-        <Button onClick={handleSave} disabled={!nome || saving}>{saving ? 'Salvataggio...' : 'Salva'}</Button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Tab Spesa Campo ─────────────────────────────────────────────────────
-
-interface TabSpesaCampoProps {
-  campoId: string;
-}
-
-export default function TabSpesaCampo({ campoId }: TabSpesaCampoProps) {
-  const firestore = useFirestore();
-  const { user } = useUser();
-  const { userData } = useUserData();
-  const { toast } = useToast();
-  const isAdmin = userData?.roles?.includes('admin') || userData?.roles?.includes('educatore');
-
-  const piattiQ = useMemoFirebase(() => firestore ? collection(firestore, 'campi-piatti') : null, [firestore]);
-  const { data: piattiData } = useCollection<Piatto>(piattiQ);
-  const piatti = piattiData ?? [];
-
-  const [openAdd, setOpenAdd] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [nPersone, setNPersone] = useState(20);
-  const [menu, setMenu] = useState<GiornoMenu[]>([makeGiorno(1)]);
-  const [expandedGiorno, setExpandedGiorno] = useState<number>(0);
-  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
-  const [isSavingConfig, setIsSavingConfig] = useState(false);
-
-  // Load menu from Firestore
-  useEffect(() => {
-    if (!firestore || !campoId) return;
-    setIsLoadingConfig(true);
-    getDoc(doc(firestore, 'campi', campoId)).then(snap => {
-      if (snap.exists()) {
-        const d = snap.data();
-        if (d.menu && Array.isArray(d.menu)) setMenu(d.menu);
-        if (d.nPersone) setNPersone(d.nPersone);
-      }
-    }).finally(() => setIsLoadingConfig(false));
-  }, [firestore, campoId]);
-
-  const saveMenu = async () => {
-    if (!firestore) return;
-    setIsSavingConfig(true);
-    try {
-      await updateDoc(doc(firestore, 'campi', campoId), { menu, nPersone });
-      toast({ title: 'Menù salvato' });
-    } catch {
-      toast({ title: 'Errore nel salvataggio', variant: 'destructive' });
-    }
-    setIsSavingConfig(false);
-  };
-
-  const addGiorno = () => setMenu(m => [...m, makeGiorno(m.length + 1)]);
-  const removeGiorno = (idx: number) => setMenu(m => m.filter((_, i) => i !== idx).map((g, i) => ({ ...g, giorno: i + 1 })));
-
-  const updateSlotNew = (giornoIdx: number, pasto: TipoPasto, slotIdx: number, field: keyof SlotSelezionato, value: any) => {
-    setMenu(m => m.map((g, i) => {
-      if (i === giornoIdx) {
-        const slots = normalizeSlots(g[pasto], pasto);
-        const newSlots = slots.map((s, si) => si === slotIdx ? { ...s, [field]: value } : s);
-        return { ...g, [pasto]: newSlots };
-      }
-      return g;
-    }));
-  };
-
-  const addSlotNew = (giornoIdx: number, pasto: TipoPasto) => {
-    setMenu(m => m.map((g, i) => {
-      if (i === giornoIdx) {
-        const slots = normalizeSlots(g[pasto], pasto);
-        const newSlots = [...slots, { piattoId: '', categoria: 'altro', label: 'Altro', isCustom: true }];
-        return { ...g, [pasto]: newSlots };
-      }
-      return g;
-    }));
-  };
-
-  const deleteSlotNew = (giornoIdx: number, pasto: TipoPasto, slotIdx: number) => {
-    setMenu(m => m.map((g, i) => {
-      if (i === giornoIdx) {
-        const slots = normalizeSlots(g[pasto], pasto);
-        const newSlots = slots.filter((_, si) => si !== slotIdx);
-        return { ...g, [pasto]: newSlots };
-      }
-      return g;
-    }));
-  };
-
-  const savePiatto = async (data: Partial<Piatto>, id?: string) => {
-    if (!firestore || !user) return;
-    try {
-      if (id) { await updateDoc(doc(firestore, 'campi-piatti', id), { ...data, updatedAt: serverTimestamp() }); toast({ title: 'Piatto aggiornato' }); }
-      else { await addDoc(collection(firestore, 'campi-piatti'), { ...data, createdAt: serverTimestamp(), createdBy: user.uid }); toast({ title: 'Piatto aggiunto' }); }
-    } catch { toast({ title: 'Errore', variant: 'destructive' }); }
-  };
-
-  const deletePiatto = async (id: string) => {
-    if (!firestore) return;
-    try { await deleteDoc(doc(firestore, 'campi-piatti', id)); toast({ title: 'Piatto rimosso' }); }
-    catch { toast({ title: 'Errore', variant: 'destructive' }); }
-  };
-
-  if (isLoadingConfig) return <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="menu">
-        <TabsList>
-          <TabsTrigger value="menu">📅 Menù giorni</TabsTrigger>
-          <TabsTrigger value="spesa">🛒 Lista spesa</TabsTrigger>
-          <TabsTrigger value="piatti">🍴 Database piatti</TabsTrigger>
-        </TabsList>
-
-        {/* ── TAB MENU ── */}
-        <TabsContent value="menu" className="space-y-4 mt-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <Label>Numero partecipanti</Label>
-              <Input type="number" min={1} value={nPersone} onChange={e => setNPersone(parseInt(e.target.value) || 1)} className="w-24" />
-            </div>
-            <Button size="sm" variant="outline" onClick={addGiorno}><Plus className="h-4 w-4 mr-1" />Aggiungi giorno</Button>
-            <Button size="sm" onClick={saveMenu} disabled={isSavingConfig} className="ml-auto">
-              {isSavingConfig ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-              Salva menù
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            {menu.map((giorno, gi) => (
-              <Card key={gi}>
-                <CardHeader className="py-3 px-4 cursor-pointer" onClick={() => setExpandedGiorno(expandedGiorno === gi ? -1 : gi)}>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Giorno {giorno.giorno}</CardTitle>
-                    <div className="flex items-center gap-2">
-                      {menu.length > 1 && (
-                        <Button size="sm" variant="ghost" className="text-destructive" onClick={e => { e.stopPropagation(); removeGiorno(gi); }}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {expandedGiorno === gi ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </div>
-                  </div>
-                </CardHeader>
-                {expandedGiorno === gi && (
-                  <CardContent className="space-y-3 pt-0">
-                    <Separator />
-                    {(Object.keys(PASTO_LABELS) as TipoPasto[]).map(pasto => {
-                      const slots = normalizeSlots(giorno[pasto], pasto);
-                      return (
-                        <div key={pasto} className="space-y-1.5 border-l-2 border-primary/20 pl-3 py-1">
-                          <p className="text-sm font-semibold text-foreground/90">{PASTO_LABELS[pasto]}</p>
-                          <div className="space-y-1.5">
-                            {slots.map((slot, slotIdx) => (
-                              <div key={slotIdx} className="flex items-center gap-2">
-                                <div className="flex-1">
-                                  <SlotSelector
-                                    value={slot.piattoId}
-                                    onChange={id => updateSlotNew(gi, pasto, slotIdx, 'piattoId', id)}
-                                    piatti={piatti}
-                                    label={slot.label}
-                                    categoria={slot.categoria}
-                                    tipoPasto={pasto}
-                                  />
-                                </div>
-                                {isAdmin && slot.isCustom && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="text-destructive h-8 w-8 p-0"
-                                    onClick={() => deleteSlotNew(gi, pasto, slotIdx)}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-                            {isAdmin && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-xs text-primary flex items-center gap-1 h-7 pl-20 hover:bg-primary/5"
-                                onClick={() => addSlotNew(gi, pasto)}
-                              >
-                                <Plus className="h-3 w-3" /> Aggiungi piatto
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </CardContent>
-                )}
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* ── TAB SPESA ── */}
-        <TabsContent value="spesa" className="mt-4">
-          <CalcolaSpesa menu={menu} piatti={piatti} nPersone={nPersone} />
-        </TabsContent>
-
-        {/* ── TAB DATABASE PIATTI ── */}
-        <TabsContent value="piatti" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Database piatti</h3>
-            {isAdmin && (
-              <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-                <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="h-4 w-4 mr-1" />Nuovo piatto</Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
-                  <DialogHeader className="shrink-0"><DialogTitle>Aggiungi piatto</DialogTitle></DialogHeader>
-                  <div className="overflow-y-auto flex-1 px-1 -mx-1">
-                    <PiattoForm onSave={d => savePiatto(d)} onClose={() => setOpenAdd(false)} piatti={piatti} />
-                  </div>
-                </DialogContent>
-              </Dialog>
+      {/* Header preventivo / info */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground uppercase font-semibold">Costo stimato spesa</CardTitle></CardHeader>
+          <CardContent><p className="text-3xl font-bold text-emerald-600">€ {spesaDati.costoTotale.toFixed(2)}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground uppercase font-semibold">Costo per persona ({nPersone}p)</CardTitle></CardHeader>
+          <CardContent><p className="text-3xl font-bold">€ {nPersone > 0 ? (spesaDati.costoTotale / nPersone).toFixed(2) : '0.00'}</p></CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground uppercase font-semibold">Allergeni del menù</CardTitle></CardHeader>
+          <CardContent>
+            {spesaDati.intolleranzeUniche.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nessun allergene</p>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {spesaDati.intolleranzeUniche.map(i => (
+                  <Badge key={i} variant="outline" className="border-orange-200 bg-orange-50 text-orange-700 text-xs px-2 py-0.5">
+                    {i}
+                  </Badge>
+                ))}
+              </div>
             )}
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {piatti.length === 0 && <p className="col-span-2 text-center text-muted-foreground py-8">Nessun piatto nel database. {isAdmin && 'Aggiungine uno!'}</p>}
-            {piatti.map(p => (
-              <Card key={p.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="font-semibold">{p.nome}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        <Badge variant="secondary" className="text-xs">{CAT_LABELS[p.categoria]}</Badge>
-                        {p.costoPorzione > 0 && <Badge variant="outline" className="text-xs">€ {p.costoPorzione.toFixed(2)}/p</Badge>}
-                        {p.intolleranze?.map(i => <Badge key={i} variant="outline" className="text-xs border-orange-400 text-orange-600">{i}</Badge>)}
-                      </div>
-                      {p.ingredienti?.length > 0 && <p className="text-xs text-muted-foreground mt-1.5">🥘 {p.ingredienti.map(i => `${i.nome} ${i.quantitaPerPersona}${i.unita}`).join(', ')}</p>}
-                      {p.note && <p className="text-xs text-muted-foreground mt-1">{p.note}</p>}
-                    </div>
-                    {isAdmin && (
-                      <div className="flex gap-1 shrink-0">
-                        <Dialog open={editingId === p.id} onOpenChange={o => { if (!o) setEditingId(null); }}>
-                          <DialogTrigger asChild>
-                            <Button size="sm" variant="ghost" onClick={() => setEditingId(p.id)}><Pencil className="h-3.5 w-3.5" /></Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col overflow-hidden">
-                            <DialogHeader className="shrink-0"><DialogTitle>Modifica piatto</DialogTitle></DialogHeader>
-                            <div className="overflow-y-auto flex-1 px-1 -mx-1">
-                              <PiattoForm initial={p} onSave={d => savePiatto(d, p.id)} onClose={() => setEditingId(null)} piatti={piatti} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h3 className="text-lg font-semibold tracking-tight">Lista spesa</h3>
+          <p className="text-sm text-muted-foreground">Spunta gli ingredienti acquistati al supermercato. I dati si sincronizzano in tempo reale.</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={handleRefresh}>
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {spesaDati.ingredientiTutti.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <ShoppingCart className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+            Nessun ingrediente da acquistare. Aggiungi dei piatti al menù del campo per generare la lista della spesa.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Sezione: Da Acquistare */}
+          <Card className="border-orange-100 bg-orange-50/5">
+            <CardHeader className="pb-3 bg-orange-50/30">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2 text-orange-800">
+                  <Circle className="h-5 w-5 text-orange-500" />
+                  Da Acquistare
+                </CardTitle>
+                <Badge variant="secondary" className="bg-orange-100 text-orange-800 font-semibold">{daAcquistare.length}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-2">
+              {daAcquistare.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Ottimo lavoro! Tutto acquistato 🎉</p>
+              ) : (
+                <div className="divide-y">
+                  {daAcquistare.map(ing => (
+                    <div key={ing.nome} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0 gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Checkbox
+                          id={`daAcq-${ing.nome}`}
+                          checked={false}
+                          onCheckedChange={(c) => handleToggleAcquistato(ing.nome, !!c)}
+                          className="h-5 w-5 rounded border-orange-300 text-orange-600 focus:ring-orange-500 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <Label htmlFor={`daAcq-${ing.nome}`} className="font-semibold text-foreground text-sm cursor-pointer block truncate hover:text-orange-600 transition-colors">
+                            {ing.nome}
+                          </Label>
+                          {ing.allergeni.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {ing.allergeni.map(all => (
+                                <span key={all} className="text-[10px] font-bold text-orange-600 bg-orange-100 px-1 py-0.2 rounded">
+                                  {all}
+                                </span>
+                              ))}
                             </div>
-                          </DialogContent>
-                        </Dialog>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Elimina piatto</AlertDialogTitle>
-                              <AlertDialogDescription>Vuoi eliminare <strong>{p.nome}</strong>?</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annulla</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deletePiatto(p.id)}>Elimina</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+                      <span className="text-sm font-bold text-muted-foreground shrink-0 tabular-nums bg-muted px-2 py-0.5 rounded">
+                        {ing.quantita} {ing.unita}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Sezione: Acquistati */}
+          <Card className="border-emerald-100 bg-emerald-50/5">
+            <CardHeader className="pb-3 bg-emerald-50/30">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2 text-emerald-800">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  Acquistati
+                </CardTitle>
+                <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 font-semibold">{acquistatiList.length}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-2">
+              {acquistatiList.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Nessun ingrediente ancora acquistato.</p>
+              ) : (
+                <div className="divide-y">
+                  {acquistatiList.map(ing => (
+                    <div key={ing.nome} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0 gap-3 opacity-60">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Checkbox
+                          id={`acq-${ing.nome}`}
+                          checked={true}
+                          onCheckedChange={(c) => handleToggleAcquistato(ing.nome, !!c)}
+                          className="h-5 w-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <Label htmlFor={`acq-${ing.nome}`} className="font-medium text-muted-foreground text-sm cursor-pointer line-through block truncate">
+                            {ing.nome}
+                          </Label>
+                          {ing.allergeni.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {ing.allergeni.map(all => (
+                                <span key={all} className="text-[10px] font-bold text-muted-foreground/80 bg-muted px-1 py-0.2 rounded">
+                                  {all}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-muted-foreground shrink-0 tabular-nums line-through">
+                        {ing.quantita} {ing.unita}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

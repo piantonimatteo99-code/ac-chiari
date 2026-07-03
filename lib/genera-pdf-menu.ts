@@ -14,6 +14,7 @@ import {
   normalizzaUnita,
   formattaQuantita,
   chiaveAggregazione,
+  fattoreConversione,
 } from '@/app/(app)/campi/tab-spesa';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -23,6 +24,19 @@ export interface PartecipantePdf {
   cognome: string;
   classe?: string;
   allergie?: string;
+}
+
+function calcolaCostoPiattoPersona(piatto: Piatto): number {
+  if (piatto.costoPorzione !== undefined && piatto.costoPorzione > 0) return piatto.costoPorzione;
+  if (!piatto.ingredienti || piatto.ingredienti.length === 0) return 0;
+  const porzioniRef = piatto.porzioniBase || 10;
+  const costo = piatto.ingredienti.reduce((acc, ing) => {
+    const prezzo = ing.prezzoPerUnita || 0;
+    const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
+    const fattore = fattoreConversione(ing.unita);
+    return acc + (qPersona * fattore * prezzo);
+  }, 0);
+  return Math.round(costo * 100) / 100;
 }
 
 type IngTotale = {
@@ -394,7 +408,8 @@ export async function generaPdfMenu(
     // Costo totale
     const costoTotale = tuttiGliId.reduce((acc, id) => {
       const p = piatti.find(pp => pp.id === id);
-      return acc + (p?.costoPorzione ?? 0) * nPersone;
+      if (!p) return acc;
+      return acc + calcolaCostoPiattoPersona(p) * nPersone;
     }, 0);
 
     if (costoTotale > 0) {

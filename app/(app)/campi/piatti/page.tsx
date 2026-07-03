@@ -60,12 +60,13 @@ export interface Piatto {
   nome: string;
   categoria: string;        // es. Primo, Secondo, Contorno, Colazione...
   porzioniBase?: number;    // numero persone di riferimento
+  costoPorzione?: number;   // € per persona (auto-calcolato da ingredienti)
   note?: string;
   ingredienti: Ingrediente[];
   createdAt?: any;
 }
 
-const CATEGORIE = ['Colazione', 'Primo', 'Secondo', 'Contorno', 'Dessert', 'Merenda', 'Altro'];
+const CATEGORIE = ['Colazione', 'Primo', 'Secondo', 'Contorno', 'Frutta', 'Dessert', 'Merenda', 'Altro'];
 
 /* ─── Ingrediente row editor ─────────────────────────────────────────────── */
 function IngredienteRow({
@@ -214,7 +215,23 @@ function PiattoForm({
       if (ing.prezzoPerUnita !== undefined && !isNaN(ing.prezzoPerUnita)) clean.prezzoPerUnita = ing.prezzoPerUnita;
       return clean;
     });
-    await onSave({ nome, categoria, porzioniBase, note: noteFinale, ingredienti: ingredientiClean });
+
+    const porzioniRef = porzioniBase || 10;
+    const costoPorzione = ingredientiClean.reduce((acc, ing) => {
+      const prezzo = ing.prezzoPerUnita || 0;
+      const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
+      const fattore = fattoreConversione(ing.unita);
+      return acc + (qPersona * fattore * prezzo);
+    }, 0);
+
+    await onSave({
+      nome,
+      categoria,
+      porzioniBase,
+      costoPorzione: Math.round(costoPorzione * 100) / 100,
+      note: noteFinale,
+      ingredienti: ingredientiClean
+    });
     setSaving(false);
     onClose();
   };
@@ -317,6 +334,19 @@ function PiattoForm({
 }
 
 /* ─── Piatto Card ────────────────────────────────────────────────────────── */
+const calcolaCostoPiattoPersona = (piatto: Piatto) => {
+  if (piatto.costoPorzione !== undefined && piatto.costoPorzione > 0) return piatto.costoPorzione;
+  const porzioniRef = piatto.porzioniBase || 10;
+  const costo = piatto.ingredienti?.reduce((acc, ing) => {
+    const prezzo = ing.prezzoPerUnita || 0;
+    const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
+    const fattore = fattoreConversione(ing.unita);
+    return acc + (qPersona * fattore * prezzo);
+  }, 0) || 0;
+  return Math.round(costo * 100) / 100;
+};
+
+/* ─── Piatto Card ────────────────────────────────────────────────────────── */
 function PiattoCard({
   piatto,
   isAdmin,
@@ -333,11 +363,23 @@ function PiattoCard({
 
   const scaledIngredienti = useMemo(() => {
     const ratio = persone / (piatto.porzioniBase || 10);
-    return piatto.ingredienti.map(ing => ({
-      ...ing,
-      quantitaScaled: Math.round((ing.quantitaPerPersona * ratio) * 100) / 100,
-    }));
+    return piatto.ingredienti.map(ing => {
+      const quantitaScaled = Math.round((ing.quantitaPerPersona * ratio) * 100) / 100;
+      const prezzo = ing.prezzoPerUnita || 0;
+      const costoTotaleIng = quantitaScaled * fattoreConversione(ing.unita) * prezzo;
+      return {
+        ...ing,
+        quantitaScaled,
+        costoTotaleIng,
+      };
+    });
   }, [piatto, persone]);
+
+  const costoTotaleCommensali = useMemo(() => {
+    return scaledIngredienti.reduce((acc, ing) => acc + (ing.costoTotaleIng || 0), 0);
+  }, [scaledIngredienti]);
+
+  const costoSingolo = useMemo(() => calcolaCostoPiattoPersona(piatto), [piatto]);
 
   return (
     <Card className="overflow-hidden">
@@ -365,6 +407,11 @@ function PiattoCard({
             {piatto.ingredienti.length > 0 && (
               <Badge variant="outline" className="text-xs">
                 {piatto.ingredienti.length} ingr.
+              </Badge>
+            )}
+            {costoSingolo > 0 && (
+              <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300">
+                € {costoSingolo.toFixed(2)}/p
               </Badge>
             )}
             {isAdmin && (
@@ -427,16 +474,34 @@ function PiattoCard({
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground">Ingrediente</th>
                     <th className="text-right px-3 py-2 font-medium text-muted-foreground">Quantità</th>
                     <th className="text-right px-3 py-2 font-medium text-muted-foreground">Unità</th>
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground">Prezzo Un.</th>
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground">Costo</th>
                   </tr>
                 </thead>
                 <tbody>
                   {scaledIngredienti.map((ing, i) => (
                     <tr key={i} className={cn('border-b last:border-b-0', i % 2 === 0 ? 'bg-background' : 'bg-muted/20')}>
-                      <td className="px-3 py-2">{ing.nome}</td>
+                      <td className="px-3 py-2 font-medium">{ing.nome}</td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums">{ing.quantitaScaled}</td>
                       <td className="px-3 py-2 text-right text-muted-foreground">{ing.unita}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-xs text-muted-foreground">
+                        {ing.prezzoPerUnita ? `€ ${ing.prezzoPerUnita.toFixed(2)} ${etichettaPrezzoUnita(ing.unita)}` : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium tabular-nums text-emerald-600">
+                        {ing.prezzoPerUnita ? `€ ${ing.costoTotaleIng.toFixed(2)}` : '—'}
+                      </td>
                     </tr>
                   ))}
+                  {costoTotaleCommensali > 0 && (
+                    <tr className="bg-emerald-50/40 border-t font-semibold">
+                      <td colSpan={4} className="px-3 py-2 text-right text-emerald-800 text-xs">
+                        Costo totale stimato per {persone} persone:
+                      </td>
+                      <td className="px-3 py-2 text-right text-emerald-700 tabular-nums">
+                        € {costoTotaleCommensali.toFixed(2)}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

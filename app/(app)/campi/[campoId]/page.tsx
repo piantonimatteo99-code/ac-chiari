@@ -38,6 +38,7 @@ import SocialPlanner from '@/components/social-planner';
 import { AcquistiList } from '@/components/acquisti-list';
 import TabMenuCampo from './tab-menu-campo';
 import TabPreventivooCampo from './tab-preventivo-campo';
+import TabSpesaCampo from './tab-spesa-campo';
 
 // ─── Config tipi campo ────────────────────────────────────────────────────────
 const TIPO_CONFIG: Record<TipoCampo, { label: string; icon: React.ElementType; color: string; bgColor: string }> = {
@@ -618,13 +619,7 @@ export default function CampoDetailPage() {
             />
           )}
           {activeTab === 'spesa' && (
-            <div className="text-sm text-muted-foreground text-center py-6 border border-dashed rounded-lg">
-              Vai alla tab <strong>Menù</strong> e seleziona la sottotab <strong>🛒 Lista spesa</strong> per vedere la spesa calcolata automaticamente.
-              <br /><br />
-              <Button variant="outline" size="sm" onClick={() => setActiveTab('menu')}>
-                Vai al Menù
-              </Button>
-            </div>
+            <TabSpesaCampo campoId={campoId} />
           )}
           {activeTab === 'preventivo' && (
             <TabPreventivooCampo
