@@ -15,7 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Plus, Trash2, Loader2, Users, ShoppingCart, AlertTriangle, ChevronDown, ChevronUp, Download, CheckCheck } from 'lucide-react';
 import type { Piatto, TipoPasto, SlotMenu, GiornoMenu, SlotSelezionato } from '../tab-spesa';
-import { PASTO_LABELS, CAT_LABELS, normalizzaUnita, formattaQuantita, chiaveAggregazione, normalizeSlots, makeSlot, makeGiorno, fattoreConversione } from '../tab-spesa';
+import { PASTO_LABELS, CAT_LABELS, normalizzaUnita, formattaQuantita, chiaveAggregazione, normalizeSlots, makeSlot, makeGiorno, fattoreConversione, calcolaCostoPiattoPersona, ottieniAllergeniIngrediente } from '../tab-spesa';
+import type { IngredienteDettaglio } from '../tab-spesa';
 import { generaPdfMenu, type PartecipantePdf } from '@/lib/genera-pdf-menu';
 
 interface MenuCampoDoc {
@@ -92,21 +93,10 @@ function SlotSelector({ value, onChange, piatti, label, categoria, tipoPasto }: 
   );
 }
 
-function calcolaCostoPiattoPersona(piatto: Piatto): number {
-  if (piatto.costoPorzione !== undefined && piatto.costoPorzione > 0) return piatto.costoPorzione;
-  if (!piatto.ingredienti || piatto.ingredienti.length === 0) return 0;
-  const porzioniRef = piatto.porzioniBase || 10;
-  const costo = piatto.ingredienti.reduce((acc, ing) => {
-    const prezzo = ing.prezzoPerUnita || 0;
-    const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
-    const fattore = fattoreConversione(ing.unita);
-    return acc + (qPersona * fattore * prezzo);
-  }, 0);
-  return Math.round(costo * 100) / 100;
-}
+
 
 // ─── Lista Spesa Calcolata ────────────────────────────────────────────────────
-function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: Piatto[]; nPersone: number }) {
+function CalcolaSpesa({ menu, piatti, nPersone, ingredientiDb }: { menu: GiornoMenu[]; piatti: Piatto[]; nPersone: number; ingredientiDb: IngredienteDettaglio[] }) {
   const { ingredientiTotali, costoTotale, intolleranzeUniche } = useMemo(() => {
     const totali: Record<string, { valoreBase: number; base: 'g' | 'ml' | 'altro'; unitaOriginale: string }> = {};
     let costo = 0;
@@ -121,8 +111,14 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
           if (!id) continue;
           const piatto = piatti.find(p => p.id === id);
           if (!piatto) continue;
-          costo += calcolaCostoPiattoPersona(piatto) * nPersone;
+          costo += calcolaCostoPiattoPersona(piatto, ingredientiDb) * nPersone;
+          
+          // Eredita sia le intolleranze del piatto che gli allergeni definiti nei singoli ingredienti
           piatto.intolleranze?.forEach(i => intSet.add(i));
+          piatto.ingredienti?.forEach(ing => {
+            const allIng = ottieniAllergeniIngrediente(ing.nome, ingredientiDb);
+            allIng.forEach(i => intSet.add(i));
+          });
           const usaNomePiatto = (piatto.ingredienti?.length ?? 0) === 1;
           piatto.ingredienti?.forEach(ing => {
             const nomeDisplay = usaNomePiatto ? piatto.nome : (ing.nome?.trim() || piatto.nome);
@@ -144,7 +140,7 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
       .sort((a, b) => a.nome.localeCompare(b.nome));
 
     return { ingredientiTotali, costoTotale: costo, intolleranzeUniche: Array.from(intSet) };
-  }, [menu, piatti, nPersone]);
+  }, [menu, piatti, nPersone, ingredientiDb]);
 
   return (
     <div className="space-y-4">
@@ -205,6 +201,11 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
   const piattiQ = useMemoFirebase(() => firestore ? collection(firestore, 'campi-piatti') : null, [firestore]);
   const { data: piattiData } = useCollection<Piatto>(piattiQ);
   const piatti = piattiData ?? [];
+
+  // Load persisted menu for this campo
+  const ingredientiQ = useMemoFirebase(() => firestore ? collection(firestore, 'campi-ingredienti') : null, [firestore]);
+  const { data: ingredientiData } = useCollection<IngredienteDettaglio>(ingredientiQ);
+  const ingredientiDb = ingredientiData ?? [];
 
   const [nPersone, setNPersone] = useState(20);
   const [menu, setMenu] = useState<GiornoMenu[]>([makeGiorno(1)]);
@@ -274,7 +275,7 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
           const id = slot.piattoId;
           if (!id) continue;
           const piatto = piatti.find(p => p.id === id);
-          if (piatto) costo += calcolaCostoPiattoPersona(piatto) * nPersone;
+          if (piatto) costo += calcolaCostoPiattoPersona(piatto, ingredientiDb) * nPersone;
         }
       }
     }
@@ -341,7 +342,7 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
         }
       }
 
-      await generaPdfMenu(menu, piatti, nPersone, undefined, partecipanti);
+      await generaPdfMenu(menu, piatti, nPersone, undefined, partecipanti, ingredientiDb);
     } catch (err) {
       console.error('Errore generazione PDF:', err);
       toast({ title: 'Errore generazione PDF', description: String(err), variant: 'destructive' });
@@ -545,7 +546,7 @@ export default function TabMenuCampo({ campoId, canEdit, raccoltaId, onCostoSpes
 
         {/* TAB SPESA */}
         <TabsContent value="spesa" className="mt-4">
-          <CalcolaSpesa menu={menu} piatti={piatti} nPersone={nPersone} />
+            <CalcolaSpesa menu={menu} piatti={piatti} nPersone={nPersone} ingredientiDb={ingredientiDb} />
         </TabsContent>
       </Tabs>
     </div>

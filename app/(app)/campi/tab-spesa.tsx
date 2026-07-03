@@ -32,6 +32,31 @@ export interface Piatto {
   note?: string;
 }
 
+export interface IngredienteDettaglio {
+  id: string; // nome in lowercase
+  nome: string;
+  prezzoPerUnita?: number | null;
+  unita: string;
+  allergeni: string[];
+}
+
+/** Trova il prezzo dell'ingrediente nel database centralizzato, altrimenti usa il prezzo locale del piatto */
+export function ottieniPrezzoIngrediente(nomeIng: string, prezzoLocale: number | undefined, ingredientiDb: IngredienteDettaglio[]): number {
+  const key = nomeIng?.trim().toLowerCase();
+  const dbIng = ingredientiDb.find(i => i.id === key);
+  if (dbIng && dbIng.prezzoPerUnita !== undefined && dbIng.prezzoPerUnita !== null) {
+    return dbIng.prezzoPerUnita;
+  }
+  return prezzoLocale || 0;
+}
+
+/** Trova gli allergeni dell'ingrediente nel database centralizzato */
+export function ottieniAllergeniIngrediente(nomeIng: string, ingredientiDb: IngredienteDettaglio[]): string[] {
+  const key = nomeIng?.trim().toLowerCase();
+  const dbIng = ingredientiDb.find(i => i.id === key);
+  return dbIng?.allergeni || [];
+}
+
 export type TipoPasto = 'colazione' | 'merenda_mattina' | 'pranzo' | 'merenda' | 'cena';
 
 export interface SlotMenu {
@@ -441,12 +466,11 @@ function SlotSelector({ value, onChange, piatti, label, categoria, tipoPasto }: 
   );
 }
 
-function calcolaCostoPiattoPersona(piatto: Piatto): number {
-  if (piatto.costoPorzione !== undefined && piatto.costoPorzione > 0) return piatto.costoPorzione;
+export function calcolaCostoPiattoPersona(piatto: Piatto, ingredientiDb?: IngredienteDettaglio[]): number {
   if (!piatto.ingredienti || piatto.ingredienti.length === 0) return 0;
   const porzioniRef = piatto.porzioniBase || 10;
   const costo = piatto.ingredienti.reduce((acc, ing) => {
-    const prezzo = ing.prezzoPerUnita || 0;
+    const prezzo = ingredientiDb ? ottieniPrezzoIngrediente(ing.nome, ing.prezzoPerUnita, ingredientiDb) : (ing.prezzoPerUnita || 0);
     const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
     const fattore = fattoreConversione(ing.unita);
     return acc + (qPersona * fattore * prezzo);
@@ -457,6 +481,14 @@ function calcolaCostoPiattoPersona(piatto: Piatto): number {
 // ─── Lista Spesa ──────────────────────────────────────────────────────────────
 
 function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: Piatto[]; nPersone: number }) {
+  const firestore = useFirestore();
+  const ingredientiQ = useMemoFirebase(
+    () => firestore ? collection(firestore, 'campi-ingredienti') : null,
+    [firestore]
+  );
+  const { data: ingredientiData } = useCollection<IngredienteDettaglio>(ingredientiQ);
+  const ingredientiDb = ingredientiData ?? [];
+
   const { ingredientiTotali, costoTotale, intolleranzeUniche } = useMemo(() => {
     const totali: Record<string, { valoreBase: number; base: 'g' | 'ml' | 'altro'; unitaOriginale: string }> = {};
     let costo = 0;
@@ -471,8 +503,16 @@ function CalcolaSpesa({ menu, piatti, nPersone }: { menu: GiornoMenu[]; piatti: 
           if (!id) continue;
           const piatto = piatti.find(p => p.id === id);
           if (!piatto) continue;
-          costo += calcolaCostoPiattoPersona(piatto) * nPersone;
+          
+          costo += calcolaCostoPiattoPersona(piatto, ingredientiDb) * nPersone;
+          
+          // Eredita sia le intolleranze del piatto che gli allergeni definiti nei singoli ingredienti
           piatto.intolleranze?.forEach(i => intSet.add(i));
+          piatto.ingredienti?.forEach(ing => {
+            const allIng = ottieniAllergeniIngrediente(ing.nome, ingredientiDb);
+            allIng.forEach(i => intSet.add(i));
+          });
+
           // Se il piatto ha 1 solo ingrediente usa il nome del piatto (evita disallineamenti tipo "Latteo" vs "Latte")
           const usaNomePiatto = (piatto.ingredienti?.length ?? 0) === 1;
           piatto.ingredienti?.forEach(ing => {

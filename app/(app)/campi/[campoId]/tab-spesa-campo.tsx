@@ -12,8 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ShoppingCart, Users, AlertTriangle, Loader2, RefreshCw, CheckCircle2, Circle } from 'lucide-react';
-import type { Piatto, GiornoMenu, TipoPasto } from '../tab-spesa';
-import { normalizzaUnita, formattaQuantita, chiaveAggregazione, normalizeSlots, makeGiorno, fattoreConversione } from '../tab-spesa';
+import type { Piatto, GiornoMenu, SlotMenu, TipoPasto, SlotSelezionato, IngredienteDettaglio } from '../tab-spesa';
+import { PASTO_LABELS, CAT_LABELS, ALLERGENI_PREDEFINITI, UNITA_MISURA, normalizzaUnita, formattaQuantita, chiaveAggregazione, etichettaPrezzoUnita, fattoreConversione, normalizeSlots, makeSlot, makeGiorno, calcolaCostoPiattoPersona, ottieniAllergeniIngrediente } from '../tab-spesa';
 
 interface SpesaStatoDoc {
   acquistati: string[];
@@ -42,19 +42,10 @@ export default function TabSpesaCampo({ campoId }: { campoId: string }) {
   const { data: piattiData } = useCollection<Piatto>(piattiQ);
   const piatti = piattiData ?? [];
 
-  // Helper per calcolare costo a porzione dinamico dagli ingredienti
-  const calcolaCostoPiattoPersona = useCallback((p: Piatto) => {
-    if (p.costoPorzione !== undefined && p.costoPorzione > 0) return p.costoPorzione;
-    if (!p.ingredienti || p.ingredienti.length === 0) return 0;
-    const porzioniRef = p.porzioniBase || 10;
-    const costo = p.ingredienti.reduce((acc, ing) => {
-      const prezzo = ing.prezzoPerUnita || 0;
-      const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
-      const fattore = fattoreConversione(ing.unita);
-      return acc + (qPersona * fattore * prezzo);
-    }, 0);
-    return Math.round(costo * 100) / 100;
-  }, []);
+  // Load central ingredient database
+  const ingredientiQ = useMemoFirebase(() => firestore ? collection(firestore, 'campi-ingredienti') : null, [firestore]);
+  const { data: ingredientiData } = useCollection<IngredienteDettaglio>(ingredientiQ);
+  const ingredientiDb = ingredientiData ?? [];
 
   // 1. Carica il menù ed il numero partecipanti
   const loadMenu = useCallback(async () => {
@@ -155,12 +146,16 @@ export default function TabSpesaCampo({ campoId }: { campoId: string }) {
           const piatto = piatti.find(p => p.id === id);
           if (!piatto) continue;
           
-          costo += calcolaCostoPiattoPersona(piatto) * nPersone;
+          costo += calcolaCostoPiattoPersona(piatto, ingredientiDb) * nPersone;
+          
+          // Eredita sia le intolleranze del piatto che gli allergeni definiti nei singoli ingredienti
           piatto.intolleranze?.forEach(i => intSet.add(i));
+          piatto.ingredienti?.forEach(ing => {
+            const allIng = ottieniAllergeniIngrediente(ing.nome, ingredientiDb);
+            allIng.forEach(i => intSet.add(i));
+          });
           
           const usaNomePiatto = (piatto.ingredienti?.length ?? 0) === 1;
-          const allergeniPiatto = piatto.intolleranze ?? [];
-
           piatto.ingredienti?.forEach(ing => {
             const nomeDisplay = usaNomePiatto ? piatto.nome : (ing.nome?.trim() || piatto.nome);
             const { valore, base } = normalizzaUnita(ing.quantitaPerPersona, ing.unita);
@@ -170,7 +165,11 @@ export default function TabSpesaCampo({ campoId }: { campoId: string }) {
               totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita, allergeni: new Set() };
             }
             totali[k].valoreBase += valore * nPersone;
-            allergeniPiatto.forEach(all => totali[k].allergeni.add(all));
+            
+            // Allergeni specifici dell'ingrediente ereditati sia da campi-ingredienti che dal piatto
+            piatto.intolleranze?.forEach(all => totali[k].allergeni.add(all));
+            const allIng = ottieniAllergeniIngrediente(ing.nome, ingredientiDb);
+            allIng.forEach(all => totali[k].allergeni.add(all));
           });
         }
       }
@@ -194,7 +193,7 @@ export default function TabSpesaCampo({ campoId }: { campoId: string }) {
       costoTotale: costo, 
       intolleranzeUniche: Array.from(intSet) 
     };
-  }, [menu, piatti, nPersone, calcolaCostoPiattoPersona]);
+  }, [menu, piatti, nPersone, ingredientiDb]);
 
   // 5. Separa in Da Acquistare e Acquistati
   const { daAcquistare, acquistatiList } = useMemo(() => {

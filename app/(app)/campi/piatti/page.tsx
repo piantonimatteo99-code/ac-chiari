@@ -3,8 +3,10 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/src/firebase';
 import {
-  collection, addDoc, deleteDoc, doc, updateDoc, serverTimestamp,
+  collection, addDoc, deleteDoc, doc, updateDoc, setDoc, serverTimestamp,
 } from 'firebase/firestore';
+import { calcolaCostoPiattoPersona as calcolaCostoPiattoComune, ottieniPrezzoIngrediente, ottieniAllergeniIngrediente } from '../tab-spesa';
+import type { IngredienteDettaglio } from '../tab-spesa';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -22,10 +24,12 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  CookingPot, Plus, Trash2, Pencil, ChevronDown, ChevronRight, Users, Package,
+  CookingPot, Plus, Trash2, Pencil, ChevronDown, ChevronRight, Users, Package, Loader2,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ALLERGENI_PREDEFINITI = ['Lattosio', 'Glutine', 'Carne'];
 const UNITA_MISURA = ['ml', 'gr', 'L', 'Kg', 'pz', 'metri'];
@@ -334,11 +338,10 @@ function PiattoForm({
 }
 
 /* ─── Piatto Card ────────────────────────────────────────────────────────── */
-const calcolaCostoPiattoPersona = (piatto: Piatto) => {
-  if (piatto.costoPorzione !== undefined && piatto.costoPorzione > 0) return piatto.costoPorzione;
+const calcolaCostoPiattoPersona = (piatto: Piatto, ingredientiDb?: IngredienteDettaglio[]) => {
   const porzioniRef = piatto.porzioniBase || 10;
   const costo = piatto.ingredienti?.reduce((acc, ing) => {
-    const prezzo = ing.prezzoPerUnita || 0;
+    const prezzo = ingredientiDb ? ottieniPrezzoIngrediente(ing.nome, ing.prezzoPerUnita, ingredientiDb) : (ing.prezzoPerUnita || 0);
     const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
     const fattore = fattoreConversione(ing.unita);
     return acc + (qPersona * fattore * prezzo);
@@ -352,11 +355,13 @@ function PiattoCard({
   isAdmin,
   onEdit,
   onDelete,
+  ingredientiDb,
 }: {
   piatto: Piatto;
   isAdmin: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  ingredientiDb: IngredienteDettaglio[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const [persone, setPersone] = useState(piatto.porzioniBase ?? 10);
@@ -365,21 +370,42 @@ function PiattoCard({
     const ratio = persone / (piatto.porzioniBase || 10);
     return piatto.ingredienti.map(ing => {
       const quantitaScaled = Math.round((ing.quantitaPerPersona * ratio) * 100) / 100;
-      const prezzo = ing.prezzoPerUnita || 0;
+      const prezzo = ottieniPrezzoIngrediente(ing.nome, ing.prezzoPerUnita, ingredientiDb);
       const costoTotaleIng = quantitaScaled * fattoreConversione(ing.unita) * prezzo;
       return {
         ...ing,
+        prezzoPerUnita: prezzo,
         quantitaScaled,
         costoTotaleIng,
       };
     });
-  }, [piatto, persone]);
+  }, [piatto, persone, ingredientiDb]);
 
   const costoTotaleCommensali = useMemo(() => {
     return scaledIngredienti.reduce((acc, ing) => acc + (ing.costoTotaleIng || 0), 0);
   }, [scaledIngredienti]);
 
-  const costoSingolo = useMemo(() => calcolaCostoPiattoPersona(piatto), [piatto]);
+  const costoSingolo = useMemo(() => calcolaCostoPiattoPersona(piatto, ingredientiDb), [piatto, ingredientiDb]);
+
+  // Calcola gli allergeni del piatto sommando quelli manuali a quelli ereditati dagli ingredienti
+  const allergeniTotaliPiatto = useMemo(() => {
+    const s = new Set<string>();
+    
+    // Allergeni memorizzati come CSV nel piatto.note (es. "Glutine, Lattosio")
+    const noteString = piatto.note || '';
+    const noteCsv = noteString.split(' | ')[0] || '';
+    noteCsv.split(',').forEach(all => {
+      const trimmed = all.trim();
+      if (trimmed) s.add(trimmed);
+    });
+
+    // Allergeni definiti a livello di ingrediente
+    piatto.ingredienti?.forEach(ing => {
+      ottieniAllergeniIngrediente(ing.nome, ingredientiDb).forEach(all => s.add(all));
+    });
+
+    return Array.from(s);
+  }, [piatto, ingredientiDb]);
 
   return (
     <Card className="overflow-hidden">
@@ -396,9 +422,16 @@ function PiattoCard({
               }
               <div>
                 <CardTitle className="text-base">{piatto.nome}</CardTitle>
-                {piatto.note && (
-                  <CardDescription className="text-xs mt-0.5 line-clamp-1">{piatto.note}</CardDescription>
-                )}
+                <div className="flex flex-wrap gap-1 mt-1.5 items-center">
+                  {allergeniTotaliPiatto.map(all => (
+                    <Badge key={all} variant="outline" className="text-[10px] font-bold border-orange-200 bg-orange-50 text-orange-600 px-1.5 py-0">
+                      {all}
+                    </Badge>
+                  ))}
+                  {piatto.note && piatto.note.split(' | ')[1] && (
+                    <span className="text-xs text-muted-foreground ml-1">{piatto.note.split(' | ')[1]}</span>
+                  )}
+                </div>
               </div>
             </button>
           </div>
@@ -520,6 +553,115 @@ function PiattoCard({
   );
 }
 
+/* ─── Ingrediente Db Row Editor ────────────────────────────────────────── */
+function IngredienteDbRow({
+  ing,
+  onSave
+}: {
+  ing: { id: string; nome: string; prezzoPerUnita?: number | null; unita: string; allergeni: string[] };
+  onSave: (id: string, nome: string, prezzo: number | undefined, unita: string, allergeni: string[]) => Promise<void>;
+}) {
+  const [prezzo, setPrezzo] = useState<string>(ing.prezzoPerUnita !== undefined && ing.prezzoPerUnita !== null ? String(ing.prezzoPerUnita) : '');
+  const [unita, setUnita] = useState<string>(ing.unita || 'Kg');
+  const [checkedAllergeni, setCheckedAllergeni] = useState<Set<string>>(new Set(ing.allergeni || []));
+  const [saving, setSaving] = useState(false);
+
+  // Controlla se ci sono modifiche rispetto allo stato iniziale
+  const isModified = useMemo(() => {
+    const pInit = ing.prezzoPerUnita !== undefined && ing.prezzoPerUnita !== null ? String(ing.prezzoPerUnita) : '';
+    const uInit = ing.unita || 'Kg';
+    const aInit = new Set(ing.allergeni || []);
+    
+    if (prezzo !== pInit) return true;
+    if (unita !== uInit) return true;
+    if (checkedAllergeni.size !== aInit.size) return true;
+    for (const a of Array.from(checkedAllergeni)) {
+      if (!aInit.has(a)) return true;
+    }
+    return false;
+  }, [prezzo, unita, checkedAllergeni, ing]);
+
+  const toggleAllergene = (a: string) => {
+    setCheckedAllergeni(prev => {
+      const s = new Set(prev);
+      s.has(a) ? s.delete(a) : s.add(a);
+      return s;
+    });
+  };
+
+  const handleSaveClick = async () => {
+    setSaving(true);
+    const pVal = prezzo.trim() === '' ? undefined : parseFloat(prezzo);
+    await onSave(ing.id, ing.nome, pVal, unita, Array.from(checkedAllergeni));
+    setSaving(false);
+  };
+
+  return (
+    <TableRow className={isModified ? 'bg-amber-50/25 dark:bg-amber-950/10' : ''}>
+      <TableCell className="font-semibold text-sm">{ing.nome}</TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1 max-w-[120px]">
+          <span className="text-xs text-muted-foreground">€</span>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={prezzo}
+            onChange={e => setPrezzo(e.target.value)}
+            placeholder="0.00"
+            className="h-8 text-xs px-2"
+          />
+        </div>
+      </TableCell>
+      <TableCell>
+        <Select value={unita} onValueChange={setUnita}>
+          <SelectTrigger className="h-8 text-xs max-w-[90px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {UNITA_MISURA.map(u => (
+              <SelectItem key={u} value={u} className="text-xs">{u}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1 items-center">
+          {ALLERGENI_PREDEFINITI.map(a => {
+            const active = checkedAllergeni.has(a);
+            return (
+              <button
+                key={a}
+                type="button"
+                onClick={() => toggleAllergene(a)}
+                className={cn(
+                  "text-[10px] px-2 py-0.5 rounded-full border font-semibold transition-all select-none",
+                  active
+                    ? "bg-orange-100 border-orange-300 text-orange-700"
+                    : "bg-background border-muted-foreground/20 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {a}
+              </button>
+            );
+          })}
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <Button
+          size="sm"
+          variant={isModified ? "default" : "ghost"}
+          disabled={!isModified || saving}
+          onClick={handleSaveClick}
+          className="h-8 px-3"
+        >
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Salva'}
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 /* ─── Main Page ──────────────────────────────────────────────────────────── */
 export default function PiattiPage() {
   const firestore = useFirestore();
@@ -528,6 +670,7 @@ export default function PiattiPage() {
   const { toast } = useToast();
   const isAdmin = userData?.roles?.includes('admin') || userData?.roles?.includes('educatore');
 
+  const [activeSubTab, setActiveSubTab] = useState<'piatti' | 'ingredienti'>('piatti');
   const [search, setSearch] = useState('');
   const [filterCategoria, setFilterCategoria] = useState<string>('Tutti');
   const [formOpen, setFormOpen] = useState(false);
@@ -539,6 +682,56 @@ export default function PiattiPage() {
   );
   const { data: piattiData, isLoading } = useCollection<Piatto>(piattiQ);
   const piatti = piattiData ?? [];
+
+  // Carica database ingredienti centralizzato
+  const ingredientiQ = useMemoFirebase(
+    () => firestore ? collection(firestore, 'campi-ingredienti') : null,
+    [firestore]
+  );
+  const { data: ingredientiData, isLoading: isLoadingIng } = useCollection<IngredienteDettaglio>(ingredientiQ);
+  const ingredientiDb = ingredientiData ?? [];
+
+  // Mappa di tutti gli ingredienti unici (da campi-ingredienti + estratti dai piatti)
+  const tuttiGliIngredienti = useMemo(() => {
+    const map = new Map<string, { nome: string; unita: string; prezzoPerUnita?: number | null; allergeni: string[] }>();
+    
+    // 1. Aggiungiamo quelli presenti in campi-ingredienti
+    ingredientiDb.forEach(ing => {
+      const key = ing.nome.trim().toLowerCase();
+      map.set(key, {
+        nome: ing.nome,
+        unita: ing.unita || 'Kg',
+        prezzoPerUnita: ing.prezzoPerUnita,
+        allergeni: ing.allergeni || []
+      });
+    });
+
+    // 2. Aggiungiamo quelli usati nei piatti (se non già presenti)
+    piatti.forEach(piatto => {
+      piatto.ingredienti?.forEach(ing => {
+        const key = ing.nome?.trim().toLowerCase();
+        if (key && !map.has(key)) {
+          map.set(key, {
+            nome: ing.nome.trim(),
+            unita: ing.unita || 'gr',
+            prezzoPerUnita: ing.prezzoPerUnita,
+            allergeni: []
+          });
+        }
+      });
+    });
+
+    return Array.from(map.entries()).map(([id, val]) => ({
+      id,
+      ...val
+    })).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [ingredientiDb, piatti]);
+
+  // Filtra gli ingredienti in base alla ricerca
+  const filteredIngredienti = useMemo(() => {
+    if (!search) return tuttiGliIngredienti;
+    return tuttiGliIngredienti.filter(ing => ing.nome.toLowerCase().includes(search.toLowerCase()));
+  }, [tuttiGliIngredienti, search]);
 
   const filteredPiatti = useMemo(() => {
     return piatti.filter(p => {
@@ -595,6 +788,23 @@ export default function PiattiPage() {
     }
   };
 
+  const handleSaveIngrediente = async (id: string, nome: string, prezzo: number | undefined, unita: string, allergeni: string[]) => {
+    if (!firestore) return;
+    try {
+      await setDoc(doc(firestore, 'campi-ingredienti', id), {
+        nome,
+        prezzoPerUnita: prezzo !== undefined && !isNaN(prezzo) ? prezzo : null,
+        unita,
+        allergeni,
+        updatedAt: serverTimestamp(),
+      });
+      toast({ title: 'Ingrediente salvato' });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Errore nel salvare ingrediente', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="space-y-6 pb-10">
       {/* Header */}
@@ -602,13 +812,13 @@ export default function PiattiPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
             <CookingPot className="h-8 w-8 text-primary" />
-            Piatti
+            Ricettario & Ingredienti
           </h1>
           <p className="text-muted-foreground mt-1">
-            Ricettario con ingredienti e quantità per persona — scalabili a qualsiasi numero di commensali
+            Gestisci i piatti e il database centralizzato dei prezzi e degli allergeni degli ingredienti.
           </p>
         </div>
-        {isAdmin && (
+        {activeSubTab === 'piatti' && isAdmin && (
           <Button onClick={() => { setEditingPiatto(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" />
             Nuovo piatto
@@ -616,80 +826,143 @@ export default function PiattiPage() {
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <Input
-          placeholder="Cerca piatto..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="sm:max-w-xs"
-        />
-        <div className="flex gap-2 flex-wrap">
-          {['Tutti', ...CATEGORIE].map(cat => (
-            <button
-              key={cat}
-              onClick={() => setFilterCategoria(cat)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-sm font-medium transition-colors border',
-                filterCategoria === cat
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background text-muted-foreground border-input hover:border-primary hover:text-foreground'
-              )}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Sub tabs */}
+      <Tabs value={activeSubTab} onValueChange={(v: any) => setActiveSubTab(v)} className="w-full">
+        <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+          <TabsTrigger value="piatti">🍴 Database Piatti</TabsTrigger>
+          <TabsTrigger value="ingredienti">📦 Database Ingredienti</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      {/* Loading */}
-      {isLoading && (
-        <div className="grid gap-4">
-          {[1, 2, 3].map(i => <Card key={i} className="h-16 animate-pulse bg-muted/50" />)}
-        </div>
-      )}
-
-      {/* Empty */}
-      {!isLoading && piatti.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="py-16 text-center space-y-3">
-            <CookingPot className="h-12 w-12 text-muted-foreground/40 mx-auto" />
-            <div>
-              <p className="font-medium">Nessun piatto presente</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Aggiungi il primo piatto con i suoi ingredienti
-              </p>
+      {activeSubTab === 'piatti' ? (
+        <>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              placeholder="Cerca piatto..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="sm:max-w-xs"
+            />
+            <div className="flex gap-2 flex-wrap">
+              {['Tutti', ...CATEGORIE].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setFilterCategoria(cat)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-full text-sm font-medium transition-colors border',
+                    filterCategoria === cat
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-input hover:border-primary hover:text-foreground'
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
-            {isAdmin && (
-              <Button onClick={() => setFormOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Aggiungi piatto
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
 
-      {/* Piatti by category */}
-      {!isLoading && Array.from(piattiByCategory.entries()).map(([categoria, items]) => (
-        <section key={categoria} className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">{categoria}</h2>
-            <Badge variant="outline" className="text-xs">{items.length} piatt{items.length === 1 ? 'o' : 'i'}</Badge>
+          {/* Loading */}
+          {isLoading && (
+            <div className="grid gap-4">
+              {[1, 2, 3].map(i => <Card key={i} className="h-16 animate-pulse bg-muted/50" />)}
+            </div>
+          )}
+
+          {/* Empty */}
+          {!isLoading && piatti.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="py-16 text-center space-y-3">
+                <CookingPot className="h-12 w-12 text-muted-foreground/40 mx-auto" />
+                <div>
+                  <p className="font-medium">Nessun piatto presente</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Aggiungi il primo piatto con i suoi ingredienti
+                  </p>
+                </div>
+                {isAdmin && (
+                  <Button onClick={() => setFormOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Aggiungi piatto
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Piatti by category */}
+          {!isLoading && Array.from(piattiByCategory.entries()).map(([categoria, items]) => (
+            <section key={categoria} className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">{categoria}</h2>
+                <Badge variant="outline" className="text-xs">{items.length} piatt{items.length === 1 ? 'o' : 'i'}</Badge>
+              </div>
+              <div className="space-y-2">
+                {items.map(piatto => (
+                  <PiattoCard
+                    key={piatto.id}
+                    piatto={piatto}
+                    isAdmin={isAdmin ?? false}
+                    onEdit={() => { setEditingPiatto(piatto); setFormOpen(true); }}
+                    onDelete={() => handleDelete(piatto.id)}
+                    ingredientiDb={ingredientiDb}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Input
+              placeholder="Cerca ingrediente..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="max-w-xs"
+            />
           </div>
-          <div className="space-y-2">
-            {items.map(piatto => (
-              <PiattoCard
-                key={piatto.id}
-                piatto={piatto}
-                isAdmin={isAdmin ?? false}
-                onEdit={() => { setEditingPiatto(piatto); setFormOpen(true); }}
-                onDelete={() => handleDelete(piatto.id)}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ingrediente</TableHead>
+                    <TableHead>Prezzo all'unità</TableHead>
+                    <TableHead>Unità base</TableHead>
+                    <TableHead>Allergeni / Intolleranze</TableHead>
+                    <TableHead className="text-right">Azione</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoadingIng ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Caricamento database ingredienti...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredIngredienti.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Nessun ingrediente trovato.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredIngredienti.map(ing => (
+                      <IngredienteDbRow
+                        key={ing.id}
+                        ing={ing}
+                        onSave={handleSaveIngrediente}
+                      />
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={o => { if (!o) { setEditingPiatto(null); } setFormOpen(o); }}>

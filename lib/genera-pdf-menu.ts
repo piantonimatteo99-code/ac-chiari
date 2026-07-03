@@ -8,13 +8,15 @@
  *  D – Lista partecipanti con allergie dichiarate
  */
 
-import type { GiornoMenu, Piatto, TipoPasto } from '@/app/(app)/campi/tab-spesa';
+import type { GiornoMenu, Piatto, TipoPasto, IngredienteDettaglio } from '@/app/(app)/campi/tab-spesa';
 import {
   normalizeSlots,
   normalizzaUnita,
   formattaQuantita,
   chiaveAggregazione,
   fattoreConversione,
+  ottieniPrezzoIngrediente,
+  ottieniAllergeniIngrediente,
 } from '@/app/(app)/campi/tab-spesa';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -26,12 +28,11 @@ export interface PartecipantePdf {
   allergie?: string;
 }
 
-function calcolaCostoPiattoPersona(piatto: Piatto): number {
-  if (piatto.costoPorzione !== undefined && piatto.costoPorzione > 0) return piatto.costoPorzione;
+function calcolaCostoPiattoPersona(piatto: Piatto, ingredientiDb?: IngredienteDettaglio[]): number {
   if (!piatto.ingredienti || piatto.ingredienti.length === 0) return 0;
   const porzioniRef = piatto.porzioniBase || 10;
   const costo = piatto.ingredienti.reduce((acc, ing) => {
-    const prezzo = ing.prezzoPerUnita || 0;
+    const prezzo = ingredientiDb ? ottieniPrezzoIngrediente(ing.nome, ing.prezzoPerUnita, ingredientiDb) : (ing.prezzoPerUnita || 0);
     const qPersona = (ing.quantitaPerPersona || 0) / porzioniRef;
     const fattore = fattoreConversione(ing.unita);
     return acc + (qPersona * fattore * prezzo);
@@ -87,6 +88,7 @@ function calcolaIngredienti(
   piattoIds: string[],
   piatti: Piatto[],
   nPersone: number,
+  ingredientiDb?: IngredienteDettaglio[],
 ): IngTotale[] {
   const totali: Record<string, {
     valoreBase: number;
@@ -109,6 +111,9 @@ function calcolaIngredienti(
       if (!totali[k]) totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita, allergeni: new Set() };
       totali[k].valoreBase += valore * nPersone;
       allergeniPiatto.forEach(a => totali[k].allergeni.add(a));
+      if (ingredientiDb) {
+        ottieniAllergeniIngrediente(ing.nome, ingredientiDb).forEach(a => totali[k].allergeni.add(a));
+      }
     });
   }
 
@@ -130,6 +135,7 @@ export async function generaPdfMenu(
   nPersone: number,
   nomeCampo?: string,
   partecipanti?: PartecipantePdf[],
+  ingredientiDb?: IngredienteDettaglio[],
 ): Promise<void> {
   const { default: jsPDF }    = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
@@ -317,7 +323,7 @@ export async function generaPdfMenu(
       normalizeSlots(giorno[pasto], pasto).forEach(s => { if (s.piattoId) tuttiGliId.push(s.piattoId); });
     }
   }
-  const ingredientiTotali = calcolaIngredienti(tuttiGliId, piatti, nPersone);
+  const ingredientiTotali = calcolaIngredienti(tuttiGliId, piatti, nPersone, ingredientiDb);
 
   // Raccoglie gli allergeni unici usati (max 6 per colonna)
   const allergeniSet = new Set<string>();
@@ -409,7 +415,7 @@ export async function generaPdfMenu(
     const costoTotale = tuttiGliId.reduce((acc, id) => {
       const p = piatti.find(pp => pp.id === id);
       if (!p) return acc;
-      return acc + calcolaCostoPiattoPersona(p) * nPersone;
+      return acc + calcolaCostoPiattoPersona(p, ingredientiDb) * nPersone;
     }, 0);
 
     if (costoTotale > 0) {
