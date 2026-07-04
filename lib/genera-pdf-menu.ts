@@ -267,46 +267,70 @@ export async function generaPdfMenu(
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SEZIONE B – Quantita per pasto
+  // SEZIONE B – Quantità ingredienti per singolo piatto
   // ══════════════════════════════════════════════════════════════════════════
 
   doc.addPage();
   y = 16;
-  sectionTitle(`B  -  Quantita ingredienti per singolo pasto  (${nPersone} persone)`);
+  sectionTitle(`B  -  Quantità ingredienti per singolo piatto  (${nPersone} persone)`);
 
   for (const giorno of menu) {
+    // Controlla se in questo giorno c'è almeno un piatto inserito per non fare intestazioni vuote
+    let haPiatto = false;
     for (const pasto of PASTO_KEYS) {
-      const slots    = normalizeSlots(giorno[pasto], pasto);
-      const ids      = slots.map(s => s.piattoId ?? '').filter(Boolean);
-      if (ids.length === 0) continue;
-      const ings     = calcolaIngredienti(ids, piatti, nPersone);
-      if (ings.length === 0) continue;
+      const slots = normalizeSlots(giorno[pasto], pasto);
+      if (slots.some(s => s.piattoId)) haPiatto = true;
+    }
+    if (!haPiatto) continue;
 
-      const nomiPiatti = ids.map(id => piatti.find(p => p.id === id)?.nome).filter(Boolean).join(', ');
-      addPageIfNeeded(28);
-      subTitle(`Giorno ${giorno.giorno} - ${PASTO_PLAIN[pasto]}`);
+    addPageIfNeeded(35);
+    subTitle(`Giorno ${giorno.giorno}`);
 
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(8);
-      doc.setTextColor(...GRAY_500);
-      doc.text(`Piatti: ${nomiPiatti}`, marginL + 2, y);
+    for (const pasto of PASTO_KEYS) {
+      const slots = normalizeSlots(giorno[pasto], pasto);
+      const slotsConPiatto = slots.filter(s => s.piattoId);
+      if (slotsConPiatto.length === 0) continue;
+
+      addPageIfNeeded(16);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(...BRAND_BLUE);
+      doc.text(PASTO_PLAIN[pasto], marginL, y);
       y += 4;
 
-      tbl({
-        head: [['Ingrediente', `Qtà (${nPersone} pers.)`, 'U.M.']],
-        body: ings.map(i => [i.nome, String(i.quantita), i.unita]),
-        styles: { fontSize: 8.5, cellPadding: 2.5 },
-        headStyles: { fillColor: GRAY_200, textColor: GRAY_700, fontStyle: 'bold', fontSize: 8.5 },
-        columnStyles: {
-          0: { cellWidth: contentW - 46 },
-          1: { cellWidth: 30, halign: 'right' },
-          2: { cellWidth: 16, halign: 'center' },
-        },
-        theme: 'striped',
-        alternateRowStyles: { fillColor: [249, 250, 251] },
-      });
-      y += 8;
+      for (const slot of slotsConPiatto) {
+        if (!slot.piattoId) continue;
+        const piatto = piatti.find(p => p.id === slot.piattoId);
+        if (!piatto) continue;
+
+        const ings = calcolaIngredienti([slot.piattoId], piatti, nPersone, ingredientiDb);
+        if (ings.length === 0) continue;
+
+        addPageIfNeeded(20);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(...GRAY_700);
+        doc.text(`Piatto: ${piatto.nome} (${slot.label})`, marginL + 2, y);
+        y += 4;
+
+        tbl({
+          head: [['Ingrediente', `Qtà (${nPersone} pers.)`, 'U.M.']],
+          body: ings.map(i => [i.nome, String(i.quantita), i.unita]),
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: GRAY_200, textColor: GRAY_700, fontStyle: 'bold', fontSize: 8 },
+          columnStyles: {
+            0: { cellWidth: contentW - 46 },
+            1: { cellWidth: 30, halign: 'right' },
+            2: { cellWidth: 16, halign: 'center' },
+          },
+          theme: 'striped',
+          alternateRowStyles: { fillColor: [249, 250, 251] },
+        });
+        y += 6;
+      }
+      y += 2;
     }
+    y += 4;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
