@@ -110,7 +110,6 @@ function calcolaIngredienti(
       const k = chiaveAggregazione(nomeDisplay, ing.unita);
       if (!totali[k]) totali[k] = { valoreBase: 0, base, unitaOriginale: ing.unita, allergeni: new Set() };
       totali[k].valoreBase += valore * nPersone;
-      allergeniPiatto.forEach(a => totali[k].allergeni.add(a));
       if (ingredientiDb) {
         ottieniAllergeniIngrediente(ing.nome, ingredientiDb).forEach(a => totali[k].allergeni.add(a));
       }

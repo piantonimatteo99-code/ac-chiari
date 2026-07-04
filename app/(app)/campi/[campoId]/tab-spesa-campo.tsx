@@ -166,8 +166,7 @@ export default function TabSpesaCampo({ campoId }: { campoId: string }) {
             }
             totali[k].valoreBase += valore * nPersone;
             
-            // Allergeni specifici dell'ingrediente ereditati sia da campi-ingredienti che dal piatto
-            piatto.intolleranze?.forEach(all => totali[k].allergeni.add(all));
+            // Allergeni specifici dell'ingrediente presi esclusivamente da campi-ingredienti
             const allIng = ottieniAllergeniIngrediente(ing.nome, ingredientiDb);
             allIng.forEach(all => totali[k].allergeni.add(all));
           });
