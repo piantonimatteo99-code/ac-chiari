@@ -30,8 +30,9 @@ interface MembriRaccoltaListProps {
   isLoading: boolean;
   // Educator ghost management
   canManageGhosts?: boolean;
+  canManageAll?: boolean; // Admin o educatore con accesso contabilità: gestisce tutti i partecipanti
   myEducatorGroupIds?: Set<string>;
-  onRequestGhostAction?: (ghostId: string, ghostName: string, phase: 'conferma' | 'caparra' | 'saldo', currentValue: boolean) => void;
+  onRequestGhostAction?: (ghostId: string, ghostName: string, phase: 'conferma' | 'caparra' | 'saldo', currentValue: boolean, isPlaceholder?: boolean) => void;
   getGhostAmount?: (ghostId: string, phase: 'caparra' | 'saldo') => number;
 }
 
@@ -51,7 +52,7 @@ type ColumnVisibility = {
 type PaymentStatus = 'tutti' | 'pagato' | 'da_pagare';
 
 
-export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, isLoading, canManageGhosts, myEducatorGroupIds, onRequestGhostAction, getGhostAmount }: MembriRaccoltaListProps) {
+export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, isLoading, canManageGhosts, canManageAll, myEducatorGroupIds, onRequestGhostAction, getGhostAmount }: MembriRaccoltaListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
@@ -102,12 +103,24 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
     
     let total = 0;
     
-    const confermaImporto = parseFloat(faseConferma.importo) || 0;
-    const caparraImporto = parseFloat(faseCaparra.importo) || 0;
+    // Cerca tariffa personalizzata per il gruppo del membro
+    const customTariff = raccolta.tariffePersonalizzate?.find(t => t.groupId === member.groupId);
+
+    const getPhaseImporto = (faseImporto: string, customImporto: string | undefined): number => {
+        if (customImporto !== undefined && customImporto !== '') {
+            const v = parseFloat(customImporto);
+            return isNaN(v) || v < 0 ? parseFloat(faseImporto) || 0 : v;
+        }
+        return parseFloat(faseImporto) || 0;
+    };
+
+    const confermaImporto = getPhaseImporto(faseConferma.importo, customTariff?.importoConferma);
+    const caparraImporto = getPhaseImporto(faseCaparra.importo, customTariff?.importoCaparra);
     
-    let saldoImporto = parseFloat(faseSaldo.importo) || 0;
+    let saldoImporto = getPhaseImporto(faseSaldo.importo, customTariff?.importoSaldo);
     
-    if (faseSaldo.tariffaFratelliAttiva && member.familyId && (familyCounts[member.familyId] || 0) >= 2) {
+    // Applica sconto fratelli solo se non c'è tariffa personalizzata per il saldo
+    if (!customTariff?.importoSaldo && faseSaldo.tariffaFratelliAttiva && member.familyId && (familyCounts[member.familyId] || 0) >= 2) {
         saldoImporto = parseFloat(faseSaldo.importoTariffaFratelli || '0') || saldoImporto;
     }
 
@@ -126,15 +139,27 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
     const hasPaidCaparra = caparraPaidIds?.includes(member.id) ?? false;
     const hasPaidSaldo = saldoPaidIds?.includes(member.id) ?? false;
 
+    // Cerca tariffa personalizzata per il gruppo del membro
+    const customTariff = raccolta.tariffePersonalizzate?.find(t => t.groupId === member.groupId);
+
+    const getPhaseImporto = (faseImporto: string, customImporto: string | undefined): number => {
+        if (customImporto !== undefined && customImporto !== '') {
+            const v = parseFloat(customImporto);
+            return isNaN(v) || v < 0 ? parseFloat(faseImporto) || 0 : v;
+        }
+        return parseFloat(faseImporto) || 0;
+    };
+
     if (faseConferma.attiva) {
-        paidTotal += parseFloat(faseConferma.importo) || 0;
+        paidTotal += getPhaseImporto(faseConferma.importo, customTariff?.importoConferma);
     }
     if (faseCaparra.attiva && hasPaidCaparra) {
-        paidTotal += parseFloat(faseCaparra.importo) || 0;
+        paidTotal += getPhaseImporto(faseCaparra.importo, customTariff?.importoCaparra);
     }
     if (faseSaldo.attiva && hasPaidSaldo) {
-        let saldoImporto = parseFloat(faseSaldo.importo) || 0;
-        if (faseSaldo.tariffaFratelliAttiva && member.familyId && (familyCounts[member.familyId] || 0) >= 2) {
+        let saldoImporto = getPhaseImporto(faseSaldo.importo, customTariff?.importoSaldo);
+        // Applica sconto fratelli solo se non c'è tariffa personalizzata per il saldo
+        if (!customTariff?.importoSaldo && faseSaldo.tariffaFratelliAttiva && member.familyId && (familyCounts[member.familyId] || 0) >= 2) {
             saldoImporto = parseFloat(faseSaldo.importoTariffaFratelli || '0') || saldoImporto;
         }
         paidTotal += saldoImporto;
@@ -352,9 +377,13 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                  const totalAmount = calculateTotal(member);
                  const paidAmount = calculatePaidTotal(member);
 
-                 // Educator can manage this ghost if they're admin OR if they educate the ghost's group
-                 const canActOnThisGhost = member.isPlaceholder && canManageGhosts &&
-                   (myEducatorGroupIds?.has(member.groupId ?? '') || !myEducatorGroupIds?.size);
+                 // Admin o educatori con contabilità possono agire su TUTTI i partecipanti (ghost e reali) di tutti i gruppi
+                 // Educatori regolari possono agire solo sui ghost del loro gruppo
+                 const canActOnMember =
+                   canManageGhosts && (
+                     canManageAll ||
+                     (member.isPlaceholder && (myEducatorGroupIds?.has(member.groupId ?? '') ?? false))
+                   );
 
                  return (
                     <TableRow key={member.id}>
@@ -376,12 +405,12 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         {columnVisibility.gruppo && <TableCell>{member.groupName}</TableCell>}
                         {columnVisibility.conferma && faseConferma.attiva && (
                             <TableCell className="text-center">
-                              {canActOnThisGhost ? (
+                              {canActOnMember ? (
                                 <Button
                                   size="sm"
                                   variant={isConfirmed ? 'default' : 'outline'}
                                   className={`h-7 px-2 text-xs ${isConfirmed ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                                  onClick={() => onRequestGhostAction?.(member.id, `${member.nome} ${member.cognome}`, 'conferma', isConfirmed)}
+                                  onClick={() => onRequestGhostAction?.(member.id, `${member.nome} ${member.cognome}`, 'conferma', isConfirmed, member.isPlaceholder)}
                                 >
                                   {isConfirmed
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Confermato</>
@@ -394,12 +423,12 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         )}
                         {columnVisibility.caparra && faseCaparra.attiva && (
                              <TableCell className="text-center">
-                              {canActOnThisGhost ? (
+                              {canActOnMember ? (
                                 <Button
                                   size="sm"
                                   variant={hasPaidCaparra ? 'default' : 'outline'}
                                   className={`h-7 px-2 text-xs ${hasPaidCaparra ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                                  onClick={() => onRequestGhostAction?.(member.id, `${member.nome} ${member.cognome}`, 'caparra', hasPaidCaparra)}
+                                  onClick={() => onRequestGhostAction?.(member.id, `${member.nome} ${member.cognome}`, 'caparra', hasPaidCaparra, member.isPlaceholder)}
                                 >
                                   {hasPaidCaparra
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
@@ -412,12 +441,12 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         )}
                         {columnVisibility.saldo && faseSaldo.attiva && (
                            <TableCell className="text-center">
-                              {canActOnThisGhost ? (
+                              {canActOnMember ? (
                                 <Button
                                   size="sm"
                                   variant={hasPaidSaldo ? 'default' : 'outline'}
                                   className={`h-7 px-2 text-xs ${hasPaidSaldo ? 'bg-green-600 hover:bg-green-700' : ''}`}
-                                  onClick={() => onRequestGhostAction?.(member.id, `${member.nome} ${member.cognome}`, 'saldo', hasPaidSaldo)}
+                                  onClick={() => onRequestGhostAction?.(member.id, `${member.nome} ${member.cognome}`, 'saldo', hasPaidSaldo, member.isPlaceholder)}
                                 >
                                   {hasPaidSaldo
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>

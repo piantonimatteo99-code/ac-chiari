@@ -565,14 +565,14 @@ export default function UtentiRegistratiPage() {
          }
          
          if (changed) {
-             batch.update(d.ref, {
-                 confermatiIds,
-                 caparraPaidIds,
-                 saldoPaidIds,
-                 tesseratiIds,
-                 paymentDetails: newPaymentDetails,
-                 partecipanti: newPartecipanti
-             });
+             const updateData: Record<string, any> = {};
+             if (confermatiIds !== undefined) updateData.confermatiIds = confermatiIds;
+             if (caparraPaidIds !== undefined) updateData.caparraPaidIds = caparraPaidIds;
+             if (saldoPaidIds !== undefined) updateData.saldoPaidIds = saldoPaidIds;
+             if (tesseratiIds !== undefined) updateData.tesseratiIds = tesseratiIds;
+             if (data.paymentDetails !== undefined) updateData.paymentDetails = newPaymentDetails;
+             if (newPartecipanti !== undefined) updateData.partecipanti = newPartecipanti;
+             batch.update(d.ref, updateData);
          }
       });
 

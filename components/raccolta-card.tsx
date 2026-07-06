@@ -40,6 +40,13 @@ export interface PaymentDetails {
     isVerified?: boolean; // Final verification flag
 }
 
+export interface TariffaPersonalizzata {
+    groupId: string;
+    importoConferma?: string; // undefined = usa il default della fase
+    importoCaparra?: string;
+    importoSaldo?: string;
+}
+
 export interface Raccolta {
     id: string;
     nome: string;
@@ -58,13 +65,14 @@ export interface Raccolta {
     caparraPaidIds?: string[];
     saldoPaidIds?: string[];
     tesseratiIds?: string[];
-    partecipanti?: Partecipante[]; 
+    partecipanti?: Partecipante[];
     paymentDetails?: {
         caparra?: { [memberId: string]: PaymentDetails };
         saldo?: { [memberId: string]: PaymentDetails };
         tesseramento?: { [memberId: string]: PaymentDetails };
-    },
+    };
     payments?: { [paymentId: string]: PaymentDetails };
+    tariffePersonalizzate?: TariffaPersonalizzata[];
 }
 
 interface RaccoltaCardProps {
@@ -132,6 +140,14 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         return collection(firestore, 'gruppi');
     }, [firestore]);
     const { data: groupsData } = useCollection<Group>(groupsQuery);
+
+    // Ruoli educatori dell'utente corrente (per verificare accesso contabilità)
+    const myEducatorRolesQuery = useMemoFirebase(() => {
+        const uid = userData?.id ?? '';
+        if (!firestore || !uid) return null;
+        return query(collection(firestore, 'ruoli-educatori'), where('assignedEducators', 'array-contains', uid));
+    }, [firestore, userData?.id]);
+    const { data: myEducatorRolesData } = useCollection<{ accessiblePages?: string[] }>(myEducatorRolesQuery);
 
 
     const allMembers = useMemo(() => {
@@ -235,7 +251,17 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         );
     }, [groupsData, currentUserId]);
 
+    // Educatore con accesso alla contabilità delle raccolte attive
+    const hasAccountingAccess = useMemo(() => {
+        if (!myEducatorRolesData) return false;
+        return myEducatorRolesData.some(role =>
+            (role.accessiblePages ?? []).includes('/contabilita/raccolte')
+        );
+    }, [myEducatorRolesData]);
+
     const canManageGhosts = isAdmin || isEducatore;
+    // Admin o educatori con accesso contabilità possono gestire TUTTI i partecipanti di TUTTI i gruppi
+    const canManageAll = isAdmin || hasAccountingAccess;
 
     // ── Dialog pagamento ghost ────────────────────────────────────────────────
     type GhostAction = 'conferma' | 'caparra' | 'saldo';
@@ -245,26 +271,38 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         phase: GhostAction;
         currentValue: boolean; // stato attuale (true = già pagato/confermato)
         amount: number;
+        isPlaceholder?: boolean;
     } | null>(null);
     const [isDialogProcessing, setIsDialogProcessing] = useState(false);
 
-    // ── Calcolo importo ghost con sconto fratelli retroattivo ──────────────────
-    const calculateGhostPaymentAmount = (ghostId: string, phase: 'caparra' | 'saldo'): number => {
-        const ghost = allMembers.find(m => m.id === ghostId);
+    // ── Calcolo importo membro con tariffe personalizzate e sconto fratelli retroattivo ──────
+    const calculateMemberPaymentAmount = (memberId: string, phase: 'caparra' | 'saldo'): number => {
+        const member = allMembers.find(m => m.id === memberId);
         const faseData = phase === 'caparra' ? raccolta.faseCaparra : raccolta.faseSaldo;
-        const fullPrice = parseFloat(faseData?.importo) || 0;
 
-        // Se non c'è sconto fratelli attivo o il ghost non ha familyId virtuale, prezzo pieno
-        if (!ghost?.familyId || !faseData?.tariffaFratelliAttiva) return fullPrice;
+        // Verifica se c'è una tariffa personalizzata per il gruppo del membro
+        const customTariff = raccolta.tariffePersonalizzate?.find(t => t.groupId === member?.groupId);
+        const customImporto = phase === 'caparra' ? customTariff?.importoCaparra : customTariff?.importoSaldo;
+        const hasCustomImporto = customTariff !== undefined && customImporto !== undefined && customImporto !== '';
+
+        const fullPrice = hasCustomImporto
+            ? (parseFloat(customImporto!) >= 0 ? parseFloat(customImporto!) : parseFloat(faseData?.importo) || 0)
+            : (parseFloat(faseData?.importo) || 0);
+
+        // Con tariffa personalizzata a 0, non applicare sconto fratelli (già 0)
+        if (hasCustomImporto && fullPrice === 0) return 0;
+
+        // Se non c'è sconto fratelli attivo o il membro non ha familyId, prezzo pieno
+        if (!member?.familyId || !faseData?.tariffaFratelliAttiva) return fullPrice;
 
         const discountedPrice = parseFloat(faseData.importoTariffaFratelli || '0') || fullPrice;
 
-        // Conta i fratelli ghost dello stesso indirizzo già pagati (non il ghost corrente)
+        // Conta i fratelli dello stesso nucleo familiare già pagati
         const paidIds = new Set(
             phase === 'caparra' ? (raccolta.caparraPaidIds ?? []) : (raccolta.saldoPaidIds ?? [])
         );
         const paidSiblingsCount = allMembers.filter(m =>
-            m.isPlaceholder && m.familyId === ghost.familyId && m.id !== ghostId && paidIds.has(m.id)
+            m.isPlaceholder === member.isPlaceholder && m.familyId === member.familyId && m.id !== memberId && paidIds.has(m.id)
         ).length;
 
         // Formula retroattiva:
@@ -275,12 +313,14 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         if (paidSiblingsCount === 1) return Math.max(0, 2 * discountedPrice - fullPrice);
         return discountedPrice;
     };
+    // Alias retrocompatibile
+    const calculateGhostPaymentAmount = calculateMemberPaymentAmount;
 
-    const handleRequestGhostAction = (ghostId: string, ghostName: string, phase: GhostAction, currentValue: boolean) => {
+    const handleRequestGhostAction = (ghostId: string, ghostName: string, phase: GhostAction, currentValue: boolean, isPlaceholder?: boolean) => {
         const amount = (phase === 'caparra' || phase === 'saldo')
-            ? calculateGhostPaymentAmount(ghostId, phase)
+            ? calculateMemberPaymentAmount(ghostId, phase)
             : 0;
-        setGhostDialog({ ghostId, ghostName, phase, currentValue, amount });
+        setGhostDialog({ ghostId, ghostName, phase, currentValue, amount, isPlaceholder });
     };
 
     const handleGhostConfirm = async (ghostId: string, confirm: boolean) => {
@@ -615,9 +655,10 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                         allMembers={allMembers}
                         isLoading={isLoading}
                         canManageGhosts={canManageGhosts}
+                        canManageAll={canManageAll}
                         myEducatorGroupIds={myEducatorGroupIds}
                         onRequestGhostAction={handleRequestGhostAction}
-                        getGhostAmount={calculateGhostPaymentAmount}
+                        getGhostAmount={calculateMemberPaymentAmount}
                     />
                 </div>
             </AccordionContent>
@@ -646,9 +687,15 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                         <div>
                             <p className="font-semibold">{ghostDialog?.ghostName}</p>
                             <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="text-yellow-600 border-yellow-300 bg-yellow-50 text-[10px] px-1.5 h-4">
-                                    Ghost
-                                </Badge>
+                                {ghostDialog?.isPlaceholder ? (
+                                    <Badge variant="outline" className="text-yellow-600 border-yellow-300 bg-yellow-50 text-[10px] px-1.5 h-4">
+                                        Ghost
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 text-[10px] px-1.5 h-4">
+                                        Iscritto
+                                    </Badge>
+                                )}
                                 <span className="text-xs text-muted-foreground capitalize">
                                     Fase: {ghostDialog?.phase}
                                 </span>

@@ -164,16 +164,32 @@ export async function POST(request: NextRequest) {
     // ── Notifica admin: nuovo utente registrato ───────────────────────────────
     try {
       if (adminDb) {
-        await adminDb.collection('notifiche').add({
-          userId: '__admin__',
-          title: `🆕 Nuovo utente registrato`,
-          body: `${displayName} (${email}) si è appena registrato.`,
-          type: 'generale',
-          href: '/admin/gestione-utenti',
-          letta: false,
-          eventType: 'nuovo_utente',
-          createdAt: Timestamp.now(),
-        });
+        // Verifica se la notifica nuovo_utente è abilitata per gli admin
+        let adminShouldReceive = true;
+        try {
+          const configDoc = await adminDb.collection('notification-config').doc('nuovo_utente').get();
+          if (configDoc.exists) {
+            const configData = configDoc.data()!;
+            if (configData.enabledFor) {
+              adminShouldReceive = configData.enabledFor.admin === true;
+            } else if (typeof configData.enabled === 'boolean') {
+              adminShouldReceive = configData.enabled;
+            }
+          }
+        } catch {}
+        
+        if (adminShouldReceive) {
+          await adminDb.collection('notifiche').add({
+            userId: '__admin_broadcast__',
+            title: `🆕 Nuovo utente registrato`,
+            body: `${displayName} (${email}) si è appena registrato.`,
+            type: 'generale',
+            href: '/admin/gestione-utenti',
+            letta: false,
+            eventType: 'nuovo_utente',
+            createdAt: Timestamp.now(),
+          });
+        }
       }
     } catch (notifErr) {
       console.warn('[email] Notifica admin fallita (non bloccante):', notifErr);

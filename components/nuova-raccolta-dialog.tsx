@@ -24,6 +24,10 @@ import { toDate } from 'date-fns';
 import { Separator } from './ui/separator';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Alert, AlertDescription } from './ui/alert';
+import { Plus, Trash2 } from 'lucide-react';
+import type { TariffaPersonalizzata } from './raccolta-card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 interface NuovaRaccoltaDialogProps {
   isOpen: boolean;
@@ -67,6 +71,7 @@ export function NuovaRaccoltaDialog({ isOpen, onOpenChange, raccoltaToEdit, init
     const [faseConferma, setFaseConferma] = useState<FaseRaccolta>(initialFaseState);
     const [faseCaparra, setFaseCaparra] = useState<FaseRaccolta>(initialFaseState);
     const [faseSaldo, setFaseSaldo] = useState<FaseRaccolta>(initialFaseSaldoState);
+    const [tariffePersonalizzate, setTariffePersonalizzate] = useState<TariffaPersonalizzata[]>([]);
     
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -189,6 +194,7 @@ export function NuovaRaccoltaDialog({ isOpen, onOpenChange, raccoltaToEdit, init
             faseCaparra: cleanFase(faseCaparra) as FaseRaccolta,
             faseSaldo: cleanFase(faseSaldo) as FaseRaccolta,
             archived: false,
+            tariffePersonalizzate: tariffePersonalizzate.filter(t => t.groupId !== ''),
         };
 
         if (!isEditing) {
@@ -247,6 +253,7 @@ export function NuovaRaccoltaDialog({ isOpen, onOpenChange, raccoltaToEdit, init
                 setFaseCaparra(convertFirestoreTimestampToDate(raccoltaToEdit.faseCaparra));
                 const saldoConverted = convertFirestoreTimestampToDate(raccoltaToEdit.faseSaldo);
                 setFaseSaldo({ ...initialFaseSaldoState, ...saldoConverted });
+                setTariffePersonalizzate(raccoltaToEdit.tariffePersonalizzate ?? []);
              } else {
                 setNomeRaccolta(initialData?.nome || '');
                 setTipo(initialData?.tipo || 'standard');
@@ -258,6 +265,7 @@ export function NuovaRaccoltaDialog({ isOpen, onOpenChange, raccoltaToEdit, init
                 setFaseConferma(initialFaseState);
                 setFaseCaparra(initialFaseState);
                 setFaseSaldo(initialFaseSaldoState);
+                setTariffePersonalizzate([]);
              }
             setError(null);
             setIsSaving(false);
@@ -411,6 +419,118 @@ export function NuovaRaccoltaDialog({ isOpen, onOpenChange, raccoltaToEdit, init
                                 </ScrollArea>
                             </div>
                             
+                            <Separator />
+
+                            {/* ── Tariffe Personalizzate per Gruppo ── */}
+                            {tipo === 'standard' && selectedGruppi.length > 0 && (faseConferma.attiva || faseCaparra.attiva || faseSaldo.attiva) && (
+                                <div className="grid gap-3">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <Label>Tariffe Personalizzate per Gruppo</Label>
+                                            <p className="text-xs text-muted-foreground mt-0.5">Imposta importi diversi per gruppi specifici. Zero (€0) è valido.</p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setTariffePersonalizzate(prev => [...prev, { groupId: '' }])}
+                                            className="flex items-center gap-1.5 h-8"
+                                        >
+                                            <Plus className="h-3.5 w-3.5" />
+                                            Aggiungi tariffa
+                                        </Button>
+                                    </div>
+
+                                    {tariffePersonalizzate.length > 0 && (
+                                        <div className="space-y-3">
+                                            {tariffePersonalizzate.map((tariffa, idx) => {
+                                                const selectedGroupIds = new Set(tariffePersonalizzate.map((t, i) => i !== idx ? t.groupId : null).filter(Boolean));
+                                                const availableGroups = sortedGroups.filter(g =>
+                                                    selectedGruppi.includes(g.id) && !selectedGroupIds.has(g.id)
+                                                );
+                                                return (
+                                                    <div key={idx} className="rounded-lg border p-3 space-y-2">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <Select
+                                                                value={tariffa.groupId}
+                                                                onValueChange={(val) => setTariffePersonalizzate(prev => prev.map((t, i) => i === idx ? { ...t, groupId: val } : t))}
+                                                            >
+                                                                <SelectTrigger className="h-8 flex-1">
+                                                                    <SelectValue placeholder="Seleziona gruppo..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {tariffa.groupId && !availableGroups.find(g => g.id === tariffa.groupId) && (
+                                                                        <SelectItem value={tariffa.groupId}>
+                                                                            {sortedGroups.find(g => g.id === tariffa.groupId)?.name ?? tariffa.groupId}
+                                                                        </SelectItem>
+                                                                    )}
+                                                                    {availableGroups.map(g => (
+                                                                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                                                onClick={() => setTariffePersonalizzate(prev => prev.filter((_, i) => i !== idx))}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${[faseConferma.attiva, faseCaparra.attiva, faseSaldo.attiva].filter(Boolean).length}, 1fr)` }}>
+                                                            {faseConferma.attiva && (
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-xs text-muted-foreground">Conferma (€)</Label>
+                                                                    <Input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="0.01"
+                                                                        placeholder={faseConferma.importo || '0.00'}
+                                                                        value={tariffa.importoConferma ?? ''}
+                                                                        onChange={e => setTariffePersonalizzate(prev => prev.map((t, i) => i === idx ? { ...t, importoConferma: e.target.value } : t))}
+                                                                        className="h-8 text-sm"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                            {faseCaparra.attiva && (
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-xs text-muted-foreground">Caparra (€)</Label>
+                                                                    <Input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="0.01"
+                                                                        placeholder={faseCaparra.importo || '0.00'}
+                                                                        value={tariffa.importoCaparra ?? ''}
+                                                                        onChange={e => setTariffePersonalizzate(prev => prev.map((t, i) => i === idx ? { ...t, importoCaparra: e.target.value } : t))}
+                                                                        className="h-8 text-sm"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                            {faseSaldo.attiva && (
+                                                                <div className="space-y-1">
+                                                                    <Label className="text-xs text-muted-foreground">Saldo (€)</Label>
+                                                                    <Input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        step="0.01"
+                                                                        placeholder={faseSaldo.importo || '0.00'}
+                                                                        value={tariffa.importoSaldo ?? ''}
+                                                                        onChange={e => setTariffePersonalizzate(prev => prev.map((t, i) => i === idx ? { ...t, importoSaldo: e.target.value } : t))}
+                                                                        className="h-8 text-sm"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <Separator />
 
                             <div>

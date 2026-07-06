@@ -125,9 +125,16 @@ export async function POST(req: NextRequest) {
         targetUserIds.push(userDoc.id);
       }
     } else if (userId === '__admin_broadcast__') {
-      const usersSnap = await adminDb.collection('users').where('roles', 'array-contains', 'admin').get();
-      for (const userDoc of usersSnap.docs) {
-        targetUserIds.push(userDoc.id);
+      // Se esiste una notification-config per questo tipo, verifica che admin possa riceverla
+      let adminCanReceive = true;
+      if (enabledFor) {
+        adminCanReceive = enabledFor.admin === true;
+      }
+      if (adminCanReceive) {
+        const usersSnap = await adminDb.collection('users').where('roles', 'array-contains', 'admin').get();
+        for (const userDoc of usersSnap.docs) {
+          targetUserIds.push(userDoc.id);
+        }
       }
     } else {
       // Single user
