@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/src/hooks/useTenant";
+import { Calendar, HardDrive, ShieldCheck, ChevronDown } from "lucide-react";
 
 // ── Foto del carosello ───────────────────────────────────────────
 // Aggiungi o sostituisci con le tue foto reali (in /public/)
@@ -49,7 +50,7 @@ export default function HomePage() {
   return (
     <div className={`ac-root ${leaving ? 'ac-leaving' : ''}`}>
 
-      {/* ── FOTO DI SFONDO ── */}
+      {/* ── FOTO DI SFONDO (Fissa) ── */}
       <div className={`ac-bg ${fading ? "ac-fade-out" : "ac-fade-in"}`}>
         <Image
           src={slides[current].src}
@@ -61,45 +62,103 @@ export default function HomePage() {
         />
       </div>
 
-      {/* ── OVERLAY scuro per leggibilità ── */}
+      {/* ── OVERLAY scuro per leggibilità (Fisso) ── */}
       <div className="ac-overlay" />
 
-      {/* ── NAV ── */}
-      <nav className="ac-nav">
-        <button onClick={() => navigate('/privacy')} className="ac-nav-link">Privacy Policy</button>
-        <button onClick={() => navigate('/login')} className="ac-nav-cta">Accedi</button>
-      </nav>
+      {/* ── HERO FOLD (Prima schermata) ── */}
+      <div className="ac-hero-fold">
+        {/* ── NAV ── */}
+        <nav className="ac-nav">
+          <button onClick={() => navigate('/privacy')} className="ac-nav-link">Privacy Policy</button>
+          <button onClick={() => navigate('/login')} className="ac-nav-cta">Accedi</button>
+        </nav>
 
-      {/* ── CENTRO: logo + nome ── */}
-      <main className="ac-center">
-        <Image
-          src="/icon-512.png"
-          alt={`Logo Azione Cattolica ${cityName}`}
-          width={110}
-          height={110}
-          className="ac-logo"
-          priority
-        />
-        <div className="ac-title-wrap">
-          <span className="ac-title-main">Azione Cattolica</span>
-          <span className="ac-title-sub">{cityName}</span>
-        </div>
-        <button onClick={() => navigate('/login')} className="ac-cta">
-          Accedi al gestionale
-        </button>
-      </main>
-
-      {/* ── PUNTINI CAROSELLO ── */}
-      <div className="ac-dots">
-        {slides.map((_, i) => (
-          <button
-            key={i}
-            className={`ac-dot ${i === current ? "ac-dot-active" : ""}`}
-            onClick={() => goTo(i)}
-            aria-label={`Foto ${i + 1}`}
+        {/* ── CENTRO: logo + nome ── */}
+        <main className="ac-center">
+          <Image
+            src="/icon-512.png"
+            alt={`Logo Azione Cattolica ${cityName}`}
+            width={110}
+            height={110}
+            className="ac-logo"
+            priority
           />
-        ))}
+          <div className="ac-title-wrap">
+            <span className="ac-title-main">Azione Cattolica</span>
+            <span className="ac-title-sub">{cityName}</span>
+          </div>
+          <button onClick={() => navigate('/login')} className="ac-cta">
+            Accedi al gestionale
+          </button>
+        </main>
+
+        {/* ── INDICATORE SCROLL ── */}
+        <div 
+          className="ac-scroll-indicator" 
+          onClick={() => document.getElementById('info-section')?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <span>Scopri il portale</span>
+          <ChevronDown className="h-4 w-4 animate-bounce" />
+        </div>
+
+        {/* ── PUNTINI CAROSELLO ── */}
+        <div className="ac-dots">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              className={`ac-dot ${i === current ? "ac-dot-active" : ""}`}
+              onClick={() => goTo(i)}
+              aria-label={`Foto ${i + 1}`}
+            />
+          ))}
+        </div>
       </div>
+
+      {/* ── INFO FOLD (Seconda schermata scorrevole) ── */}
+      <section id="info-section" className="ac-info-fold">
+        <div className="ac-info-card">
+          <div className="ac-info-header">
+            <ShieldCheck className="ac-info-icon-main" />
+            <h2>Il Portale GemmaFlow</h2>
+          </div>
+          
+          <p className="ac-info-intro">
+            Il portale di GemmaFlow è il sistema gestionale interno utilizzato dall'associazione 
+            <strong> Azione Cattolica di Chiari</strong> per organizzare le attività educative, 
+            gestire le iscrizioni degli associati e coordinare gli eventi della comunità.
+          </p>
+
+          <div className="ac-info-divider" />
+
+          <h3 className="ac-features-title">Funzionalità principali & Integrazione Google</h3>
+
+          <div className="ac-features-grid">
+            <div className="ac-feature-card">
+              <div className="ac-feature-header">
+                <HardDrive className="ac-feature-icon" />
+                <h4>Gestione Iscrizioni & Ricevute (Google Drive)</h4>
+              </div>
+              <p>
+                Permette agli educatori di archiviare e verificare in modo sicuro le ricevute 
+                di pagamento delle quote associative caricate dalle famiglie, memorizzandole 
+                temporaneamente su Google Drive dell'associazione.
+              </p>
+            </div>
+
+            <div className="ac-feature-card">
+              <div className="ac-feature-header">
+                <Calendar className="ac-feature-icon" />
+                <h4>Calendario Attività (Google Calendar)</h4>
+              </div>
+              <p>
+                Consente agli iscritti e alle famiglie di sincronizzare gli appuntamenti, 
+                le riunioni e i campi estivi dell'associazione direttamente sul proprio 
+                Google Calendar personale per non perdere nessuna attività.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ── FOOTER ── */}
       <footer className="ac-footer">
@@ -110,20 +169,21 @@ export default function HomePage() {
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* ── LAYOUT FISSO A TUTTO SCHERMO ── */
+        /* ── LAYOUT SCORREVOLE ── */
         .ac-root {
-          position: fixed;
-          inset: 0;
+          position: relative;
+          min-height: 100vh;
           display: flex;
           flex-direction: column;
           font-family: var(--font-sans, system-ui, sans-serif);
           -webkit-font-smoothing: antialiased;
-          overflow: hidden;
+          overflow-y: auto;
+          scroll-behavior: smooth;
         }
 
-        /* ── FOTO SFONDO ── */
+        /* ── FOTO SFONDO FISSA ── */
         .ac-bg {
-          position: absolute;
+          position: fixed;
           inset: 0;
           z-index: 0;
         }
@@ -144,16 +204,26 @@ export default function HomePage() {
           100% { opacity: 0; transform: scale(1.03); }
         }
 
-        /* ── OVERLAY ── */
+        /* ── OVERLAY FISSO ── */
         .ac-overlay {
-          position: absolute;
+          position: fixed;
           inset: 0;
           z-index: 1;
           background: linear-gradient(
             160deg,
-            hsl(220 60% 10% / 0.55) 0%,
-            hsl(220 60% 8%  / 0.70) 100%
+            hsl(220 60% 10% / 0.65) 0%,
+            hsl(220 60% 8%  / 0.85) 100%
           );
+        }
+
+        /* ── HERO FOLD ── */
+        .ac-hero-fold {
+          position: relative;
+          z-index: 10;
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
         }
 
         /* ── NAV ── */
@@ -256,6 +326,30 @@ export default function HomePage() {
           box-shadow: 0 8px 28px hsl(218 55% 40% / 0.55);
         }
 
+        /* ── SCROLL INDICATOR ── */
+        .ac-scroll-indicator {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.25rem;
+          color: hsl(0 0% 100% / 0.6);
+          cursor: pointer;
+          transition: color .2s;
+          margin-bottom: 1.5rem;
+          z-index: 20;
+          font-size: 0.8rem;
+        }
+        .ac-scroll-indicator:hover {
+          color: #fff;
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        .ac-scroll-indicator svg {
+          animation: bounce 1.6s infinite ease-in-out;
+        }
+
         /* ── PUNTINI ── */
         .ac-dots {
           position: relative;
@@ -263,7 +357,7 @@ export default function HomePage() {
           display: flex;
           justify-content: center;
           gap: 0.5rem;
-          padding-bottom: 0.5rem;
+          padding-bottom: 1rem;
         }
         .ac-dot {
           width: 8px;
@@ -278,6 +372,106 @@ export default function HomePage() {
         .ac-dot-active {
           background: #fff;
           width: 24px;
+        }
+
+        /* ── INFO FOLD ── */
+        .ac-info-fold {
+          position: relative;
+          z-index: 10;
+          padding: 4rem 1.5rem;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        .ac-info-card {
+          max-width: 800px;
+          width: 100%;
+          background: hsl(220 40% 12% / 0.45);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid hsl(220 40% 90% / 0.15);
+          border-radius: 24px;
+          padding: 2.5rem;
+          box-shadow: 0 20px 40px hsl(220 60% 5% / 0.3);
+          color: #fff;
+        }
+        .ac-info-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 1.25rem;
+        }
+        .ac-info-icon-main {
+          color: hsl(218 80% 82%);
+          width: 28px;
+          height: 28px;
+        }
+        .ac-info-header h2 {
+          font-size: 1.75rem;
+          font-weight: 800;
+          letter-spacing: -0.5px;
+        }
+        .ac-info-intro {
+          font-size: 1.05rem;
+          line-height: 1.6;
+          color: hsl(0 0% 100% / 0.85);
+        }
+        .ac-info-divider {
+          height: 1px;
+          background: linear-gradient(90deg, hsl(220 40% 90% / 0.2) 0%, transparent 100%);
+          margin: 2rem 0;
+        }
+        .ac-features-title {
+          font-size: 1.2rem;
+          font-weight: 700;
+          color: hsl(218 80% 82%);
+          margin-bottom: 1.5rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .ac-features-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+        @media (min-width: 640px) {
+          .ac-features-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+        .ac-feature-card {
+          background: hsl(220 40% 90% / 0.05);
+          border: 1px solid hsl(220 40% 90% / 0.08);
+          border-radius: 16px;
+          padding: 1.5rem;
+          transition: transform 0.2s, border-color 0.2s;
+        }
+        .ac-feature-card:hover {
+          transform: translateY(-2px);
+          border-color: hsl(220 40% 90% / 0.15);
+        }
+        .ac-feature-header {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-bottom: 0.75rem;
+        }
+        .ac-feature-icon {
+          color: hsl(38 85% 65%);
+          width: 20px;
+          height: 20px;
+          flex-shrink: 0;
+        }
+        .ac-feature-header h4 {
+          font-size: 0.95rem;
+          font-weight: 700;
+          line-height: 1.3;
+          color: #fff;
+        }
+        .ac-feature-card p {
+          font-size: 0.875rem;
+          line-height: 1.5;
+          color: hsl(0 0% 100% / 0.75);
         }
 
         /* ── FOOTER ── */
