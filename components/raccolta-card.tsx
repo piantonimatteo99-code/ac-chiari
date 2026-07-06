@@ -405,44 +405,63 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         let numerator = 0;
         let incasso = 0;
 
-        const importo = parseFloat(raccolta[faseKey].importo) || 0;
-        const importoFratelli = parseFloat(raccolta.faseSaldo.importoTariffaFratelli || '0') || importo;
+        const confirmedInGroups = raccolta.confermatiIds?.filter(id => targetGroupMembers.some(m => m.id === id)) || [];
+        const confirmedMembersData = allMembers.filter(m => confirmedInGroups.includes(m.id));
+        const familyCounts = confirmedMembersData.reduce((acc, member) => {
+            if (member.familyId) {
+                acc[member.familyId] = (acc[member.familyId] || 0) + 1;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+
+        const getMemberPhasePrice = (member: UnifiedMember) => {
+            const faseData = raccolta[faseKey];
+            const customTariff = raccolta.tariffePersonalizzate?.find(t => t.groupId === member.groupId);
+
+            let customImporto: string | undefined;
+            if (faseKey === 'faseConferma') customImporto = customTariff?.importoConferma;
+            else if (faseKey === 'faseCaparra') customImporto = customTariff?.importoCaparra;
+            else if (faseKey === 'faseSaldo') customImporto = customTariff?.importoSaldo;
+
+            let price = 0;
+            if (customImporto !== undefined && customImporto !== '') {
+                const v = parseFloat(customImporto);
+                price = isNaN(v) || v < 0 ? (parseFloat(faseData?.importo) || 0) : v;
+            } else {
+                price = parseFloat(faseData?.importo) || 0;
+            }
+
+            if (
+                faseKey === 'faseSaldo' &&
+                !customTariff?.importoSaldo &&
+                faseData?.tariffaFratelliAttiva &&
+                member.familyId &&
+                (familyCounts[member.familyId] || 0) >= 2
+            ) {
+                price = parseFloat(faseData.importoTariffaFratelli || '0') || price;
+            }
+
+            return price;
+        };
 
         switch(faseKey) {
             case 'faseConferma':
                 denominator = targetGroupMembers.length;
-                numerator = raccolta.confermatiIds?.filter(id => targetGroupMembers.some(m => m.id === id)).length || 0;
-                incasso = (parseFloat(raccolta.faseConferma.importo) || 0) * numerator;
+                const confirmedMembers = targetGroupMembers.filter(m => raccolta.confermatiIds?.includes(m.id));
+                numerator = confirmedMembers.length;
+                incasso = confirmedMembers.reduce((sum, member) => sum + getMemberPhasePrice(member), 0);
                 break;
             case 'faseCaparra':
-                denominator = raccolta.confermatiIds?.filter(id => targetGroupMembers.some(m => m.id === id)).length || 0;
-                numerator = raccolta.caparraPaidIds?.filter(id => targetGroupMembers.some(m => m.id === id)).length || 0;
-                incasso = importo * numerator;
+                denominator = confirmedInGroups.length;
+                const paidCaparraMembers = targetGroupMembers.filter(m => raccolta.caparraPaidIds?.includes(m.id));
+                numerator = paidCaparraMembers.length;
+                incasso = paidCaparraMembers.reduce((sum, member) => sum + getMemberPhasePrice(member), 0);
                 break;
             case 'faseSaldo':
-                const confirmedInGroups = raccolta.confermatiIds?.filter(id => targetGroupMembers.some(m => m.id === id)) || [];
                 denominator = confirmedInGroups.length;
-                
-                const paidIdsInGroups = raccolta.saldoPaidIds?.filter(id => targetGroupMembers.some(m => m.id === id)) || [];
-                numerator = paidIdsInGroups.length;
-
-                // Sibling discount logic for income calculation
-                const confirmedMembersData = allMembers.filter(m => confirmedInGroups.includes(m.id));
-                const familyCounts = confirmedMembersData.reduce((acc, member) => {
-                    if (member.familyId) {
-                        acc[member.familyId] = (acc[member.familyId] || 0) + 1;
-                    }
-                    return acc;
-                }, {} as Record<string, number>);
-
-                incasso = paidIdsInGroups.reduce((total, memberId) => {
-                    const member = allMembers.find(m => m.id === memberId);
-                    if (member?.familyId && (familyCounts[member.familyId] || 0) >= 2 && raccolta.faseSaldo.tariffaFratelliAttiva) {
-                        return total + importoFratelli;
-                    }
-                    return total + importo;
-                }, 0);
-
+                const paidSaldoMembers = targetGroupMembers.filter(m => raccolta.saldoPaidIds?.includes(m.id));
+                numerator = paidSaldoMembers.length;
+                incasso = paidSaldoMembers.reduce((sum, member) => sum + getMemberPhasePrice(member), 0);
                 break;
         }
         return { denominator, numerator, incasso };
