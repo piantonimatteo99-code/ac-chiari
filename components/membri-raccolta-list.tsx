@@ -97,6 +97,20 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
     return counts;
   }, [allMembers, raccolta.confermatiIds]);
 
+  // Conta i fratelli che hanno PAGATO il saldo (usato in calculatePaidTotal)
+  // Coerente con la formula retroattiva: N fratelli pagati → N × scontato
+  const paidSaldoFamilyCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (!raccolta.saldoPaidIds) return counts;
+
+    allMembers.forEach(member => {
+        if (member.familyId && raccolta.saldoPaidIds!.includes(member.id)) {
+            counts[member.familyId] = (counts[member.familyId] || 0) + 1;
+        }
+    });
+    return counts;
+  }, [allMembers, raccolta.saldoPaidIds]);
+
   const calculateTotal = (member: UnifiedMember): number => {
     const isConfirmed = confermatiIds?.includes(member.id) ?? false;
     if (!isConfirmed) return 0;
@@ -159,7 +173,8 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
     if (faseSaldo.attiva && hasPaidSaldo) {
         let saldoImporto = getPhaseImporto(faseSaldo.importo, customTariff?.importoSaldo);
         // Applica sconto fratelli solo se non c'è tariffa personalizzata per il saldo
-        if (!customTariff?.importoSaldo && faseSaldo.tariffaFratelliAttiva && member.familyId && (familyCounts[member.familyId] || 0) >= 2) {
+        // e se >= 2 fratelli hanno effettivamente PAGATO (non solo confermato)
+        if (!customTariff?.importoSaldo && faseSaldo.tariffaFratelliAttiva && member.familyId && (paidSaldoFamilyCounts[member.familyId] || 0) >= 2) {
             saldoImporto = parseFloat(faseSaldo.importoTariffaFratelli || '0') || saldoImporto;
         }
         paidTotal += saldoImporto;
