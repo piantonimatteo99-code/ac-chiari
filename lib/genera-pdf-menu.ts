@@ -273,7 +273,28 @@ export async function generaPdfMenu(
       },
       theme: 'grid',
     });
-    y += 7;
+    y += 5;
+
+    // Sezione Note per il giorno (5 righe tratteggiate per scrittura a mano)
+    addPageIfNeeded(32);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...GRAY_500);
+    doc.text('Note del giorno:', marginL, y + 4);
+    
+    y += 8;
+    doc.setDrawColor(...GRAY_200);
+    doc.setLineWidth(0.15);
+    doc.setLineDashPattern([1, 1.5], 0);
+    
+    for (let i = 0; i < 5; i++) {
+      doc.line(marginL, y, marginL + contentW, y);
+      y += 6;
+    }
+    
+    // Ripristina la linea continua per gli elementi successivi
+    doc.setLineDashPattern([], 0);
+    y += 6;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
