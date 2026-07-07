@@ -36,6 +36,16 @@ interface MembriRaccoltaListProps {
   getGhostAmount?: (ghostId: string, phase: 'caparra' | 'saldo') => number;
 }
 
+const NESSUNA_KEYWORDS = [
+  'nessuna', 'nessuno', 'nessun', 'no', 'n/a', 'na', 'n.a.',
+  'non ha', 'non ha allergie', 'non ha intolleranze', 'niente', 'nulla', '-'
+];
+
+export function isNessunaAllergia(str: string): boolean {
+  const lower = (str || '').trim().toLowerCase();
+  if (!lower) return true;
+  return NESSUNA_KEYWORDS.includes(lower) || lower.startsWith('nessun');
+}
 
 type ColumnVisibility = {
     [key: string]: boolean;
@@ -297,7 +307,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
 
   const membersWithAllergie = useMemo(() => {
     return filteredMembers.filter(member => 
-        member.allergie && member.allergie.trim() !== '' &&
+        member.allergie && !isNessunaAllergia(member.allergie) &&
         (confermatiIds?.includes(member.id) ?? false)
     );
   }, [filteredMembers, confermatiIds]);
@@ -476,7 +486,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         {columnVisibility.totale && <TableCell className="text-right tabular-nums">€ {totalAmount.toFixed(2)}</TableCell>}
                         {columnVisibility.allergie && (
                             <TableCell>
-                                {member.allergie ? (
+                                {member.allergie && !isNessunaAllergia(member.allergie) ? (
                                     <span className="text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-0.5">
                                         {member.allergie}
                                     </span>

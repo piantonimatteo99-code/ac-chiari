@@ -50,10 +50,13 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
     cap: '',
     consenso: true,
   });
+  const [nessunaAllergia, setNessunaAllergia] = useState(false);
 
   // Pre-fill from userData when dialog opens
   useEffect(() => {
     if (isOpen && userData) {
+      const allergie = (userData as any).allergie || '';
+      setNessunaAllergia(allergie === '');
       setForm({
         nome: userData.nome || '',
         cognome: userData.cognome || '',
@@ -62,7 +65,7 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
         luogoNascita: (userData as any).luogoNascita || '',
         telefonoPrincipale: (userData as any).telefonoPrincipale || '',
         telefonoSecondario: (userData as any).telefonoSecondario || '',
-        allergie: (userData as any).allergie || '',
+        allergie,
         via: (userData as any).via || '',
         numeroCivico: (userData as any).numeroCivico || '',
         citta: (userData as any).citta || '',
@@ -292,7 +295,26 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
               {/* Allergie */}
               <div className="space-y-1">
                 <Label>Allergie / Intolleranze</Label>
-                <Input value={form.allergie} onChange={e => set('allergie', cap(e.target.value))} placeholder="Nessuna" />
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="profile-nessunaAllergia"
+                    checked={nessunaAllergia}
+                    onCheckedChange={(checked) => {
+                      setNessunaAllergia(checked === true);
+                      if (checked) set('allergie', '');
+                    }}
+                  />
+                  <Label htmlFor="profile-nessunaAllergia" className="text-sm font-normal cursor-pointer">
+                    Dichiaro che non ho allergie o intolleranze alimentari
+                  </Label>
+                </div>
+                {!nessunaAllergia && (
+                  <Input
+                    value={form.allergie}
+                    onChange={e => set('allergie', cap(e.target.value))}
+                    placeholder="Es. Arachidi, lattosio, glutine..."
+                  />
+                )}
               </div>
 
               {/* Consenso */}

@@ -72,8 +72,9 @@ export function JoinFamilyDialog({ isOpen, onOpenChange, user, userData, onSucce
     citta: userData?.citta ?? '',
     provincia: userData?.provincia ?? '',
     cap: userData?.cap ?? '',
-    consenso: true,
+    consenso: false,
   });
+  const [nessunaAllergia, setNessunaAllergia] = useState(false);
 
   // Step 2 — family search
   const [searchNome, setSearchNome] = useState('');
@@ -334,7 +335,26 @@ export function JoinFamilyDialog({ isOpen, onOpenChange, user, userData, onSucce
 
               <div className="space-y-1">
                 <Label>Allergie / Intolleranze</Label>
-                <Input value={personal.allergie} onChange={e => updatePersonal('allergie', e.target.value)} placeholder="Nessuna" />
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="join-nessunaAllergia"
+                    checked={nessunaAllergia}
+                    onCheckedChange={(checked) => {
+                      setNessunaAllergia(checked === true);
+                      if (checked) updatePersonal('allergie', '');
+                    }}
+                  />
+                  <Label htmlFor="join-nessunaAllergia" className="text-sm font-normal cursor-pointer">
+                    Dichiaro che non ha allergie o intolleranze alimentari
+                  </Label>
+                </div>
+                {!nessunaAllergia && (
+                  <Input
+                    value={personal.allergie}
+                    onChange={e => updatePersonal('allergie', e.target.value)}
+                    placeholder="Es. Arachidi, lattosio, glutine..."
+                  />
+                )}
               </div>
 
               <div className="flex items-start gap-3 rounded-lg border p-3 bg-muted/30 mt-2">

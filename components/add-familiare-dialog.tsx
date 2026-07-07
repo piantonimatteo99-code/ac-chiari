@@ -71,8 +71,10 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
   
   const [membroData, setMembroData] = useState<Membro>(initialMembroState);
   const [anagraficaData, setAnagraficaData] = useState(initialAnagraficaState);
+  const [nessunaAllergia, setNessunaAllergia] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
 
   const isEditing = membroToEdit != null;
   const famigliaId = userData?.familyId || user.uid;
@@ -81,6 +83,8 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
   useEffect(() => {
     if (isOpen) {
       if (isEditing && membroToEdit) {
+        const allergie = membroToEdit.allergie || '';
+        setNessunaAllergia(allergie === '');
         setMembroData({
           nome: membroToEdit.nome || '',
           cognome: membroToEdit.cognome || '',
@@ -89,12 +93,13 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
           luogoNascita: membroToEdit.luogoNascita || '',
           telefonoPrincipale: membroToEdit.telefonoPrincipale || '',
           telefonoSecondario: membroToEdit.telefonoSecondario || '',
-          allergie: membroToEdit.allergie || '',
+          allergie,
           consenso: membroToEdit.consenso ?? (membroToEdit.consensoFoto !== false && membroToEdit.consensoSocial !== false),
           personaAutorizzata: membroToEdit.personaAutorizzata || [],
           puoRientrareInAutonomia: membroToEdit.puoRientrareInAutonomia ?? false,
         });
       } else {
+        setNessunaAllergia(false);
         setMembroData(initialMembroState);
       }
 
@@ -344,15 +349,30 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
             </div>
             
             <div className="grid gap-2 border-t pt-4">
-                <Label htmlFor="allergie" className="flex items-center gap-1">
+                <Label className="flex items-center gap-1">
                   Allergie / Intolleranze
                 </Label>
-                <Input
-                  id="allergie"
-                  placeholder="Es. Arachidi, lattosio, glutine..."
-                  value={membroData.allergie || ''}
-                  onChange={handleChange}
-                />
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="nessunaAllergia"
+                    checked={nessunaAllergia}
+                    onCheckedChange={(checked) => {
+                      setNessunaAllergia(checked === true);
+                      if (checked) setMembroData(prev => ({ ...prev, allergie: '' }));
+                    }}
+                  />
+                  <Label htmlFor="nessunaAllergia" className="text-sm font-normal cursor-pointer">
+                    Dichiaro che non ha allergie o intolleranze alimentari
+                  </Label>
+                </div>
+                {!nessunaAllergia && (
+                  <Input
+                    id="allergie"
+                    placeholder="Es. Arachidi, lattosio, glutine..."
+                    value={membroData.allergie || ''}
+                    onChange={handleChange}
+                  />
+                )}
             </div>
 
             {/* Consenso privacy unificato */}

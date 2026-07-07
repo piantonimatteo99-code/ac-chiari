@@ -83,6 +83,17 @@ function allergeniDaNota(note?: string): string[] {
     .filter(Boolean);
 }
 
+const NESSUNA_KEYWORDS = [
+  'nessuna', 'nessuno', 'nessun', 'no', 'n/a', 'na', 'n.a.',
+  'non ha', 'non ha allergie', 'non ha intolleranze', 'niente', 'nulla', '-'
+];
+
+function isNessunaAllergia(str?: string): boolean {
+  const lower = (str || '').trim().toLowerCase();
+  if (!lower) return true;
+  return NESSUNA_KEYWORDS.includes(lower) || lower.startsWith('nessun');
+}
+
 /** Calcola ingredienti totali aggregati, includendo gli allergeni di ogni piatto */
 function calcolaIngredienti(
   piattoIds: string[],
@@ -463,7 +474,7 @@ export async function generaPdfMenu(
     sectionTitle('D  -  Lista partecipanti con allergie dichiarate');
 
     const ordinati   = [...partecipanti].sort((a, b) => (a.cognome + a.nome).localeCompare(b.cognome + b.nome));
-    const conAllergie = ordinati.filter(p => p.allergie && p.allergie.trim());
+    const conAllergie = ordinati.filter(p => p.allergie && !isNessunaAllergia(p.allergie));
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
@@ -477,7 +488,16 @@ export async function generaPdfMenu(
     // Tabella completa
     tbl({
       head: [['#', 'Cognome', 'Nome', 'Classe / Gruppo', 'Allergie / Intolleranze']],
-      body: ordinati.map((p, i) => [String(i + 1), p.cognome, p.nome, p.classe || '-', p.allergie || '-']),
+      body: ordinati.map((p, i) => {
+        const hasAllergy = p.allergie && !isNessunaAllergia(p.allergie);
+        return [
+          String(i + 1),
+          p.cognome,
+          p.nome,
+          p.classe || '-',
+          hasAllergy ? p.allergie! : '-'
+        ];
+      }),
       styles: { fontSize: 8.5, cellPadding: 2.5 },
       headStyles: { fillColor: BRAND_BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 8.5 },
       columnStyles: {
