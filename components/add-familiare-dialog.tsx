@@ -377,23 +377,20 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
 
             {/* Consenso privacy unificato */}
             <div className="grid gap-2 border-t pt-4">
-              <div className="flex items-start gap-2">
+              <Label className="flex items-center gap-1">
+                Autorizzazione a foto e social
+              </Label>
+              <div className="flex items-center gap-2">
                 <Checkbox
                   id="consenso"
                   checked={membroData.consenso ?? true}
                   onCheckedChange={(checked) =>
                     setMembroData(prev => ({ ...prev, consenso: checked === true }))
                   }
-                  className="mt-1"
                 />
-                <div className="space-y-1">
-                  <Label htmlFor="consenso" className="text-sm font-normal cursor-pointer">
-                    Autorizzazione a foto e social
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Autorizzo Azione Cattolica Chiari alla pubblicazione di fotografie sui propri canali social.
-                  </p>
-                </div>
+                <Label htmlFor="consenso" className="text-sm font-normal cursor-pointer">
+                  Autorizzo Azione Cattolica Chiari alla pubblicazione di fotografie sui propri canali social
+                </Label>
               </div>
             </div>
 

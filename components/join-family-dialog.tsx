@@ -357,20 +357,19 @@ export function JoinFamilyDialog({ isOpen, onOpenChange, user, userData, onSucce
                 )}
               </div>
 
-              <div className="flex items-start gap-2 mt-2">
-                <Checkbox
-                  id="join-consenso"
-                  checked={personal.consenso}
-                  onCheckedChange={(v) => updatePersonal('consenso', v === true)}
-                  className="mt-1"
-                />
-                <div className="space-y-1">
+              <div className="grid gap-2 mt-3">
+                <Label className="flex items-center gap-1">
+                  Autorizzazione a foto e social
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="join-consenso"
+                    checked={personal.consenso}
+                    onCheckedChange={(v) => updatePersonal('consenso', v === true)}
+                  />
                   <Label htmlFor="join-consenso" className="text-sm font-normal cursor-pointer">
-                    Autorizzazione a foto e social
+                    Autorizzo Azione Cattolica Chiari alla pubblicazione di fotografie sui propri canali social
                   </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Autorizzo Azione Cattolica Chiari alla pubblicazione di fotografie sui propri canali social.
-                  </p>
                 </div>
               </div>
             </div>
