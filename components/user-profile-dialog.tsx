@@ -318,17 +318,18 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
               </div>
 
               {/* Consenso */}
-              <div className="flex items-start gap-3 rounded-lg border p-3 bg-muted/30">
+              <div className="flex items-start gap-2">
                 <Checkbox
                   id="profile-consenso"
                   checked={form.consenso}
                   onCheckedChange={v => set('consenso', v === true)}
+                  className="mt-1"
                 />
-                <div>
-                  <Label htmlFor="profile-consenso" className="text-sm font-medium cursor-pointer">
+                <div className="space-y-1">
+                  <Label htmlFor="profile-consenso" className="text-sm font-normal cursor-pointer">
                     Autorizzazione a foto e social
                   </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground">
                     Autorizzo Azione Cattolica Chiari alla pubblicazione di fotografie sui propri canali social.
                   </p>
                 </div>

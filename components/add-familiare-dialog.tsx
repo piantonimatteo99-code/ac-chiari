@@ -376,23 +376,22 @@ export function AddFamiliareDialog({ isOpen, onOpenChange, membroToEdit, user, u
             </div>
 
             {/* Consenso privacy unificato */}
-            <div className="border-t pt-4">
-              <div className="flex items-start gap-3 rounded-lg border p-3 bg-muted/30">
+            <div className="grid gap-2 border-t pt-4">
+              <div className="flex items-start gap-2">
                 <Checkbox
                   id="consenso"
                   checked={membroData.consenso ?? true}
                   onCheckedChange={(checked) =>
                     setMembroData(prev => ({ ...prev, consenso: checked === true }))
                   }
+                  className="mt-1"
                 />
-                <div className="space-y-0.5">
-                  <Label htmlFor="consenso" className="text-sm font-medium cursor-pointer">
-                    Autorizzazione a foto e pubblicazione sui social
+                <div className="space-y-1">
+                  <Label htmlFor="consenso" className="text-sm font-normal cursor-pointer">
+                    Autorizzazione a foto e social
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    La famiglia autorizza lo scatto di fotografie durante le attività ACR e la loro pubblicazione
-                    nelle pagine social ufficiali di Azione Cattolica Chiari.
-                    Deseleziona per revocare il consenso.
+                    Autorizzo Azione Cattolica Chiari alla pubblicazione di fotografie sui propri canali social.
                   </p>
                 </div>
               </div>

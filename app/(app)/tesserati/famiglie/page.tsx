@@ -124,18 +124,6 @@ export default function FamigliePage() {
             
             const membri: MembroViewModel[] = [];
 
-            // Controlla se il capofamiglia ha i dati minimi per essere considerato un membro
-            if (capofamigliaUser && capofamigliaUser.nome && capofamigliaUser.cognome && capofamigliaUser.dataNascita) {
-                membri.push({
-                    id: capofamigliaUser.id,
-                    nome: capofamigliaUser.nome,
-                    cognome: capofamigliaUser.cognome,
-                    dataNascita: capofamigliaUser.dataNascita,
-                    groupName: memberToGroupMap.get(capofamigliaUser.id) || capofamigliaUser.groupName,
-                    tesseramento: capofamigliaUser.tesseramento,
-                });
-            }
-
             // Aggiungi gli altri membri dalla sotto-collezione
             const altriMembri = membriByFamiglia.get(famiglia.id)?.map(m => ({
                 id: m.id,
@@ -145,6 +133,20 @@ export default function FamigliePage() {
                 groupName: memberToGroupMap.get(m.id) || m.groupName,
                 tesseramento: m.tesseramento,
             })) || [];
+
+            // Aggiungi il capofamiglia da users SOLO se non è già presente nella sotto-collezione membri
+            const capofamigliaGiaPresente = altriMembri.some(m => m.id === famiglia.uidCapofamiglia);
+
+            if (!capofamigliaGiaPresente && capofamigliaUser && capofamigliaUser.nome && capofamigliaUser.cognome && capofamigliaUser.dataNascita) {
+                membri.push({
+                    id: capofamigliaUser.id,
+                    nome: capofamigliaUser.nome,
+                    cognome: capofamigliaUser.cognome,
+                    dataNascita: capofamigliaUser.dataNascita,
+                    groupName: memberToGroupMap.get(capofamigliaUser.id) || capofamigliaUser.groupName,
+                    tesseramento: capofamigliaUser.tesseramento,
+                });
+            }
 
             membri.push(...altriMembri);
 
