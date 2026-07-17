@@ -11,7 +11,7 @@ export default function PrivacyPage() {
     <main className="min-h-screen bg-white text-gray-800 px-6 py-12 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-2 text-blue-800">Privacy Policy</h1>
       <p className="text-sm text-gray-500 mb-8">
-        Ultimo aggiornamento: 24 maggio 2026
+        Ultimo aggiornamento: 17 luglio 2026
       </p>
 
       <section className="mb-8">
@@ -189,6 +189,104 @@ export default function PrivacyPage() {
           Ci riserviamo il diritto di modificare questa Privacy Policy in qualsiasi momento.
           Le modifiche saranno pubblicate su questa pagina con la data di aggiornamento.
         </p>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold mb-3 text-blue-700">
+          12. Misure di sicurezza tecnica per i dati sensibili
+        </h2>
+        <p className="mb-3">
+          L'applicazione adotta le seguenti misure tecniche per proteggere i dati sensibili degli utenti,
+          in particolare i token di accesso OAuth e i documenti caricati:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-700">
+          <li>
+            <strong>Trasmissione cifrata (HTTPS/TLS)</strong>: tutte le comunicazioni tra il dispositivo
+            dell'utente, i server dell'applicazione e le API di Google avvengono esclusivamente tramite
+            protocollo HTTPS con crittografia TLS, impedendo l'intercettazione dei dati in transito.
+          </li>
+          <li>
+            <strong>Archiviazione sicura dei token OAuth</strong>: i token di accesso a Google Calendar
+            rilasciati da Google vengono archiviati esclusivamente nel database Firebase Firestore
+            dell'associazione, protetto da regole di sicurezza Firebase che garantiscono l'accesso
+            esclusivamente agli utenti autorizzati. I token non vengono mai scritti in chiaro in log,
+            cookie non sicuri o storage lato client.
+          </li>
+          <li>
+            <strong>Regole di accesso Firebase</strong>: l'accesso al database Firestore è governato da
+            regole di sicurezza granulari che limitano la lettura e la scrittura dei dati agli utenti
+            autenticati e solo ai documenti di loro competenza. Gli educatori autorizzati hanno accesso
+            ampliato esclusivamente alle funzionalità di gestione contabile.
+          </li>
+          <li>
+            <strong>Revoca immediata del token</strong>: quando l'utente revoca l'integrazione con
+            Google Calendar dall'applicazione, il token di accesso viene immediatamente eliminato da
+            Firestore e invalidato tramite le API di Google, impedendo qualsiasi accesso futuro.
+          </li>
+          <li>
+            <strong>Accesso minimo necessario (Least Privilege)</strong>: l'applicazione richiede
+            esclusivamente gli scope OAuth strettamente necessari al funzionamento:
+            <code className="bg-gray-100 px-1 rounded text-sm"> drive.file</code> (accesso ai soli file
+            creati dall'app su Google Drive) e
+            <code className="bg-gray-100 px-1 rounded text-sm"> calendar</code> (creazione di eventi
+            sul calendario dell'utente). Nessuno scope aggiuntivo viene richiesto.
+          </li>
+          <li>
+            <strong>Isolamento dei documenti su Google Drive</strong>: i file caricati su Google Drive
+            tramite lo scope <code className="bg-gray-100 px-1 rounded text-sm">drive.file</code> sono
+            accessibili esclusivamente dall'applicazione stessa e dagli educatori autorizzati tramite
+            le credenziali del service account dell'associazione. L'accesso diretto da parte di terzi
+            è tecnicamente impossibile senza credenziali valide.
+          </li>
+        </ul>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold mb-3 text-blue-700">
+          13. Conformità alla Google API Services User Data Policy
+        </h2>
+        <p className="mb-3">
+          L'utilizzo e il trasferimento di informazioni ricevute tramite le API di Google verso qualsiasi
+          altra app rispetta la{" "}
+          <a
+            href="https://developers.google.com/terms/api-services-user-data-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline"
+          >
+            Google API Services User Data Policy
+          </a>
+          , inclusi i requisiti di utilizzo limitato.
+        </p>
+        <p className="mb-3">
+          In conformità con tale policy, l'applicazione dichiara esplicitamente che:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-700">
+          <li>
+            I dati ottenuti tramite le API di Google (inclusi i token OAuth, le informazioni del profilo
+            Google e i dati di Google Calendar e Drive) vengono utilizzati <strong>esclusivamente</strong>{" "}
+            per le finalità dichiarate in questa Privacy Policy: gestione interna dell'associazione,
+            sincronizzazione degli eventi sul calendario personale dell'utente e archiviazione temporanea
+            delle ricevute di pagamento.
+          </li>
+          <li>
+            I dati Google dell'utente <strong>non vengono venduti</strong> a terze parti in nessuna circostanza.
+          </li>
+          <li>
+            I dati Google dell'utente <strong>non vengono utilizzati</strong> per finalità pubblicitarie,
+            di profilazione o per scopi che esulano dall'uso dichiarato dell'applicazione.
+          </li>
+          <li>
+            I dati Google dell'utente <strong>non vengono trasferiti</strong> a terze parti, salvo quanto
+            strettamente necessario per erogare il servizio (Firebase/Google Cloud come provider tecnico)
+            e solo previa autorizzazione esplicita dell'utente.
+          </li>
+          <li>
+            L'accesso ai dati Google viene richiesto solo nel momento in cui l'utente attiva
+            esplicitamente l'integrazione, tramite il flusso OAuth standard di Google, che include
+            la schermata di consenso con la descrizione dettagliata degli scope richiesti.
+          </li>
+        </ul>
       </section>
 
       <footer className="border-t pt-6 mt-8 text-sm text-gray-500">

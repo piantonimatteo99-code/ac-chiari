@@ -5,7 +5,6 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 const SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/drive.metadata.readonly',
 ].join(' ');
 
 /**
