@@ -31,7 +31,26 @@ const THRESHOLDS = {
 } as const;
 
 /** Tipi di notifica considerati "promemoria evento" — scadono prima */
-const EVENT_REMINDER_TYPES = new Set(['evento', 'evento_promemoria', 'evento_promemoria_sera', 'evento_promemoria_mezzogiorno']);
+const EVENT_REMINDER_TYPES = new Set([
+  'evento',
+  'evento_promemoria',
+  'evento_promemoria_sera',
+  'evento_promemoria_mezzogiorno',
+]);
+
+/** Elimina un array di DocumentReference in batch da 400 */
+async function deleteDocs(refs: FirebaseFirestore.DocumentReference[]): Promise<number> {
+  const BATCH_LIMIT = 400;
+  let deleted = 0;
+  for (let i = 0; i < refs.length; i += BATCH_LIMIT) {
+    const batch = adminDb.batch();
+    const chunk = refs.slice(i, i + BATCH_LIMIT);
+    chunk.forEach(ref => batch.delete(ref));
+    await batch.commit();
+    deleted += chunk.length;
+  }
+  return deleted;
+}
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -54,17 +73,6 @@ export async function GET(request: NextRequest) {
     let deleted = 0;
     const errors: string[] = [];
 
-    // ── Helper: elimina un batch di DocumentReference ───────────────────────
-    async function deleteDocs(refs: FirebaseFirestore.DocumentReference[]) {
-      const BATCH_LIMIT = 400;
-      for (let i = 0; i < refs.length; i += BATCH_LIMIT) {
-        const batch = adminDb.batch();
-        refs.slice(i, i + BATCH_LIMIT).forEach(ref => batch.delete(ref));
-        await batch.commit();
-        deleted += Math.min(BATCH_LIMIT, refs.length - i);
-      }
-    }
-
     // ── 1. Promemoria evento già letti da più di 2 giorni ───────────────────
     try {
       const snap = await adminDb.collection('notifiche')
@@ -82,7 +90,7 @@ export async function GET(request: NextRequest) {
         })
         .map(d => d.ref);
 
-      await deleteDocs(refs);
+      deleted += await deleteDocs(refs);
     } catch (e: any) {
       console.error('[cleanup-notifications] Step 1 error:', e);
       errors.push(`step1: ${e.message}`);
@@ -95,7 +103,7 @@ export async function GET(request: NextRequest) {
         .where('createdAt', '<=', cutoffGenericRead)
         .get();
 
-      await deleteDocs(snap.docs.map(d => d.ref));
+      deleted += await deleteDocs(snap.docs.map(d => d.ref));
     } catch (e: any) {
       console.error('[cleanup-notifications] Step 2 error:', e);
       errors.push(`step2: ${e.message}`);
@@ -108,7 +116,7 @@ export async function GET(request: NextRequest) {
         .where('createdAt', '<=', cutoffUnread)
         .get();
 
-      await deleteDocs(snap.docs.map(d => d.ref));
+      deleted += await deleteDocs(snap.docs.map(d => d.ref));
     } catch (e: any) {
       console.error('[cleanup-notifications] Step 3 error:', e);
       errors.push(`step3: ${e.message}`);
