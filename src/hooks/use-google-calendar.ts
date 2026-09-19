@@ -255,6 +255,26 @@ export function useGoogleCalendar() {
     }
   }, [user]);
 
+  /** Test: migrate a single user by email (force=true re-syncs even if already configured) */
+  const migrateUser = useCallback(async (email: string, force = false): Promise<Record<string, unknown> | null> => {
+    if (!user) return null;
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/calendar/migrate-sync-groups', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ targetEmail: email, force }),
+      });
+      return await res.json();
+    } catch (err: any) {
+      setError(`Errore migrazione utente: ${err.message}`);
+      return null;
+    }
+  }, [user]);
+
   return {
     isConnected,
     events: googleEventsAsCalendar,
@@ -269,5 +289,6 @@ export function useGoogleCalendar() {
     isLoadingSyncSettings,
     updateSyncGroups,
     migrateAllUsers,
+    migrateUser,
   };
 }

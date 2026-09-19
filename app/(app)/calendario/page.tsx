@@ -543,6 +543,36 @@ export default function CalendarioPage() {
                         {isMigrating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                         Migra utenti connessi
                       </Button>
+
+                      {/* ⚠️ TEMPORANEO — Test singolo utente: damianopiantoni07@gmail.com */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-dashed text-orange-600 hover:text-orange-700"
+                        disabled={isMigrating}
+                        onClick={async () => {
+                          setIsMigrating(true);
+                          setMigrateResult(null);
+                          const result = await googleCalendar.migrateUser('damianopiantoni07@gmail.com', true);
+                          setIsMigrating(false);
+                          if (result && (result as Record<string, unknown>).summary) {
+                            const s = (result as Record<string, unknown>).summary as Record<string, number>;
+                            const det = (result as Record<string, unknown>).migrated as Array<Record<string, unknown>>;
+                            const pushed = det?.[0]?.pushed ?? 0;
+                            setMigrateResult(
+                              `🧪 Test Damiano: migrati=${s.migrated}, eventi pushati=${pushed}${s.errors > 0 ? `, errori=${s.errors}` : ''}`
+                            );
+                          } else if (result && (result as Record<string, unknown>).note) {
+                            setMigrateResult(`ℹ️ ${(result as Record<string, unknown>).note}`);
+                          } else if (result && (result as Record<string, unknown>).error) {
+                            setMigrateResult(`❌ ${(result as Record<string, unknown>).error}`);
+                          }
+                        }}
+                      >
+                        {isMigrating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                        🧪 Test migrazione Damiano
+                      </Button>
+
                       {migrateResult && (
                         <p className="text-xs text-muted-foreground">{migrateResult}</p>
                       )}
