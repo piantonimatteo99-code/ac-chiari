@@ -500,7 +500,8 @@ export default function CalendarioPage() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {groups?.map(group => (
+                      {/* Admin/educatore: tutti i gruppi. Utenti normali: solo il proprio e quelli del nucleo familiare. */}
+                      {(canAddEvents ? groups : groups?.filter(g => familyGroupIds.has(g.id)))?.map(group => (
                         <div key={group.id} className="flex items-center gap-2">
                           <Checkbox
                             id={`sync-${group.id}`}
