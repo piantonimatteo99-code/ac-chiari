@@ -30,9 +30,11 @@ service firebase.storage {
       allow write: if isAuthenticated();
     }
 
-    // ── Tutto il resto: richiede autenticazione ───────────────────────────────
+    // ── Tutto il resto: NEGATO ────────────────────────────────────────────────
+    // Tutti i percorsi validi dell'app sono già coperti dalle regole specifiche sopra.
+    // Non esiste una wildcard aperta per evitare upload non autorizzati.
     match /{allPaths=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if false;
     }
   }
 }
