@@ -222,6 +222,7 @@ export async function deleteEventForUser(
  *  3. Admin migration for existing connected users
  *
  * Events in the past are NEVER pushed (per product requirement).
+ * Events already present in Google Calendar are skipped (no duplicates).
  */
 export async function syncFutureEventsForUser(
   userId: string,
@@ -252,15 +253,25 @@ export async function syncFutureEventsForUser(
     const data = eventDoc.data();
     const startDate = (data.startDate as Timestamp).toDate();
     const endDate   = (data.endDate   as Timestamp).toDate();
+    const eventPayload = {
+      title:       data.title || '(Senza titolo)',
+      description: data.description || '',
+      startDate:   startDate.toISOString(),
+      endDate:     endDate.toISOString(),
+      allDay:      !!data.allDay,
+    };
 
     try {
-      await pushEventToUser(userId, {
-        title:       data.title || '(Senza titolo)',
-        description: data.description || '',
-        startDate:   startDate.toISOString(),
-        endDate:     endDate.toISOString(),
-        allDay:      !!data.allDay,
-      });
+      // ── Deduplication: skip if the event already exists in GCal ───────────
+      // This prevents creating duplicates when sync runs after a broadcastEvent
+      // already pushed the same event (e.g. migration after initial broadcast).
+      const existingId = await findEventOnUserCalendar(userId, eventPayload);
+      if (existingId) {
+        skipped++;
+        continue;
+      }
+
+      await pushEventToUser(userId, eventPayload);
       pushed++;
     } catch (err: any) {
       // If the token is revoked/invalid, stop immediately — all further calls will fail
@@ -274,7 +285,6 @@ export async function syncFutureEventsForUser(
       }
       // Individual event failures are logged but don't abort the whole sync
       errors.push(`evento ${eventDoc.id}: ${err.message}`);
-      skipped++;
     }
   }
 
