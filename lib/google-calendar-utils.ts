@@ -1,4 +1,4 @@
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { initAdminApp } from '@/lib/firebase-admin';
 
 /**
@@ -210,4 +210,73 @@ export async function deleteEventForUser(
     const errText = await res.text();
     throw new Error(`Errore eliminazione evento per ${userId}: ${errText}`);
   }
+}
+
+/**
+ * Pushes all FUTURE events (startDate >= now) for the given groupIds
+ * to the user's primary Google Calendar.
+ *
+ * Used in three scenarios:
+ *  1. First time a user connects Google Calendar (callback route)
+ *  2. User adds new groups to their sync settings
+ *  3. Admin migration for existing connected users
+ *
+ * Events in the past are NEVER pushed (per product requirement).
+ */
+export async function syncFutureEventsForUser(
+  userId: string,
+  groupIds: string[]
+): Promise<{ pushed: number; skipped: number; errors: string[] }> {
+  if (!groupIds.length) return { pushed: 0, skipped: 0, errors: [] };
+
+  initAdminApp();
+  const db = getFirestore();
+  const now = Timestamp.now();
+
+  // Fetch all events with startDate >= today
+  const eventsSnap = await db.collection('eventi')
+    .where('startDate', '>=', now)
+    .get();
+
+  // Keep only events belonging to at least one of the user's groups
+  const matching = eventsSnap.docs.filter(d => {
+    const eg: string[] = d.data().groupIds || [];
+    return eg.some(gid => groupIds.includes(gid));
+  });
+
+  let pushed = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  for (const eventDoc of matching) {
+    const data = eventDoc.data();
+    const startDate = (data.startDate as Timestamp).toDate();
+    const endDate   = (data.endDate   as Timestamp).toDate();
+
+    try {
+      await pushEventToUser(userId, {
+        title:       data.title || '(Senza titolo)',
+        description: data.description || '',
+        startDate:   startDate.toISOString(),
+        endDate:     endDate.toISOString(),
+        allDay:      !!data.allDay,
+      });
+      pushed++;
+    } catch (err: any) {
+      // If the token is revoked/invalid, stop immediately — all further calls will fail
+      if (
+        err.message?.includes('Token refresh fallito') ||
+        err.message?.includes('Refresh token mancante') ||
+        err.message?.includes('non connesso')
+      ) {
+        errors.push(`Token non valido per ${userId}: ${err.message}`);
+        break;
+      }
+      // Individual event failures are logged but don't abort the whole sync
+      errors.push(`evento ${eventDoc.id}: ${err.message}`);
+      skipped++;
+    }
+  }
+
+  return { pushed, skipped, errors };
 }

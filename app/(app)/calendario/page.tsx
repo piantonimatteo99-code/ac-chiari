@@ -218,6 +218,8 @@ export default function CalendarioPage() {
   const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [showSyncSettings, setShowSyncSettings] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrateResult, setMigrateResult] = useState<string | null>(null);
 
   // Set default filter once loading is done — non-admin users default to 'personale'
   // Do NOT gate on userData: new users with no Firestore doc must also be filtered
@@ -489,7 +491,7 @@ export default function CalendarioPage() {
 
               {/* Sync settings — floating dropdown, does not affect layout flow */}
               {showSyncSettings && (
-                <div className="absolute right-0 top-full mt-1 z-[200] border rounded-lg p-3 bg-popover shadow-md w-64 text-sm">
+                <div className="absolute right-0 top-full mt-1 z-[200] border rounded-lg p-3 bg-popover shadow-md w-72 text-sm">
                   <p className="font-medium mb-2">Gruppi da sincronizzare</p>
                   <p className="text-xs text-muted-foreground mb-3">
                     Gli eventi di questi gruppi appariranno nel tuo Google Calendar.
@@ -515,8 +517,40 @@ export default function CalendarioPage() {
                       ))}
                     </div>
                   )}
+
+                  {/* Admin-only: migrate existing connected users */}
+                  {canAddEvents && (
+                    <div className="mt-4 pt-3 border-t flex flex-col gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        Imposta automaticamente i gruppi per tutti gli utenti già connessi che non hanno ancora configurato la sincronizzazione.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isMigrating}
+                        onClick={async () => {
+                          setIsMigrating(true);
+                          setMigrateResult(null);
+                          const result = await googleCalendar.migrateAllUsers();
+                          setIsMigrating(false);
+                          if (result?.summary) {
+                            setMigrateResult(
+                              `✅ Migrati: ${result.summary.migrated}, già configurati: ${result.summary.alreadyConfigured}, senza gruppo: ${result.summary.noGroup}${result.summary.errors > 0 ? `, errori: ${result.summary.errors}` : ''}`
+                            );
+                          }
+                        }}
+                      >
+                        {isMigrating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                        Migra utenti connessi
+                      </Button>
+                      {migrateResult && (
+                        <p className="text-xs text-muted-foreground">{migrateResult}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
+
             </div>
           ) : (
             <Tooltip>

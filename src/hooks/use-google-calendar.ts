@@ -235,6 +235,26 @@ export function useGoogleCalendar() {
     };
   });
 
+  // ── One-time migration (admin only) ──────────────────────────────────────
+  const migrateAllUsers = useCallback(async (): Promise<{
+    summary: { total: number; migrated: number; alreadyConfigured: number; noGroup: number; errors: number };
+    migrated: { uid: string; groupId: string; pushed: number }[];
+    errors: string[];
+  } | null> => {
+    if (!user) return null;
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/calendar/migrate-sync-groups', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return await res.json();
+    } catch (err: any) {
+      setError(`Errore migrazione: ${err.message}`);
+      return null;
+    }
+  }, [user]);
+
   return {
     isConnected,
     events: googleEventsAsCalendar,
@@ -248,5 +268,6 @@ export function useGoogleCalendar() {
     syncGroupIds,
     isLoadingSyncSettings,
     updateSyncGroups,
+    migrateAllUsers,
   };
 }

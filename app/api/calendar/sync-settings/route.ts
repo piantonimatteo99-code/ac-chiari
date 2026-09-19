@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initAdminApp } from '@/lib/firebase-admin';
+import { syncFutureEventsForUser } from '@/lib/google-calendar-utils';
 
 /**
  * GET /api/calendar/sync-settings?userId=xxx
@@ -37,6 +38,14 @@ export async function PUT(request: NextRequest) {
     initAdminApp();
     const db = getFirestore();
 
+    // Read the current syncGroupIds BEFORE updating (to detect newly added groups)
+    const oldPrivateDoc = await db
+      .collection('users').doc(userId)
+      .collection('private').doc('google-calendar').get();
+    const oldSyncGroupIds: string[] = oldPrivateDoc.exists
+      ? (oldPrivateDoc.data()?.syncGroupIds ?? [])
+      : [];
+
     // Save on the user's private google-calendar doc
     await db.collection('users').doc(userId).collection('private').doc('google-calendar').set(
       { syncGroupIds },
@@ -50,6 +59,17 @@ export async function PUT(request: NextRequest) {
       { uid: userId, connected, syncGroupIds },
       { merge: true }
     );
+
+    // For every newly added group, push future events to the user's Google Calendar
+    // This runs fire-and-forget so the API response is immediate
+    if (connected) {
+      const newlyAdded = (syncGroupIds as string[]).filter(gid => !oldSyncGroupIds.includes(gid));
+      if (newlyAdded.length > 0) {
+        syncFutureEventsForUser(userId, newlyAdded).catch(err =>
+          console.warn(`[sync-settings] Partial initial sync failed for ${userId}:`, err)
+        );
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

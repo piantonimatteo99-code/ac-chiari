@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from 'firebase-admin/firestore';
 import { initAdminApp } from '@/lib/firebase-admin';
+import { syncFutureEventsForUser } from '@/lib/google-calendar-utils';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
@@ -62,13 +63,42 @@ export async function GET(request: NextRequest) {
     }, { merge: true });
 
     // Mirror connection status to top-level collection for broadcast queries
-    // Preserve existing syncGroupIds if present
+    // Smart defaults: on first connection, use the user's personal groupId if available
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data() || {};
+    const userGroupId: string | undefined = userData.groupId;
+
     const existingSub = await db.collection('calendarSubscriptions').doc(userId).get();
+    const isFirstConnection = !existingSub.exists || !(existingSub.data()?.syncGroupIds?.length);
+
+    // First connection → default to user's group; subsequent connections → preserve existing choice
+    const defaultSyncGroupIds: string[] = isFirstConnection && userGroupId
+      ? [userGroupId]
+      : (existingSub.data()?.syncGroupIds ?? []);
+
     await db.collection('calendarSubscriptions').doc(userId).set({
       uid: userId,
       connected: true,
-      syncGroupIds: existingSub.exists ? (existingSub.data()?.syncGroupIds ?? []) : [],
+      syncGroupIds: defaultSyncGroupIds,
     }, { merge: true });
+
+    // Keep private doc consistent (used by sync-settings GET for the UI)
+    await db.collection('users').doc(userId).collection('private').doc('google-calendar').set(
+      { syncGroupIds: defaultSyncGroupIds },
+      { merge: true }
+    );
+
+    // On first connection with groups to sync, push all future events immediately
+    // Awaited before redirecting so GCal is up-to-date when the user lands back on /calendario
+    if (isFirstConnection && defaultSyncGroupIds.length > 0) {
+      try {
+        const syncResult = await syncFutureEventsForUser(userId, defaultSyncGroupIds);
+        console.log(`[calendar/callback] Initial sync for ${userId}: pushed=${syncResult.pushed}, errors=${syncResult.errors.length}`);
+      } catch (syncErr) {
+        // Non-blocking: a sync failure must not prevent the user from connecting
+        console.warn('[calendar/callback] Initial sync failed (non-blocking):', syncErr);
+      }
+    }
 
     return NextResponse.redirect(new URL('/calendario?calendar_connected=true', BASE_URL));
   } catch (err: any) {
