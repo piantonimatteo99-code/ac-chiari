@@ -9,6 +9,23 @@
       ]
     },
     {
+      "collectionGroup": "notifiche",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "letta", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifiche",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "letta", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "membri",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

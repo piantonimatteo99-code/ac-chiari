@@ -5,6 +5,10 @@
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/cleanup-notifications",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/send-event-reminders?type=sera",
       "schedule": "0 18 * * *"
     },
