@@ -16,7 +16,7 @@ import { ChevronDown, PlusCircle, CalendarDays, Loader2, Unlink, RefreshCw, Sett
 import { Checkbox } from '@/components/ui/checkbox';
 import { it } from 'date-fns/locale';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/src/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, query, where, doc, Timestamp } from 'firebase/firestore';
 import type { Group } from '../admin/gestione-gruppi/tutti-i-gruppi/page';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AddEventDialog, type Evento } from '@/components/add-event-dialog';
@@ -237,7 +237,17 @@ export default function CalendarioPage() {
 
   const eventsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return collection(firestore, 'eventi');
+    // Carica eventi in una finestra statica di ~3 anni:
+    // da 1 gennaio dell'anno scorso a 31 dicembre dell'anno prossimo.
+    // Copre tutte le viste (mese, settimana, anno) senza caricare tutta la storia.
+    const now = new Date();
+    const windowStart = new Date(now.getFullYear() - 1, 0, 1);          // 1 Gen anno scorso
+    const windowEnd   = new Date(now.getFullYear() + 1, 11, 31, 23, 59, 59); // 31 Dic anno prossimo
+    return query(
+      collection(firestore, 'eventi'),
+      where('startDate', '>=', Timestamp.fromDate(windowStart)),
+      where('startDate', '<=', Timestamp.fromDate(windowEnd))
+    );
   }, [firestore]);
   const { data: events } = useCollection<Evento>(eventsQuery);
 
