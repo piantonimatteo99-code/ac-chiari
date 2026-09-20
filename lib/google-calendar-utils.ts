@@ -344,7 +344,7 @@ export async function removeDuplicateEventsForUser(
   let removed = 0;
   const errors: string[] = [];
 
-  for (const [, group] of groups) {
+  for (const group of Array.from(groups.values())) {
     if (group.length <= 1) continue;
 
     // Sort by creation time — keep the earliest, delete the rest
