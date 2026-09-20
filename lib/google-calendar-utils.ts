@@ -290,3 +290,80 @@ export async function syncFutureEventsForUser(
 
   return { pushed, skipped, errors };
 }
+
+/**
+ * Scans a user's Google Calendar for duplicate events (same title + same date)
+ * within the given time window (defaults: now → +1 year) and deletes all but
+ * the earliest-created copy of each duplicate group.
+ *
+ * Returns { checked, removed, errors }.
+ */
+export async function removeDuplicateEventsForUser(
+  userId: string,
+  options: { timeMin?: Date; timeMax?: Date } = {}
+): Promise<{ checked: number; removed: number; errors: string[] }> {
+  const accessToken = await getAccessToken(userId);
+
+  const timeMin = options.timeMin ?? new Date();
+  const timeMax = options.timeMax ?? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
+  // Fetch all events in the window
+  const url = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
+  url.searchParams.set('timeMin', timeMin.toISOString());
+  url.searchParams.set('timeMax', timeMax.toISOString());
+  url.searchParams.set('singleEvents', 'true');
+  url.searchParams.set('maxResults', '1000');
+  url.searchParams.set('orderBy', 'startTime');
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Errore listing GCal per ${userId}: ${errText}`);
+  }
+
+  const data = await res.json();
+  const items: Record<string, unknown>[] = data.items || [];
+
+  // Group by (title + start-date) key
+  const groups = new Map<string, Record<string, unknown>[]>();
+  for (const item of items) {
+    const title = ((item.summary as string) || '').trim().toLowerCase();
+    const start = item.start as Record<string, string> | undefined;
+    // All-day: YYYY-MM-DD  |  Timed: YYYY-MM-DDTHH:mm (truncated to minute)
+    const dateKey = start?.date
+      ?? (start?.dateTime ? new Date(start.dateTime).toISOString().slice(0, 16) : 'unknown');
+    const key = `${title}|${dateKey}`;
+
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(item);
+  }
+
+  let removed = 0;
+  const errors: string[] = [];
+
+  for (const [, group] of groups) {
+    if (group.length <= 1) continue;
+
+    // Sort by creation time — keep the earliest, delete the rest
+    group.sort((a, b) => {
+      const ta = a.created ? new Date(a.created as string).getTime() : 0;
+      const tb = b.created ? new Date(b.created as string).getTime() : 0;
+      return ta - tb;
+    });
+
+    for (let i = 1; i < group.length; i++) {
+      const eventId = group[i].id as string;
+      try {
+        await deleteEventForUser(userId, eventId);
+        removed++;
+      } catch (err: any) {
+        errors.push(`evento ${eventId}: ${err.message}`);
+      }
+    }
+  }
+
+  return { checked: items.length, removed, errors };
+}

@@ -275,6 +275,27 @@ export function useGoogleCalendar() {
     }
   }, [user]);
 
+  /** Remove duplicate GCal events for all users (or a single targetEmail). */
+  const removeDuplicates = useCallback(async (targetEmail?: string): Promise<Record<string, unknown> | null> => {
+    if (!user) return null;
+    try {
+      const token = await user.getIdToken();
+      const body = targetEmail ? JSON.stringify({ targetEmail }) : undefined;
+      const res = await fetch('/api/calendar/remove-duplicates', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
+        },
+        body,
+      });
+      return await res.json();
+    } catch (err: any) {
+      setError(`Errore rimozione duplicati: ${err.message}`);
+      return null;
+    }
+  }, [user]);
+
   return {
     isConnected,
     events: googleEventsAsCalendar,
@@ -290,5 +311,6 @@ export function useGoogleCalendar() {
     updateSyncGroups,
     migrateAllUsers,
     migrateUser,
+    removeDuplicates,
   };
 }

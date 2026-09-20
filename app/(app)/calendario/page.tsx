@@ -522,6 +522,9 @@ export default function CalendarioPage() {
                   {/* Admin-only: migrate existing connected users */}
                   {canAddEvents && (
                     <div className="mt-4 pt-3 border-t flex flex-col gap-2">
+                      <p className="text-xs text-muted-foreground font-medium">Strumenti admin</p>
+
+                      {/* ── Migrazione gruppi ────────────────────────────── */}
                       <p className="text-xs text-muted-foreground">
                         Imposta automaticamente i gruppi per tutti gli utenti già connessi che non hanno ancora configurato la sincronizzazione.
                       </p>
@@ -545,40 +548,90 @@ export default function CalendarioPage() {
                         Migra utenti connessi
                       </Button>
 
-                      {/* ⚠️ TEMPORANEO — Test singolo utente: damianopiantoni07@gmail.com */}
+                      {/* ── Rimozione duplicati ──────────────────────────── */}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Rimuove gli eventi duplicati dal Google Calendar di tutti gli utenti connessi (stesso titolo + stessa data).
+                      </p>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-dashed text-orange-600 hover:text-orange-700"
                         disabled={isMigrating}
                         onClick={async () => {
                           setIsMigrating(true);
                           setMigrateResult(null);
-                          const result = await googleCalendar.migrateUser('damianopiantoni07@gmail.com', true);
+                          const result = await googleCalendar.removeDuplicates();
                           setIsMigrating(false);
                           if (result && (result as Record<string, unknown>).summary) {
                             const s = (result as Record<string, unknown>).summary as Record<string, number>;
-                            const det = (result as Record<string, unknown>).migrated as Array<Record<string, unknown>>;
-                            const pushed = det?.[0]?.pushed ?? 0;
                             setMigrateResult(
-                              `🧪 Test Damiano: migrati=${s.migrated}, eventi pushati=${pushed}${s.errors > 0 ? `, errori=${s.errors}` : ''}`
+                              `🗑️ Duplicati rimossi: ${s.totalRemoved} (su ${s.totalChecked} eventi, ${s.usersProcessed} utenti)${s.errors > 0 ? `, errori: ${s.errors}` : ''}`
                             );
-                          } else if (result && (result as Record<string, unknown>).note) {
-                            setMigrateResult(`ℹ️ ${(result as Record<string, unknown>).note}`);
                           } else if (result && (result as Record<string, unknown>).error) {
                             setMigrateResult(`❌ ${(result as Record<string, unknown>).error}`);
                           }
                         }}
                       >
                         {isMigrating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                        🧪 Test migrazione Damiano
+                        Rimuovi duplicati GCal
                       </Button>
+
+                      {/* ── Test singolo utente (Damiano) ───────────────── */}
+                      <p className="text-xs text-muted-foreground mt-1 border-t pt-2">⚠️ Temporaneo — test su damianopiantoni07@gmail.com</p>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-dashed text-orange-600 hover:text-orange-700 flex-1"
+                          disabled={isMigrating}
+                          onClick={async () => {
+                            setIsMigrating(true);
+                            setMigrateResult(null);
+                            const result = await googleCalendar.migrateUser('damianopiantoni07@gmail.com', true);
+                            setIsMigrating(false);
+                            if (result && (result as Record<string, unknown>).summary) {
+                              const s = (result as Record<string, unknown>).summary as Record<string, number>;
+                              const det = (result as Record<string, unknown>).migrated as Array<Record<string, unknown>>;
+                              const pushed = det?.[0]?.pushed ?? 0;
+                              setMigrateResult(`🧪 Migra Damiano: eventi pushati=${pushed}${s.errors > 0 ? `, errori=${s.errors}` : ''}`);
+                            } else if (result && (result as Record<string, unknown>).note) {
+                              setMigrateResult(`ℹ️ ${(result as Record<string, unknown>).note}`);
+                            } else if (result && (result as Record<string, unknown>).error) {
+                              setMigrateResult(`❌ ${(result as Record<string, unknown>).error}`);
+                            }
+                          }}
+                        >
+                          {isMigrating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                          🧪 Migra
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-dashed text-orange-600 hover:text-orange-700 flex-1"
+                          disabled={isMigrating}
+                          onClick={async () => {
+                            setIsMigrating(true);
+                            setMigrateResult(null);
+                            const result = await googleCalendar.removeDuplicates('damianopiantoni07@gmail.com');
+                            setIsMigrating(false);
+                            if (result && (result as Record<string, unknown>).summary) {
+                              const s = (result as Record<string, unknown>).summary as Record<string, number>;
+                              setMigrateResult(`🧪 Dedup Damiano: rimossi=${s.totalRemoved} su ${s.totalChecked}${s.errors > 0 ? `, errori=${s.errors}` : ''}`);
+                            } else if (result && (result as Record<string, unknown>).error) {
+                              setMigrateResult(`❌ ${(result as Record<string, unknown>).error}`);
+                            }
+                          }}
+                        >
+                          {isMigrating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                          🧪 Dedup
+                        </Button>
+                      </div>
 
                       {migrateResult && (
                         <p className="text-xs text-muted-foreground">{migrateResult}</p>
                       )}
                     </div>
                   )}
+
                 </div>
               )}
 
