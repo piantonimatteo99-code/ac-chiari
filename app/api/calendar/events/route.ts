@@ -117,6 +117,11 @@ export async function POST(request: NextRequest) {
     const googleEvent: any = {
       summary: title,
       description: description || '',
+      extendedProperties: {
+        private: {
+          source: 'ac-chiari',
+        },
+      },
     };
 
     if (allDay) {
@@ -252,6 +257,11 @@ export async function PATCH(request: NextRequest) {
     const googleEvent: any = {
       summary: title,
       description: description || '',
+      extendedProperties: {
+        private: {
+          source: 'ac-chiari',
+        },
+      },
     };
 
     if (allDay) {

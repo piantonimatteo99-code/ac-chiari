@@ -149,6 +149,12 @@ export async function POST(request: NextRequest) {
             }
           }
 
+          // Escludi il creatore dell'evento se specificato (ha già aggiornato il suo calendario direttamente via PATCH)
+          if (creatorUserId && uid === creatorUserId) {
+            skipped++;
+            return;
+          }
+
           const wasSynced = (syncGroupIds ?? []).some(gid => oldGroupIdSet.has(gid));
           const shouldSync = (syncGroupIds ?? []).some(gid => newGroupIdSet.has(gid));
 
@@ -160,9 +166,14 @@ export async function POST(request: NextRequest) {
                 await updateEventForUser(uid, gcalEventId, newEvent);
                 updated++;
               } else {
-                // Se non trovato, ricrea (es. evento inserito prima del fix timezone)
-                await pushEventToUser(uid, newEvent);
-                pushed++;
+                // Se non trovato alla vecchia data, verifica prima se esiste già alla nuova data per evitare duplicati
+                const alreadyAtNewDate = await findEventOnUserCalendar(uid, newEvent);
+                if (alreadyAtNewDate) {
+                  skipped++;
+                } else {
+                  await pushEventToUser(uid, newEvent);
+                  pushed++;
+                }
               }
             } else if (wasSynced && !shouldSync) {
               // Action: Delete (de-iscritto dal gruppo o gruppo rimosso)

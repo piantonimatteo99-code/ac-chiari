@@ -336,6 +336,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                         body: JSON.stringify({
                             action: 'update',
+                            creatorUserId: auth.currentUser?.uid,
                             oldEvent: {
                                 title: eventToEdit.title,
                                 startDate: eventToEdit.startDate?.toDate ? eventToEdit.startDate.toDate().toISOString() : new Date(eventToEdit.startDate).toISOString(),

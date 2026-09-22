@@ -80,6 +80,11 @@ export async function pushEventToUser(
   const googleEvent: any = {
     summary: event.title,
     description: event.description || '',
+    extendedProperties: {
+      private: {
+        source: 'ac-chiari',
+      },
+    },
   };
 
   if (event.allDay) {
@@ -170,6 +175,11 @@ export async function updateEventForUser(
   const googleEvent: any = {
     summary: event.title,
     description: event.description || '',
+    extendedProperties: {
+      private: {
+        source: 'ac-chiari',
+      },
+    },
   };
 
   if (event.allDay) {
@@ -327,6 +337,16 @@ export async function removeDuplicateEventsForUser(
   const data = await res.json();
   const items: Record<string, unknown>[] = data.items || [];
 
+  // Carica i titoli noti di AC Chiari da Firestore per non toccare MAI eventi personali
+  initAdminApp();
+  const db = getFirestore();
+  const acEventsSnap = await db.collection('eventi').get();
+  const acTitles = new Set<string>();
+  acEventsSnap.docs.forEach(d => {
+    const t = (d.data().title || '').trim().toLowerCase();
+    if (t) acTitles.add(t);
+  });
+
   // Group by (title + start-date) key
   const groups = new Map<string, Record<string, unknown>[]>();
   for (const item of items) {
@@ -346,6 +366,19 @@ export async function removeDuplicateEventsForUser(
 
   for (const group of Array.from(groups.values())) {
     if (group.length <= 1) continue;
+
+    // SICUREZZA: non toccare MAI eventi personali al di fuori di AC Chiari
+    const sample = group[0];
+    const sampleTitle = ((sample.summary as string) || '').trim().toLowerCase();
+    const extProps = sample.extendedProperties as { private?: Record<string, string> } | undefined;
+    const isAcChiari =
+      extProps?.private?.source === 'ac-chiari' ||
+      acTitles.has(sampleTitle);
+
+    if (!isAcChiari) {
+      // Evento personale dell'utente (compleanni, viaggi, visite, ecc.): NON TOCCARE
+      continue;
+    }
 
     // Sort by creation time — keep the earliest, delete the rest
     group.sort((a, b) => {
