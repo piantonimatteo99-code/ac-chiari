@@ -353,19 +353,32 @@ export default function CalendarioPage() {
     if (!googleCalendar.isConnected) return appEvents;
     const gcalEvents = selectedGroup === 'tutti' ? googleCalendar.events : [];
 
-    // Build a set of "title|startMinute" keys from app events for fast dedup lookup
+    // Helper to build a unique key for matching app events and Google Calendar events.
+    // For all-day events: compare by Rome calendar date (YYYY-MM-DD) instead of minutes,
+    // avoiding timezone/midnight mismatch between Firestore Timestamps and GCal date strings.
+    const toEventKey = (title: string, date: Date, allDay?: boolean) => {
+      const normTitle = (title ?? '').trim().toLowerCase();
+      if (allDay) {
+        try {
+          const dayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome' }).format(date);
+          return `${normTitle}|allday|${dayStr}`;
+        } catch {
+          return `${normTitle}|allday|${date.toISOString().slice(0, 10)}`;
+        }
+      }
+      const bucket = Math.round(date.getTime() / (2 * 60 * 1000));
+      return `${normTitle}|${bucket}`;
+    };
+
     const appEventKeys = new Set<string>();
     appEvents.forEach(e => {
       const start = e.startDate instanceof Date ? e.startDate : (e.startDate as any)?.toDate ? (e.startDate as any).toDate() : new Date(e.startDate as any);
-      // Round to nearest 2-minute bucket to tolerate minor timezone rounding
-      const bucket = Math.round(start.getTime() / (2 * 60 * 1000));
-      appEventKeys.add(`${(e.title ?? '').trim().toLowerCase()}|${bucket}`);
+      appEventKeys.add(toEventKey(e.title ?? '', start, !!e.allDay));
     });
 
     const uniqueGcalEvents = gcalEvents.filter(ev => {
       const start = ev.startDate instanceof Date ? ev.startDate : new Date(ev.startDate as any);
-      const bucket = Math.round(start.getTime() / (2 * 60 * 1000));
-      const key = `${(ev.title ?? '').trim().toLowerCase()}|${bucket}`;
+      const key = toEventKey(ev.title ?? '', start, !!ev.allDay);
       return !appEventKeys.has(key);
     });
 
