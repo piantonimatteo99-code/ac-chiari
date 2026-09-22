@@ -208,6 +208,10 @@ export default function CalendarioPage() {
     return userData?.roles?.includes('admin') || userData?.roles?.includes('educatore');
   }, [userData]);
 
+  // Role flags for finer-grained permission checks
+  const isAdmin = useMemo(() => userData?.roles?.includes('admin') ?? false, [userData]);
+  const isEducatore = useMemo(() => userData?.roles?.includes('educatore') ?? false, [userData]);
+
   // Default filter: 'tutti' for admin/educatore, 'personale' for normal users
   const [selectedGroup, setSelectedGroup] = useState<FilterMode>('tutti');
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -276,6 +280,37 @@ export default function CalendarioPage() {
     const myGroupId = userData?.groupId;
     return membri.some(m => m.groupId && m.groupId !== myGroupId && m.id !== user?.uid);
   }, [membri, userData, user]);
+
+  /**
+   * Groups visible in the sync-settings panel — three-tier rule:
+   *   Admin     → tutti i gruppi
+   *   Educatore → proprio + famiglia + gruppi con "edu" nel nome (gruppo coordinamento educatori)
+   *   Altri     → proprio + famiglia
+   */
+  const syncVisibleGroups = useMemo(() => {
+    if (!groups) return [];
+    if (isAdmin) return groups;
+    if (isEducatore) {
+      return groups.filter(g =>
+        familyGroupIds.has(g.id) ||
+        (g.name ?? '').toLowerCase().includes('edu')
+      );
+    }
+    return groups.filter(g => familyGroupIds.has(g.id));
+  }, [groups, isAdmin, isEducatore, familyGroupIds]);
+
+  // Auto-select all visible groups the first time the user connects GCal
+  // (i.e. when syncGroupIds is empty after loading completes)
+  useEffect(() => {
+    if (!googleCalendar.isConnected) return;
+    if (googleCalendar.isLoadingSyncSettings) return;
+    if (syncVisibleGroups.length === 0) return;
+    if (googleCalendar.syncGroupIds.length === 0) {
+      googleCalendar.updateSyncGroups(syncVisibleGroups.map(g => g.id));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleCalendar.isConnected, googleCalendar.isLoadingSyncSettings, googleCalendar.syncGroupIds.length, syncVisibleGroups]);
+
 
   // Filter events based on selection
   const filteredEvents = useMemo(() => {
@@ -491,13 +526,12 @@ export default function CalendarioPage() {
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1">
-                      {/* Admin/educatore: tutti i gruppi. Utenti normali: solo il proprio e quelli del nucleo familiare. */}
-                      {((canAddEvents ? groups : groups?.filter(g => familyGroupIds.has(g.id))) ?? []).length === 0 ? (
+                      {syncVisibleGroups.length === 0 ? (
                         <p className="text-xs text-muted-foreground italic py-1">
                           Nessun gruppo associato al tuo profilo o alla tua famiglia.
                         </p>
                       ) : (
-                        (canAddEvents ? groups : groups?.filter(g => familyGroupIds.has(g.id)))?.map(group => (
+                        syncVisibleGroups.map(group => (
                           <label
                             key={group.id}
                             htmlFor={`sync-${group.id}`}
@@ -590,10 +624,14 @@ export default function CalendarioPage() {
                             const result = await googleCalendar.migrateUser('damianopiantoni07@gmail.com', true);
                             setIsMigrating(false);
                             if (result && (result as Record<string, unknown>).summary) {
-                              const s = (result as Record<string, unknown>).summary as Record<string, number>;
-                              const det = (result as Record<string, unknown>).migrated as Array<Record<string, unknown>>;
-                              const pushed = det?.[0]?.pushed ?? 0;
-                              setMigrateResult(`🧪 Migra Damiano: eventi pushati=${pushed}${s.errors > 0 ? `, errori=${s.errors}` : ''}`);
+                              const pushed = (result as Record<string, unknown>).pushed as number ?? 0;
+                              const skipped = (result as Record<string, unknown>).skipped as number ?? 0;
+                              const gcalErrs = (result as Record<string, unknown>).gcalErrors as string[] ?? [];
+                              const syncGroupIds = ((result as Record<string, unknown>).migrated as Array<Record<string, unknown>>)?.[0]?.syncGroupIds as string[] ?? [];
+                              let msg = `🧪 Migra Damiano: pushati=${pushed}, già in GCal=${skipped}`;
+                              if (gcalErrs.length > 0) msg += `, errori=${gcalErrs.length}: ${gcalErrs[0]}`;
+                              if (syncGroupIds.length > 0) msg += ` (gruppi: ${syncGroupIds.length})`;
+                              setMigrateResult(msg);
                             } else if (result && (result as Record<string, unknown>).note) {
                               setMigrateResult(`ℹ️ ${(result as Record<string, unknown>).note}`);
                             } else if (result && (result as Record<string, unknown>).error) {

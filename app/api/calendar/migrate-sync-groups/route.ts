@@ -92,8 +92,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const newSyncGroupIds = [groupId];
+    // When force=true: if user already has syncGroupIds configured, keep them (don't reset to just [groupId]).
+    // Only fall back to [groupId] if the user had nothing configured yet.
+    const newSyncGroupIds = existingSyncGroupIds.length > 0 ? existingSyncGroupIds : [groupId];
 
+    // Persist the (possibly unchanged) syncGroupIds
     await db.collection('calendarSubscriptions').doc(targetUid).set(
       { uid: targetUid, syncGroupIds: newSyncGroupIds },
       { merge: true }
@@ -104,20 +107,26 @@ export async function POST(request: NextRequest) {
     );
 
     let pushed = 0;
+    let skipped = 0;
+    const gcalErrors: string[] = [];
     try {
       const syncResult = await syncFutureEventsForUser(targetUid, newSyncGroupIds);
       pushed = syncResult.pushed;
-      if (syncResult.errors.length > 0) errors.push(...syncResult.errors);
+      skipped = syncResult.skipped;
+      gcalErrors.push(...syncResult.errors);
     } catch (syncErr: any) {
-      errors.push(`GCal sync failed: ${syncErr.message}`);
+      gcalErrors.push(`GCal sync failed: ${syncErr.message}`);
     }
 
     details.push({ uid: targetUid, email: targetEmail, groupId, syncGroupIds: newSyncGroupIds, pushed });
     migrated = 1;
 
     return NextResponse.json({
-      summary: { total: 1, migrated, alreadyConfigured: 0, noGroup: 0, errors: errors.length },
+      summary: { total: 1, migrated, alreadyConfigured: 0, noGroup: 0, errors: gcalErrors.length },
       migrated: details,
+      pushed,
+      skipped,
+      gcalErrors,
       errors,
     });
   }
