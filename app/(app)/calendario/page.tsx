@@ -29,6 +29,7 @@ import { WeeklyCalendarView } from '@/components/weekly-calendar-view';
 import { useGoogleCalendar } from '@/src/hooks/use-google-calendar';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EventDetailDialog } from '@/components/event-detail-dialog';
 import type { Membro } from '../nucleo-familiare/page';
 
@@ -453,69 +454,69 @@ export default function CalendarioPage() {
               Caricamento...
             </Button>
           ) : googleCalendar.isConnected ? (
-            <div className="relative">
-              <div className="flex items-center gap-1">
-                <Badge variant="outline" className="border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950 gap-1.5 py-1 px-2">
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  <span className="text-xs">Google Calendar</span>
-                </Badge>
+            <div className="flex items-center gap-1">
+              <Badge variant="outline" className="border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950 gap-1.5 py-1 px-2">
+                <CalendarDays className="h-3.5 w-3.5" />
+                <span className="text-xs">Google Calendar</span>
+              </Badge>
+
+              <Popover open={showSyncSettings} onOpenChange={setShowSyncSettings}>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8"
-                      onClick={() => setShowSyncSettings(v => !v)}>
-                      <Settings2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
+                  <PopoverTrigger asChild>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Settings2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                  </PopoverTrigger>
                   <TooltipContent>Impostazioni sincronizzazione</TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8"
-                      onClick={() => googleCalendar.loadEvents()}
-                      disabled={googleCalendar.isLoadingEvents}>
-                      <RefreshCw className={cn("h-3.5 w-3.5", googleCalendar.isLoadingEvents && "animate-spin")} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Aggiorna eventi Google Calendar</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => googleCalendar.disconnect()}>
-                      <Unlink className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Disconnetti Google Calendar</TooltipContent>
-                </Tooltip>
-              </div>
 
-              {/* Sync settings — floating dropdown, does not affect layout flow */}
-              {showSyncSettings && (
-                <div className="absolute right-0 top-full mt-1 z-[200] border rounded-lg p-3 bg-popover shadow-md w-72 text-sm">
-                  <p className="font-medium mb-2">Gruppi da sincronizzare</p>
+                <PopoverContent
+                  align="end"
+                  side="bottom"
+                  sideOffset={6}
+                  collisionPadding={12}
+                  className="w-[calc(100vw-1.5rem)] max-w-sm sm:w-80 max-h-[80vh] overflow-y-auto p-4 text-sm z-[200] shadow-xl"
+                >
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b">
+                    <p className="font-semibold text-sm">Gruppi da sincronizzare</p>
+                  </div>
                   <p className="text-xs text-muted-foreground mb-3">
                     Gli eventi di questi gruppi appariranno nel tuo Google Calendar.
                   </p>
                   {googleCalendar.isLoadingSyncSettings ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
                   ) : (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1">
                       {/* Admin/educatore: tutti i gruppi. Utenti normali: solo il proprio e quelli del nucleo familiare. */}
-                      {(canAddEvents ? groups : groups?.filter(g => familyGroupIds.has(g.id)))?.map(group => (
-                        <div key={group.id} className="flex items-center gap-2">
-                          <Checkbox
-                            id={`sync-${group.id}`}
-                            checked={googleCalendar.syncGroupIds.includes(group.id)}
-                            onCheckedChange={(checked) => {
-                              const next = checked
-                                ? [...googleCalendar.syncGroupIds, group.id]
-                                : googleCalendar.syncGroupIds.filter(id => id !== group.id);
-                              googleCalendar.updateSyncGroups(next);
-                            }}
-                          />
-                          <label htmlFor={`sync-${group.id}`} className="cursor-pointer">{group.name}</label>
-                        </div>
-                      ))}
+                      {((canAddEvents ? groups : groups?.filter(g => familyGroupIds.has(g.id))) ?? []).length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic py-1">
+                          Nessun gruppo associato al tuo profilo o alla tua famiglia.
+                        </p>
+                      ) : (
+                        (canAddEvents ? groups : groups?.filter(g => familyGroupIds.has(g.id)))?.map(group => (
+                          <label
+                            key={group.id}
+                            htmlFor={`sync-${group.id}`}
+                            className="flex items-center gap-2.5 py-1.5 px-2 rounded-md hover:bg-muted/60 cursor-pointer select-none transition-colors"
+                          >
+                            <Checkbox
+                              id={`sync-${group.id}`}
+                              checked={googleCalendar.syncGroupIds.includes(group.id)}
+                              onCheckedChange={(checked) => {
+                                const next = checked
+                                  ? [...googleCalendar.syncGroupIds, group.id]
+                                  : googleCalendar.syncGroupIds.filter(id => id !== group.id);
+                                googleCalendar.updateSyncGroups(next);
+                              }}
+                            />
+                            <span className="text-sm font-medium">{group.name}</span>
+                          </label>
+                        ))
+                      )}
                     </div>
                   )}
 
@@ -632,9 +633,28 @@ export default function CalendarioPage() {
                     </div>
                   )}
 
-                </div>
-              )}
+                </PopoverContent>
+              </Popover>
 
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8"
+                    onClick={() => googleCalendar.loadEvents()}
+                    disabled={googleCalendar.isLoadingEvents}>
+                    <RefreshCw className={cn("h-3.5 w-3.5", googleCalendar.isLoadingEvents && "animate-spin")} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Aggiorna eventi Google Calendar</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => googleCalendar.disconnect()}>
+                    <Unlink className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Disconnetti Google Calendar</TooltipContent>
+              </Tooltip>
             </div>
           ) : (
             <Tooltip>
