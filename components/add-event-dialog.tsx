@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '@/src/firebase';
 import { collection, addDoc, serverTimestamp, doc, setDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,9 +19,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from './ui/textarea';
 import { Switch } from './ui/switch';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { useGoogleCalendar } from '@/src/hooks/use-google-calendar';
-import { useAuth } from '@/src/firebase';
+import { useUserData } from '@/src/hooks/use-user-data';
 import { triggerNotification } from '@/lib/trigger-notification';
 import { format } from 'date-fns';
 import { it as itLocale } from 'date-fns/locale';
@@ -143,6 +143,9 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
 
+    const { user } = useUser();
+    const { userData } = useUserData();
+
     const groupsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return collection(firestore, 'gruppi');
@@ -158,6 +161,22 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
             return a.name.localeCompare(b.name);
         });
     }, [groups]);
+
+    const isAdmin = useMemo(() => userData?.roles?.includes('admin') ?? false, [userData]);
+    const isEducatore = useMemo(() => userData?.roles?.includes('educatore') ?? false, [userData]);
+
+    const myEducatorGroupIds = useMemo(() => {
+        if (!groups || !user) return new Set<string>();
+        return new Set(groups.filter(g => g.educatorIds?.includes(user.uid)).map(g => g.id));
+    }, [groups, user]);
+
+    const canEdit = useMemo(() => {
+        if (isAdmin) return true;
+        if (!isEducatore) return false;
+        if (!isEditing || !eventToEdit) return true;
+        if (!eventToEdit.groupIds || eventToEdit.groupIds.length === 0) return true;
+        return eventToEdit.groupIds.some(gid => myEducatorGroupIds.has(gid));
+    }, [isAdmin, isEducatore, isEditing, eventToEdit, myEducatorGroupIds]);
     
     const resetForm = useCallback((defaultDate?: Date | null) => {
         const now = defaultDate ?? new Date();
@@ -235,6 +254,10 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
 
     const handleSave = async () => {
         setError(null);
+        if (!canEdit) {
+            setError("Non hai i requisiti necessari per modificare questo impegno.");
+            return;
+        }
         if (!title) { setError("Il titolo è obbligatorio."); return; }
         if (!startDate || !endDate) { setError("Le date di inizio e fine sono obbligatorie."); return; }
         if (selectedGroups.length === 0) { setError("Seleziona almeno un gruppo."); return; }
@@ -269,7 +292,7 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
 
                 // 1. Update the Event document
                 const eventDocRef = doc(firestore, 'eventi', eventToEdit.id);
-                const eventData = {
+                const eventData: any = {
                     title,
                     description,
                     notes,
@@ -280,10 +303,32 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                     groupIds: selectedGroups,
                     richiedeRsvp,
                 };
-                batch.update(eventDocRef, eventData);
 
-                // 2. If it's a project, update the linked Project document
-                if (eventToEdit.isProject && eventToEdit.projectId) {
+                let newlyActivatedCampo = false;
+                let newlyActivatedProject = false;
+
+                // 2. Project logic
+                if (!eventToEdit.isProject && isProject) {
+                    // Activate new project from this event
+                    const progettoDocRef = doc(collection(firestore, 'progetti'));
+                    const progettoId = progettoDocRef.id;
+                    const progettoData: Omit<Progetto, 'id'> = {
+                        name: title,
+                        slug: slugify(title),
+                        description,
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        allDay,
+                        groupIds: selectedGroups,
+                        createdAt: serverTimestamp(),
+                        status: 'attivo',
+                    };
+                    batch.set(progettoDocRef, progettoData);
+                    eventData.isProject = true;
+                    eventData.projectId = progettoId;
+                    newlyActivatedProject = true;
+                } else if (eventToEdit.isProject && eventToEdit.projectId) {
+                    // Update linked project
                     const projectDocRef = doc(firestore, 'progetti', eventToEdit.projectId);
                     const projectData = {
                         name: title,
@@ -297,16 +342,39 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                     batch.update(projectDocRef, projectData);
                 }
 
-                // 3. If it's a campo event, update the linked Campo document
-                if (eventToEdit.isCampo && eventToEdit.campoId) {
+                // 3. Campo logic
+                if (!eventToEdit.isCampo && isCampo) {
+                    // Activate new campo from this event
+                    const campoDocRef = doc(collection(firestore, 'campi'));
+                    const campoData: Omit<Campo, 'id'> = {
+                        nome: title,
+                        tipo: tipoCampo,
+                        eventoId: eventToEdit.id,
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        groupIds: selectedGroups,
+                        createdAt: serverTimestamp(),
+                        status: 'attivo',
+                    };
+                    batch.set(campoDocRef, campoData);
+                    eventData.isCampo = true;
+                    eventData.tipoCampo = tipoCampo;
+                    eventData.campoId = campoDocRef.id;
+                    newlyActivatedCampo = true;
+                } else if (eventToEdit.isCampo && eventToEdit.campoId) {
+                    // Update linked campo
                     const campoDocRef = doc(firestore, 'campi', eventToEdit.campoId);
                     batch.update(campoDocRef, {
                         nome: title,
+                        tipo: tipoCampo,
                         startDate: finalStartDate,
                         endDate: finalEndDate,
                         groupIds: selectedGroups,
                     });
+                    eventData.tipoCampo = tipoCampo;
                 }
+
+                batch.update(eventDocRef, eventData);
 
                 await batch.commit();
                 // Sync update with Google Calendar ──────────────────────────────────────────
@@ -358,12 +426,28 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
 
                 // Trigger notifica broadcast
                 const startFormatted = format(finalStartDate, 'd MMMM yyyy', { locale: itLocale });
-                triggerNotification({
-                  eventType: 'evento_modificato',
-                  title: `📅 Impegno modificato: ${title}`,
-                  body: `L'impegno "${title}" è stato aggiornato (${startFormatted}).`,
-                  href: '/calendario',
-                });
+                if (newlyActivatedCampo) {
+                    triggerNotification({
+                        eventType: 'evento_nuovo',
+                        title: `⛺ Nuovo campo: ${title}`,
+                        body: `È stato creato il campo "${title}" con inizio il ${startFormatted}.`,
+                        href: '/campi',
+                    });
+                } else if (newlyActivatedProject) {
+                    triggerNotification({
+                        eventType: 'evento_nuovo',
+                        title: `🚀 Nuovo progetto: ${title}`,
+                        body: `È stato avviato il progetto "${title}" con inizio il ${startFormatted}.`,
+                        href: `/progetti/${slugify(title)}`,
+                    });
+                } else {
+                    triggerNotification({
+                        eventType: 'evento_modificato',
+                        title: `📅 Impegno modificato: ${title}`,
+                        body: `L'impegno "${title}" è stato aggiornato (${startFormatted}).`,
+                        href: '/calendario',
+                    });
+                }
 
             } else {
                 // --- CREATE LOGIC ---
@@ -696,8 +780,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         <Separator />
                         
                         <div className="flex items-center space-x-2">
-                           <Switch id="is-campo" checked={isCampo} onCheckedChange={(v) => { setIsCampo(v); if (v) setIsProject(false); }} disabled={isEditing}/>
-                           <Label htmlFor="is-campo">⛺ Crea un campo da questo impegno</Label>
+                           <Switch id="is-campo" checked={isCampo} onCheckedChange={(v) => { setIsCampo(v); if (v) setIsProject(false); }} disabled={isEditing && !!eventToEdit?.isCampo ? false : !canEdit}/>
+                           <Label htmlFor="is-campo" className={!canEdit ? "text-muted-foreground" : ""}>⛺ {isEditing && !eventToEdit?.isCampo ? "Attiva un campo da questo impegno" : isEditing && eventToEdit?.isCampo ? "Campo associato a questo impegno" : "Crea un campo da questo impegno"}</Label>
                        </div>
                        {isCampo && (
                            <div className="pl-6 space-y-2">
@@ -715,8 +799,8 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                        )}
                        {!isCampo && (
                          <div className="flex items-center space-x-2">
-                           <Switch id="is-project" checked={isProject} onCheckedChange={setIsProject} disabled={isEditing}/>
-                           <Label htmlFor="is-project">Crea un progetto da questo impegno</Label>
+                           <Switch id="is-project" checked={isProject} onCheckedChange={setIsProject} disabled={isEditing && !!eventToEdit?.isProject ? false : !canEdit}/>
+                           <Label htmlFor="is-project" className={!canEdit ? "text-muted-foreground" : ""}>{isEditing && !eventToEdit?.isProject ? "Attiva un progetto da questo impegno" : isEditing && eventToEdit?.isProject ? "Progetto associato a questo impegno" : "Crea un progetto da questo impegno"}</Label>
                          </div>
                        )}
                        {!isCampo && isProject && (
@@ -727,11 +811,17 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                     </div>
                 </div>
 
+                {isEditing && !canEdit && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 text-xs">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+                        <span>Non hai i requisiti necessari per modificare questo impegno. Puoi visualizzarlo ma non salvare modifiche.</span>
+                    </div>
+                )}
                 {error && <p className="text-destructive text-sm">{error}</p>}
                 
                 <DialogFooter className="border-t pt-4 sm:justify-between">
                      <div className='flex justify-start'>
-                        {isEditing && (
+                        {isEditing && canEdit && (
                             <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isSaving}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Elimina
@@ -742,15 +832,17 @@ export function AddEventDialog({ isOpen, onOpenChange, eventToEdit, initialDate 
                         <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
                             Annulla
                         </Button>
-                        <Button onClick={handleSave} disabled={isSaving}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                            {isSaving ? 'Salvataggio...' : (isEditing ? 'Salva Modifiche' : 'Crea Impegno')}
-                        </Button>
+                        {(!isEditing || canEdit) && (
+                            <Button onClick={handleSave} disabled={isSaving}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                {isSaving ? 'Salvataggio...' : (isEditing ? 'Salva Modifiche' : 'Crea Impegno')}
+                            </Button>
+                        )}
                     </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-        {isEditing && (
+        {isEditing && canEdit && (
             <ConfirmationDialog
                 isOpen={isDeleteDialogOpen}
                 onOpenChange={setIsDeleteDialogOpen}
