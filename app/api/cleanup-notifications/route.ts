@@ -65,61 +65,59 @@ export async function GET(request: NextRequest) {
 
     const now = Date.now();
 
-    // ── Calcola i cutoff come Firestore Timestamp ────────────────────────────
+    // ── Calcola i cutoff come millisecondi ───────────────────────────────────
     const cutoffEventReminderRead = Timestamp.fromMillis(now - THRESHOLDS.eventReminderRead);
-    const cutoffGenericRead       = Timestamp.fromMillis(now - THRESHOLDS.genericRead);
-    const cutoffUnread            = Timestamp.fromMillis(now - THRESHOLDS.unread);
+    const cutoffGenericReadMs     = now - THRESHOLDS.genericRead;
+    const cutoffUnreadMs          = now - THRESHOLDS.unread;
 
     let deleted = 0;
     const errors: string[] = [];
 
-    // ── 1. Promemoria evento già letti da più di 2 giorni ───────────────────
+    // ── Query senza indici compositi ─────────────────────────────────────────
+    // Usiamo un solo filtro `createdAt <= cutoffEventReminderRead` (2 giorni fa).
+    // Questo usa l'indice automatico predefinito di Firestore per singolo campo,
+    // garantendo l'esecuzione affidabile senza richiedere indici compositi manuali.
     try {
       const snap = await adminDb.collection('notifiche')
-        .where('letta', '==', true)
-        .where('type', '==', 'evento')
         .where('createdAt', '<=', cutoffEventReminderRead)
         .get();
 
-      // Includi anche quelli con eventType esplicitamente promemoria
-      const refs = snap.docs
-        .filter(d => {
-          const et: string | undefined = d.data().eventType;
-          // Se eventType è presente, accettiamo solo i promemoria; se assente accettiamo tutti 'evento'
-          return !et || EVENT_REMINDER_TYPES.has(et);
-        })
-        .map(d => d.ref);
+      const refsToDelete: FirebaseFirestore.DocumentReference[] = [];
 
-      deleted += await deleteDocs(refs);
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const createdMs = data.createdAt?.toMillis ? data.createdAt.toMillis() : (data.createdAt?.seconds ? data.createdAt.seconds * 1000 : 0);
+        if (!createdMs) return;
+
+        const isLetta = data.letta === true;
+        const type = data.type || '';
+        const eventType = data.eventType;
+
+        // Regola 1: Notifiche non lette più vecchie di 60 giorni
+        if (!isLetta && createdMs <= cutoffUnreadMs) {
+          refsToDelete.push(d.ref);
+          return;
+        }
+
+        // Regola 2: Notifiche lette generiche più vecchie di 7 giorni
+        if (isLetta && createdMs <= cutoffGenericReadMs) {
+          refsToDelete.push(d.ref);
+          return;
+        }
+
+        // Regola 3: Promemoria evento già letti più vecchi di 2 giorni
+        if (isLetta && (type === 'evento' || EVENT_REMINDER_TYPES.has(eventType || type))) {
+          refsToDelete.push(d.ref);
+          return;
+        }
+      });
+
+      if (refsToDelete.length > 0) {
+        deleted = await deleteDocs(refsToDelete);
+      }
     } catch (e: any) {
-      console.error('[cleanup-notifications] Step 1 error:', e);
-      errors.push(`step1: ${e.message}`);
-    }
-
-    // ── 2. Notifiche già lette (qualsiasi tipo) da più di 7 giorni ──────────
-    try {
-      const snap = await adminDb.collection('notifiche')
-        .where('letta', '==', true)
-        .where('createdAt', '<=', cutoffGenericRead)
-        .get();
-
-      deleted += await deleteDocs(snap.docs.map(d => d.ref));
-    } catch (e: any) {
-      console.error('[cleanup-notifications] Step 2 error:', e);
-      errors.push(`step2: ${e.message}`);
-    }
-
-    // ── 3. Notifiche non lette da più di 60 giorni ──────────────────────────
-    try {
-      const snap = await adminDb.collection('notifiche')
-        .where('letta', '==', false)
-        .where('createdAt', '<=', cutoffUnread)
-        .get();
-
-      deleted += await deleteDocs(snap.docs.map(d => d.ref));
-    } catch (e: any) {
-      console.error('[cleanup-notifications] Step 3 error:', e);
-      errors.push(`step3: ${e.message}`);
+      console.error('[cleanup-notifications] Error during cleanup:', e);
+      errors.push(e.message);
     }
 
     console.log(`[cleanup-notifications] Done. Deleted: ${deleted}, Errors: ${errors.length}`);
