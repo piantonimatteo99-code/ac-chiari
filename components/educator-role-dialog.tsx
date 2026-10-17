@@ -25,6 +25,10 @@ const ALL_PAGES = [
     { path: '/iscrizioni', label: 'Iscrizioni' },
     { path: '/nucleo-familiare', label: 'Nucleo Familiare' },
     { path: '/calendario', label: 'Calendario' },
+    { path: '/magazzino', label: 'Magazzino' },
+    { path: '/campi', label: 'Campi' },
+    { path: '/consiglio', label: 'Consiglio' },
+    { path: '/social-media', label: 'Social Media' },
 ];
 
 const CONTABILITA_PAGES = [
@@ -174,7 +178,7 @@ export function EducatorRoleDialog({ isOpen, onOpenChange, roleToEdit }: Educato
                     <div className="grid grid-cols-2 gap-8">
                         <div className="grid gap-3">
                             <Label>Pagine Visualizzabili</Label>
-                             <ScrollArea className="h-48 rounded-md border p-4">
+                             <ScrollArea className="h-72 rounded-md border p-4">
                                 <div className="space-y-3">
                                 {ALL_PAGES.map(page => (
                                     <div key={page.path} className="flex items-center space-x-2">
