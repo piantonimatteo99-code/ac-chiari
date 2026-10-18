@@ -53,11 +53,48 @@ export function isNessunaAllergia(str: string): boolean {
   return NESSUNA_KEYWORDS.includes(lower) || lower.startsWith('nessun');
 }
 
+/**
+ * Estrae l'anno di nascita da un valore dataNascita che può essere:
+ *  - Stringa ISO "YYYY-MM-DD"  →  new Date() funziona
+ *  - Stringa italiana "DD/MM/YYYY"  →  new Date() restituirebbe NaN, gestita manualmente
+ *  - Firestore Timestamp (oggetto con .toDate())
+ *  - Oggetto Date nativo
+ */
+const getBirthYear = (dataNascita: unknown): number | null => {
+  if (!dataNascita) return null;
+
+  // Firestore Timestamp → .toDate()
+  if (typeof dataNascita === 'object' && dataNascita !== null && typeof (dataNascita as any).toDate === 'function') {
+    const d = (dataNascita as any).toDate() as Date;
+    const y = d.getFullYear();
+    return isNaN(y) ? null : y;
+  }
+
+  // Date nativo
+  if (dataNascita instanceof Date) {
+    const y = dataNascita.getFullYear();
+    return isNaN(y) ? null : y;
+  }
+
+  const str = String(dataNascita).trim();
+
+  // Formato DD/MM/YYYY (il più comune per i ghost importati da CSV)
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+    const parts = str.split('/');
+    return parseInt(parts[2], 10) || null;
+  }
+
+  // Formato YYYY-MM-DD o qualsiasi stringa parsabile da Date
+  const d = new Date(str);
+  const y = d.getFullYear();
+  return isNaN(y) ? null : y;
+};
+
 /** Restituisce la Tariffa corrispondente al membro in base all'anno di nascita */
 const getTariffaForMember = (member: UnifiedMember, tariffe: Tariffa[]): Tariffa | undefined => {
   if (!member.dataNascita || !tariffe) return undefined;
-  const birthYear = new Date(member.dataNascita as string).getFullYear();
-  if (isNaN(birthYear)) return undefined;
+  const birthYear = getBirthYear(member.dataNascita);
+  if (birthYear === null) return undefined;
 
   for (const tariffa of [...tariffe].sort((a, b) => a.order - b.order)) {
     const years = tariffa.description.match(/\d{4}/g);
@@ -186,12 +223,13 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
           (raccolta.tesseratiIds ?? []).includes(m.id)
       ).length;
 
-      // Ordina i membri del carrello per dataNascita ASC (più vecchi prima)
+      // Ordina i membri del carrello per anno di nascita ASC (più vecchi prima)
       // → i più giovani (ultimi) ricevono la gratuità
+      // Usa getBirthYear per gestire anche il formato DD/MM/YYYY degli imported-members
       const sortedCart = [...familyCart].sort((a, b) => {
-        const da = a.dataNascita ? new Date(a.dataNascita as string).getTime() : 0;
-        const db = b.dataNascita ? new Date(b.dataNascita as string).getTime() : 0;
-        return da - db;
+        const ya = getBirthYear(a.dataNascita) ?? 0;
+        const yb = getBirthYear(b.dataNascita) ?? 0;
+        return ya - yb; // ASC: i più anziani (anno più piccolo) vengono prima
       });
 
       sortedCart.forEach((member, idx) => {
