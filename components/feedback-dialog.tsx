@@ -143,8 +143,8 @@ export function FeedbackDialog() {
           <span className="sr-only">Segnala un problema o miglioramento</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[460px]">
-        <form onSubmit={handleSubmit}>
+      <DialogContent className="sm:max-w-[460px] flex flex-col max-h-[90vh]">
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
           <DialogHeader>
             <DialogTitle>Invia un feedback</DialogTitle>
             <DialogDescription>
@@ -152,7 +152,7 @@ export function FeedbackDialog() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 overflow-y-auto flex-1 pr-1">
             {/* Tipo */}
             <div className="space-y-3">
               <Label>Tipologia</Label>
