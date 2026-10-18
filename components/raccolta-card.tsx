@@ -14,12 +14,13 @@ import { MoreVertical, CheckCircle2, XCircle, Archive, Pencil, ArchiveRestore, B
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useFirestore, useCollection, useMemoFirebase } from '@/src/firebase';
-import { doc, updateDoc, collection, collectionGroup, query, where, arrayUnion, arrayRemove, writeBatch, serverTimestamp, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, collection, collectionGroup, query, where, arrayUnion, arrayRemove, writeBatch, serverTimestamp, getDocs, getDoc } from 'firebase/firestore';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { MembriRaccoltaList, type UnifiedMember } from '@/components/membri-raccolta-list';
 import type { UserData } from '@/src/hooks/use-user-data';
 import type { MovimentoContante } from '@/app/(app)/contabilita/pagamenti-contanti/page';
+import type { Tariffa } from '@/app/(app)/tesserati/tariffe/page';
 
 
 export interface Partecipante {
@@ -128,6 +129,13 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         return query(collection(firestore, 'movimenti-contanti'), where('raccoltaId', '==', raccolta.id), where('tipo', '==', 'raccolta'), where('phase', '==', 'tesseramento'));
     }, [firestore, raccolta.id, raccolta.tipo]);
     const { data: movimentiContantiTesseramento, isLoading: isLoadingMovimentiContanti } = useCollection<MovimentoContante>(movimentiContantiQuery);
+
+    // Tariffe tesseramento (necessarie per il carrello educatore)
+    const tariffeQuery = useMemoFirebase(() => {
+        if (!firestore || raccolta.tipo !== 'tesseramento') return null;
+        return collection(firestore, 'tariffe-tesseramento');
+    }, [firestore, raccolta.tipo]);
+    const { data: tariffeData } = useCollection<Tariffa>(tariffeQuery);
 
     const importedMembersQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -397,6 +405,78 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
             setGhostDialog(null);
         } finally {
             setIsDialogProcessing(false);
+        }
+    };
+
+    /**
+     * Conferma l'incasso contanti per più membri in un'unica operazione batch (carrello tesseramento).
+     * Per ogni membro:
+     *  - Aggiunge l'id a raccolta.tesseratiIds
+     *  - Crea un documento movimenti-contanti con phase: 'tesseramento'
+     *  - Aggiorna il campo tesseramento sul documento utente/membro
+     */
+    const handleBatchTesseramentoConfirm = async (memberIds: string[], amounts: Record<string, number>) => {
+        if (!firestore || memberIds.length === 0) return;
+
+        const getCurrentMembershipYear = () => {
+            const today = new Date();
+            return today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
+        };
+
+        const getMemberDocRef = async (memberId: string): Promise<any | null> => {
+            const userDocRef = doc(firestore, 'users', memberId);
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) return userDocRef;
+            // Cerca tra i membri delle famiglie
+            const membersSnapshot = await getDocs(collectionGroup(firestore, 'membri'));
+            const memberDoc = membersSnapshot.docs.find(d => d.id === memberId);
+            if (memberDoc) return memberDoc.ref;
+            console.error('Documento membro non trovato:', memberId);
+            return null;
+        };
+
+        const raccoltaRef = doc(firestore, 'raccolte', raccolta.id);
+        const membershipYear = getCurrentMembershipYear();
+
+        const batch = writeBatch(firestore);
+
+        // Aggiunge tutti gli id a tesseratiIds in un'unica operazione
+        batch.update(raccoltaRef, {
+            tesseratiIds: arrayUnion(...memberIds),
+        });
+
+        // Crea un movimento contanti per ogni membro
+        for (const memberId of memberIds) {
+            const importo = amounts[memberId] ?? 0;
+            const movRef = doc(collection(firestore, 'movimenti-contanti'));
+            batch.set(movRef, {
+                raccoltaId: raccolta.id,
+                memberId,
+                phase: 'tesseramento',
+                importo,
+                createdAt: serverTimestamp(),
+                registeredBy: currentUserId || 'system',
+                tipo: 'raccolta',
+                isDelivered: false,   // da consegnare al cassiere
+                isDeposited: false,
+                isGhostPayment: true,
+            });
+        }
+
+        // Esegue il batch principale
+        await batch.commit();
+
+        // Aggiorna l'anno di tesseramento su ogni documento membro/utente
+        // (operazione separata perché richiede getDocs per risolvere i refs)
+        for (const memberId of memberIds) {
+            const memberRef = await getMemberDocRef(memberId);
+            if (memberRef) {
+                try {
+                    await updateDoc(memberRef, { tesseramento: membershipYear });
+                } catch (err) {
+                    console.error(`Errore aggiornamento tesseramento per ${memberId}:`, err);
+                }
+            }
         }
     };
 
@@ -688,6 +768,9 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                         myEducatorGroupIds={myEducatorGroupIds}
                         onRequestGhostAction={handleRequestGhostAction}
                         getGhostAmount={calculateMemberPaymentAmount}
+                        tariffe={tariffeData ?? undefined}
+                        currentUserId={currentUserId}
+                        onBatchTesseramentoConfirm={raccolta.tipo === 'tesseramento' ? handleBatchTesseramentoConfirm : undefined}
                     />
                 </div>
             </AccordionContent>
