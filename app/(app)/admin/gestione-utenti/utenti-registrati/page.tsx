@@ -329,6 +329,40 @@ export default function UtentiRegistratiPage() {
      );
   }, [realMembers, manualMatchSearch]);
 
+  /**
+   * Stima in tempo reale quante righe del CSV precaricato risulterebbero
+   * duplicate rispetto ai ghost già in memoria (importedMembers).
+   * Usato per mostrare un avviso nel dialog di import prima di confermare.
+   */
+  const csvDuplicateCount = useMemo(() => {
+    if (!csvPreview.length || !importedMembers.length) return 0;
+    const yearFromDate = (d: string) => {
+      if (!d) return null;
+      if (d.includes('-')) return d.split('-')[0];
+      if (d.includes('/')) { const p = d.split('/'); return p.length === 3 ? p[2] : null; }
+      return null;
+    };
+    return csvPreview.filter(row => {
+      const nome = (row['Nome'] ?? row['nome'] ?? '').trim().toLowerCase();
+      const cognome = (row['Cognome'] ?? row['cognome'] ?? '').trim().toLowerCase();
+      const dataNascita = (row['Data Nascita'] ?? row['dataNascita'] ?? '').trim();
+      const cf = (row['Codice Fiscale'] ?? row['codiceFiscale'] ?? '').trim().toUpperCase();
+      if (!nome || !cognome) return false;
+      const incomingYear = yearFromDate(dataNascita);
+      return importedMembers.some(ghost => {
+        if (cf && ghost.codiceFiscale) {
+          if (cf === ghost.codiceFiscale.toUpperCase()) return true;
+        }
+        const gNome = (ghost.nome ?? '').toLowerCase();
+        const gCognome = (ghost.cognome ?? '').toLowerCase();
+        if (gNome !== nome || gCognome !== cognome) return false;
+        const ghostYear = yearFromDate(ghost.dataNascita ?? '');
+        if (incomingYear && ghostYear) return incomingYear === ghostYear;
+        return true;
+      });
+    }).length;
+  }, [csvPreview, importedMembers]);
+
   // ── CSV Import ─────────────────────────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -353,7 +387,50 @@ export default function UtentiRegistratiPage() {
     setIsImporting(true);
     setImportError(null);
     try {
+      // ── Carica i ghost già esistenti per evitare duplicati ──────────────────
+      const existingSnap = await getDocs(collection(firestore, 'imported-members'));
+      const existingGhosts: ImportedMember[] = existingSnap.docs.map(
+        d => ({ id: d.id, ...d.data() } as ImportedMember)
+      );
+
+      /**
+       * Restituisce true se una riga del CSV corrisponde a un ghost già presente.
+       * Criteri (in ordine di priorità):
+       * 1. Codice Fiscale uguale (case-insensitive), se entrambi non vuoti
+       * 2. Nome + Cognome + Anno di nascita uguali (case-insensitive)
+       */
+      const isDuplicate = (nome: string, cognome: string, dataNascita: string, codiceFiscale: string): boolean => {
+        const nomeLower = nome.toLowerCase();
+        const cognomeLower = cognome.toLowerCase();
+        const yearFromDate = (d: string) => {
+          if (!d) return null;
+          if (d.includes('-')) return d.split('-')[0];
+          if (d.includes('/')) { const p = d.split('/'); return p.length === 3 ? p[2] : null; }
+          return null;
+        };
+        const incomingYear = yearFromDate(dataNascita);
+        const incomingCF = codiceFiscale.toUpperCase();
+
+        return existingGhosts.some(ghost => {
+          // 1. Confronto Codice Fiscale
+          if (incomingCF && ghost.codiceFiscale) {
+            if (incomingCF === ghost.codiceFiscale.toUpperCase()) return true;
+          }
+          // 2. Confronto nome+cognome+anno nascita
+          const gNome = (ghost.nome ?? '').toLowerCase();
+          const gCognome = (ghost.cognome ?? '').toLowerCase();
+          if (gNome !== nomeLower || gCognome !== cognomeLower) return false;
+          const ghostYear = yearFromDate(ghost.dataNascita ?? '');
+          // Se entrambi hanno l'anno, devono coincidere; se uno è assente, nome+cognome bastano
+          if (incomingYear && ghostYear) return incomingYear === ghostYear;
+          return true;
+        });
+      };
+
       const batch = writeBatch(firestore);
+      let inserted = 0;
+      let skipped = 0;
+
       for (const row of csvPreview) {
         const nome = (row['Nome'] ?? row['nome'] ?? '').trim();
         const cognome = (row['Cognome'] ?? row['cognome'] ?? '').trim();
@@ -367,9 +444,17 @@ export default function UtentiRegistratiPage() {
         const citta = (row['Città'] ?? row['Citta'] ?? row['citta'] ?? '').trim();
         const provincia = (row['Provincia'] ?? row['provincia'] ?? '').trim().toUpperCase();
         const cap = (row['CAP'] ?? row['cap'] ?? '').trim();
+
         if (!nome || !cognome) continue;
+
+        // ── Salta i duplicati ────────────────────────────────────────────────
+        if (isDuplicate(nome, cognome, dataNascita, codiceFiscale)) {
+          skipped++;
+          continue;
+        }
+
         const newRef = doc(collection(firestore, 'imported-members'));
-        
+
         batch.set(newRef, {
           nome, cognome, dataNascita, codiceFiscale, luogoNascita, gruppo,
           via, numeroCivico, citta, provincia, cap,
@@ -387,12 +472,24 @@ export default function UtentiRegistratiPage() {
             });
           }
         }
+
+        inserted++;
       }
+
       await batch.commit();
       setIsImportDialogOpen(false);
       setCsvPreview([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
       await loadData();
+
+      // ── Mostra report deduplicazione ─────────────────────────────────────
+      if (skipped > 0) {
+        setRepairResult(
+          `Importazione completata: ${inserted} ghost aggiunti, ${skipped} già presenti (saltati).`
+        );
+      } else {
+        setRepairResult(`Importazione completata: ${inserted} ghost aggiunti.`);
+      }
     } catch (e) {
       console.error(e);
       setImportError("Errore durante l'importazione.");
@@ -1194,15 +1291,32 @@ export default function UtentiRegistratiPage() {
             )}
           </div>
 
+          {/* Avviso duplicati in anteprima */}
+          {csvPreview.length > 0 && csvDuplicateCount > 0 && (
+            <div className="flex items-center gap-2 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2.5 text-sm">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600" />
+              <span>
+                <strong>{csvDuplicateCount}</strong> {csvDuplicateCount === 1 ? 'riga è già presente' : 'righe sono già presenti'} nel database e {csvDuplicateCount === 1 ? 'verrà saltata' : 'verranno saltate'}.
+                {csvPreview.length - csvDuplicateCount > 0
+                  ? ` Verranno aggiunti ${csvPreview.length - csvDuplicateCount} nuovi ghost.`
+                  : ' Nessun nuovo ghost da aggiungere.'}
+              </span>
+            </div>
+          )}
+
           <DialogFooter className="border-t pt-4 gap-2 flex-wrap">
             <Button variant="outline" onClick={() => { setIsImportDialogOpen(false); setCsvPreview([]); }}>
               Annulla
             </Button>
             <Button
               onClick={handleImport}
-              disabled={csvPreview.length === 0 || isImporting}
+              disabled={csvPreview.length === 0 || isImporting || (csvDuplicateCount === csvPreview.length)}
             >
-              {isImporting ? 'Importazione in corso...' : `Importa ${csvPreview.length} Ragazzi`}
+              {isImporting
+                ? 'Importazione in corso...'
+                : csvDuplicateCount > 0
+                  ? `Importa ${csvPreview.length - csvDuplicateCount} Nuovi (${csvDuplicateCount} già presenti)`
+                  : `Importa ${csvPreview.length} Ragazzi`}
             </Button>
           </DialogFooter>
         </DialogContent>
