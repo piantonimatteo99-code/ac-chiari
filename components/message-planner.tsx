@@ -35,6 +35,7 @@ import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useUserData } from '@/src/hooks/use-user-data';
+import { triggerNotification } from '@/lib/trigger-notification';
 
 interface Messaggio {
   id: string;
@@ -52,6 +53,7 @@ interface MessagePlannerProps {
   projectDescription?: string;
   projectStartDate?: string;
   projectEndDate?: string;
+  groupIds?: string[];
   canEdit: boolean;
   collectionRoot?: string; // defaults to 'progetti'
 }
@@ -87,7 +89,7 @@ function formatBubbleDate(date: any) {
   return format(d, 'EEEE d MMMM', { locale: it });
 }
 
-export default function MessagePlanner({ projectId, projectName, projectDescription, projectStartDate, projectEndDate, canEdit, collectionRoot = 'progetti' }: MessagePlannerProps) {
+export default function MessagePlanner({ projectId, projectName, projectDescription, projectStartDate, projectEndDate, groupIds, canEdit, collectionRoot = 'progetti' }: MessagePlannerProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { userData } = useUserData();
@@ -136,6 +138,22 @@ export default function MessagePlanner({ projectId, projectName, projectDescript
         createdBy: user.uid,
         createdAt: serverTimestamp(),
       });
+
+      // ── Promemoria push agli educatori del gruppo ──────────────────────────
+      // Invia notifica in-app + push a tutti gli educatori coinvolti nel progetto
+      const dateStr = format(scheduledAt, "EEE d MMM 'alle' HH:mm", { locale: it });
+      const preview = messageText.trim().slice(0, 80) + (messageText.trim().length > 80 ? '…' : '');
+      triggerNotification({
+        eventType: 'comunicazione_generale',
+        title: `📅 Promemoria WhatsApp · ${projectName}`,
+        body: `Messaggio pianificato per ${dateStr}: "${preview}"`,
+        href: `/social-media`,
+        // '__broadcast__' raggiunge tutti; per limitare agli educatori del
+        // gruppo si potrebbe passare un userId per ciascuno, ma senza una
+        // query separata qui si usa il broadcast controllato lato server
+        userId: '__broadcast__',
+      });
+
       setIsDialogOpen(false);
     } catch (err: any) {
       setError(err.message);

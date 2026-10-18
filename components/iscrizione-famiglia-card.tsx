@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as UiTableFooter } from '@/components/ui/table';
 import type { Raccolta } from './raccolta-card';
 import type { UnifiedMember } from '@/app/(app)/iscrizioni/page';
-import { CheckCircle2, Hourglass, XCircle, FileText } from 'lucide-react';
+import { CheckCircle2, Hourglass, XCircle, FileText, AlertTriangle, ShieldCheck, Edit2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { useFirestore } from '@/src/firebase';
@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import Link from 'next/link';
 import type { Tariffa } from '@/app/(app)/tesserati/tariffe/page';
+import type { Membro } from '@/app/(app)/nucleo-familiare/page';
 
 
 export interface PaymentSelection {
@@ -29,6 +30,14 @@ interface IscrizioneFamigliaCardProps {
     familyMembers: UnifiedMember[];
     tariffe?: Tariffa[] | null;
     onSelectionChange: (raccoltaId: string, selection: PaymentSelection) => void;
+    /** ID dell'utente corrente (capofamiglia) — serve per distinguere il profilo utente dai figli ghost */
+    currentUserId?: string;
+    /** Apre il dialog profilo per il capofamiglia */
+    onOpenUserProfile?: () => void;
+    /** Apre il dialog modifica per un membro del nucleo familiare (figlio ghost) */
+    onEditFamiliare?: (membro: Membro) => void;
+    /** Mappa di id→Membro per i figli ghost (dall'elenco membri Firestore) */
+    membroById?: Record<string, Membro>;
 }
 
 type PaymentPhase = 'caparra' | 'saldo';
@@ -55,7 +64,7 @@ const getTariffaForMember = (member: UnifiedMember, tariffe: Tariffa[]): Tariffa
     return undefined;
 };
 
-export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionChange, tariffe }: IscrizioneFamigliaCardProps) {
+export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionChange, tariffe, currentUserId, onOpenUserProfile, onEditFamiliare, membroById }: IscrizioneFamigliaCardProps) {
     const firestore = useFirestore();
     const isFromForm = !!(raccolta as any).fromFormId;
     const relevantMembers = useMemo(() => {
@@ -82,7 +91,32 @@ export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionCha
         () => Object.fromEntries(relevantMembers.map(m => [m.id, new Set<PaymentPhase>()]))
     );
     const [selectedTesserati, setSelectedTesserati] = useState<Set<string>>(new Set());
-    
+
+    // Stato di verifica dati anagrafici per il tesseramento
+    // Un membro è "verificato" quando l'utente ha confermato che i dati sono corretti
+    const [verifiedMembers, setVerifiedMembers] = useState<Set<string>>(new Set());
+
+    // Controlla se un membro ha i dati anagrafici minimi necessari per il tesseramento
+    const getMissingFields = useCallback((member: UnifiedMember): string[] => {
+        const missing: string[] = [];
+        if (!member.dataNascita) missing.push('data di nascita');
+        if (!member.codiceFiscale) missing.push('codice fiscale');
+        if (!member.luogoNascita) missing.push('luogo di nascita');
+        return missing;
+    }, []);
+
+    const toggleVerified = useCallback((memberId: string) => {
+        setVerifiedMembers(prev => {
+            const next = new Set(prev);
+            if (next.has(memberId)) {
+                next.delete(memberId);
+            } else {
+                next.add(memberId);
+            }
+            return next;
+        });
+    }, []);
+
     const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});
     
     const handleConfirmationToggle = useCallback(async (memberId: string, shouldConfirm: boolean) => {
@@ -377,31 +411,181 @@ export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionCha
         }, [selectedTesserati, relevantMembers, tariffe, raccolta.tesseratiIds]);
 
         return (
-            <Table>
-                <TableHeader><TableRow><TableHead className="w-12"></TableHead><TableHead>Membro Familiare</TableHead><TableHead>Fascia</TableHead><TableHead className="text-right">Quota</TableHead></TableRow></TableHeader>
-                <TableBody>
-                    {membersWithFees.map(member => {
-                        const isPaid = raccolta.tesseratiIds?.includes(member.id) ?? false;
-                        return (
-                            <TableRow key={member.id}>
-                                <TableCell>
-                                    {isPaid ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <Checkbox checked={selectedTesserati.has(member.id)} onCheckedChange={() => toggleTesseratoSelection(member.id)} />}
-                                </TableCell>
-                                <TableCell className="font-medium">{member.nome} {member.cognome}</TableCell>
-                                <TableCell>{member.feeLabel}</TableCell>
-                                <TableCell className="text-right font-medium">€{(member.fee || 0).toFixed(2)}</TableCell>
-                            </TableRow>
-                        );
-                    })}
-                </TableBody>
-                <UiTableFooter><TableRow><TableCell colSpan={3} className="font-bold">Totale Selezionato</TableCell><TableCell className="text-right font-bold">€{totalFee.toFixed(2)}</TableCell></TableRow></UiTableFooter>
-            </Table>
+            <div className="space-y-0">
+                {/* ── Sezione verifica dati anagrafici ──────────────────────────────── */}
+                <div className="px-6 py-4 border-b bg-amber-50/50 dark:bg-amber-950/10 space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                        Verifica che i dati inseriti siano corretti e completa se mancanti per procedere al tesseramento:
+                    </p>
+                    <div className="space-y-2">
+                        {relevantMembers.map(member => {
+                            const isPaid = raccolta.tesseratiIds?.includes(member.id) ?? false;
+                            if (isPaid) return null; // già tesserato, non serve verifica
+
+                            const missingFields = getMissingFields(member);
+                            const isComplete = missingFields.length === 0;
+                            const isVerified = verifiedMembers.has(member.id);
+                            const isCurrentUser = member.id === currentUserId;
+                            // Il membro ghost (figlio senza account) ha un Membro nel membroById
+                            const membroData = membroById?.[member.id];
+
+                            return (
+                                <div
+                                    key={member.id}
+                                    className={cn(
+                                        "flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 bg-background",
+                                        isVerified && "border-green-300 bg-green-50/50 dark:bg-green-950/10",
+                                        !isComplete && "border-amber-300 bg-amber-50 dark:bg-amber-950/20"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        {isVerified ? (
+                                            <ShieldCheck className="h-4 w-4 text-green-600 shrink-0" />
+                                        ) : isComplete ? (
+                                            <ShieldCheck className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                                        ) : (
+                                            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                                        )}
+                                        <span className="text-sm font-medium truncate">
+                                            {member.nome} {member.cognome}
+                                        </span>
+                                        {!isComplete && (
+                                            <span className="text-xs text-amber-700 dark:text-amber-300 hidden sm:inline truncate">
+                                                — mancano: {missingFields.join(', ')}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {!isComplete ? (
+                                            // Dati mancanti: mostra bottone "Completa"
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 text-xs border-amber-400 text-amber-700 hover:bg-amber-100 gap-1"
+                                                onClick={() => {
+                                                    if (isCurrentUser && onOpenUserProfile) {
+                                                        onOpenUserProfile();
+                                                    } else if (membroData && onEditFamiliare) {
+                                                        onEditFamiliare(membroData);
+                                                    }
+                                                }}
+                                            >
+                                                <Edit2 className="h-3 w-3" />
+                                                Completa
+                                            </Button>
+                                        ) : (
+                                            // Dati completi: switch per approvare la verifica
+                                            <div className="flex items-center gap-2">
+                                                {!isVerified && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 px-2"
+                                                        onClick={() => {
+                                                            if (isCurrentUser && onOpenUserProfile) {
+                                                                onOpenUserProfile();
+                                                            } else if (membroData && onEditFamiliare) {
+                                                                onEditFamiliare(membroData);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Edit2 className="h-3 w-3" />
+                                                    </Button>
+                                                )}
+                                                <div className="flex items-center gap-1.5">
+                                                    <Switch
+                                                        id={`verify-${raccolta.id}-${member.id}`}
+                                                        checked={isVerified}
+                                                        onCheckedChange={() => toggleVerified(member.id)}
+                                                        className="data-[state=checked]:bg-green-600"
+                                                    />
+                                                    <Label
+                                                        htmlFor={`verify-${raccolta.id}-${member.id}`}
+                                                        className={cn(
+                                                            "text-xs cursor-pointer select-none",
+                                                            isVerified ? "text-green-700 dark:text-green-400 font-medium" : "text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        {isVerified ? "Verificato" : "Verifica"}
+                                                    </Label>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* ── Tabella selezione tesseramento ────────────────────────────────── */}
+                <Table>
+                    <TableHeader><TableRow><TableHead className="w-12"></TableHead><TableHead>Membro Familiare</TableHead><TableHead>Fascia</TableHead><TableHead className="text-right">Quota</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {membersWithFees.map(member => {
+                            const isPaid = raccolta.tesseratiIds?.includes(member.id) ?? false;
+                            const isVerified = verifiedMembers.has(member.id);
+                            const isComplete = getMissingFields(member).length === 0;
+                            const canSelect = !isPaid && isVerified && isComplete;
+                            return (
+                                <TableRow key={member.id} className={cn(!canSelect && !isPaid && "opacity-50")}>
+                                    <TableCell>
+                                        {isPaid ? (
+                                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                        ) : (
+                                            <Checkbox
+                                                checked={selectedTesserati.has(member.id)}
+                                                onCheckedChange={() => canSelect && toggleTesseratoSelection(member.id)}
+                                                disabled={!canSelect}
+                                                aria-label={
+                                                    !isComplete
+                                                        ? `Completa i dati anagrafici di ${member.nome} per procedere`
+                                                        : !isVerified
+                                                        ? `Verifica i dati di ${member.nome} per procedere`
+                                                        : `Seleziona ${member.nome} per il tesseramento`
+                                                }
+                                            />
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="font-medium">
+                                        <div className="flex items-center gap-2">
+                                            {member.nome} {member.cognome}
+                                            {!isPaid && !isComplete && (
+                                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-amber-400 text-amber-600">
+                                                    Dati incompleti
+                                                </Badge>
+                                            )}
+                                            {!isPaid && isComplete && !isVerified && (
+                                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-blue-300 text-blue-600">
+                                                    Da verificare
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{member.feeLabel}</TableCell>
+                                    <TableCell className="text-right font-medium">€{(member.fee || 0).toFixed(2)}</TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                    <UiTableFooter><TableRow><TableCell colSpan={3} className="font-bold">Totale Selezionato</TableCell><TableCell className="text-right font-bold">€{totalFee.toFixed(2)}</TableCell></TableRow></UiTableFooter>
+                </Table>
+            </div>
         );
     };
 
     return (
         <Card>
-            <CardHeader><CardTitle>{raccolta.nome}</CardTitle><CardDescription>{raccolta.tipo === 'tesseramento' ? "Seleziona i membri della famiglia da tesserare." : "Gestisci le iscrizioni per la tua famiglia a questa attività."}</CardDescription></CardHeader>
+            <CardHeader>
+                <CardTitle>{raccolta.nome}</CardTitle>
+                <CardDescription>
+                    {raccolta.tipo === 'tesseramento'
+                        ? "Gestisci le iscrizioni per il tesseramento della tua famiglia."
+                        : "Gestisci le iscrizioni per la tua famiglia a questa attività."
+                    }
+                </CardDescription>
+            </CardHeader>
             <CardContent className="p-0">
                 {raccolta.tipo === 'tesseramento' ? renderTesseramentoCard() : renderStandardCard()}
             </CardContent>

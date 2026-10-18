@@ -11,20 +11,26 @@ import { Badge } from '@/components/ui/badge';
 import { ConsensoAlert } from '@/components/consenso-alert';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import SocialPlanner from '@/components/social-planner';
+import MessagePlanner from '@/components/message-planner';
 import {
   AlertCircle,
+  Bell,
   Camera,
   Calendar,
+  CheckCheck,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Clock,
   EyeOff,
   Eye,
   ExternalLink,
   FlaskConical,
   ImageOff,
   Loader2,
+  MessageCircle,
   Plus,
+  Send,
   Upload,
   X,
 } from 'lucide-react';
@@ -40,6 +46,12 @@ interface SocialPost {
   imageUrl?: string; thumbnailUrl?: string; imageName?: string;
   caption: string; scheduledAt: any;
   status: 'pianificato' | 'pubblicato' | 'scartato';
+}
+
+interface Messaggio {
+  id: string; ref?: any;
+  text: string; scheduledAt: any;
+  status: 'pianificato' | 'inviato' | 'scartato';
 }
 
 interface DrivePhoto {
@@ -85,15 +97,21 @@ function formatRange(start: any, end: any) {
 
 // ── Project Card ──────────────────────────────────────────────────────────────
 
+function buildWaLink(text: string) {
+  return `https://wa.me/?text=${encodeURIComponent(text.normalize('NFC'))}`;
+}
+
 function ProjectSocialCard({
   project,
   posts,
+  messaggi,
   groups,
   isHidden,
   onToggleHide,
 }: {
   project: Progetto;
   posts: SocialPost[];
+  messaggi: Messaggio[];
   groups: Group[];
   isHidden: boolean;
   onToggleHide: () => void;
@@ -124,7 +142,16 @@ function ProjectSocialCard({
 
   const publishedCount = posts.filter(p => p.status === 'pubblicato').length;
 
-  // Load photos when expanded and folderId is available
+  const upcomingMessaggi = useMemo(
+    () => messaggi
+      .filter(m => m.status === 'pianificato')
+      .sort((a, b) => getDateObj(a.scheduledAt).getTime() - getDateObj(b.scheduledAt).getTime())
+      .slice(0, 3),
+    [messaggi]
+  );
+  const sentMessaggiCount = messaggi.filter(m => m.status === 'inviato').length;
+
+
   useEffect(() => {
     if (!isExpanded || !project.driveFolderId) return;
     setIsLoadingPhotos(true);
@@ -250,7 +277,18 @@ function ProjectSocialCard({
                 <Camera className="h-2.5 w-2.5" /> {photos.length} foto
               </Badge>
             )}
+            {upcomingMessaggi.length > 0 && (
+              <Badge variant="outline" className="text-[10px] h-5 text-amber-700 border-amber-200 gap-1">
+                <Clock className="h-2.5 w-2.5" /> {upcomingMessaggi.length} msg da inviare
+              </Badge>
+            )}
+            {sentMessaggiCount > 0 && (
+              <Badge variant="outline" className="text-[10px] h-5 text-emerald-700 border-emerald-200 gap-1">
+                <CheckCheck className="h-2.5 w-2.5" /> {sentMessaggiCount} inviati
+              </Badge>
+            )}
           </div>
+
         </div>
       </div>
 
@@ -433,6 +471,76 @@ function ProjectSocialCard({
             )}
           </div>
 
+          {/* ── WhatsApp Messages section ── */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <MessageCircle className="h-3 w-3 text-green-600" />
+                Messaggi WhatsApp
+              </p>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button className="flex items-center gap-1 text-xs text-green-700 hover:underline">
+                    <Plus className="h-3 w-3" /> Nuovo messaggio
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl w-[90vw] p-0 border-0 bg-transparent shadow-none [&>button]:hidden">
+                  <div className="max-h-[85vh] overflow-y-auto rounded-xl">
+                    <div className="p-4 bg-card rounded-xl">
+                      <MessagePlanner
+                        projectId={project.id}
+                        projectName={project.name}
+                        projectDescription={project.description}
+                        projectStartDate={project.startDate}
+                        projectEndDate={project.endDate}
+                        canEdit={true}
+                        groupIds={project.groupIds}
+                      />
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {upcomingMessaggi.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">
+                Nessun messaggio pianificato. Clicca &ldquo;+ Nuovo messaggio&rdquo; per crearne uno.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {upcomingMessaggi.map(msg => (
+                  <div key={msg.id} className="flex items-start gap-2.5 rounded-lg border p-2.5 bg-[#DCF8C6]/40 dark:bg-green-900/20">
+                    {/* WA icon */}
+                    <div className="h-7 w-7 rounded-full bg-green-500 flex items-center justify-center shrink-0 mt-0.5">
+                      <MessageCircle className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    {/* Text + date */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs leading-tight line-clamp-2 text-gray-800 dark:text-gray-100">
+                        {msg.text}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5" />
+                        {formatDateShort(msg.scheduledAt)}
+                      </p>
+                    </div>
+                    {/* Quick send link */}
+                    <a
+                      href={buildWaLink(msg.text)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] text-green-700 dark:text-green-400 hover:underline shrink-0"
+                      title="Apri in WhatsApp"
+                    >
+                      <Send className="h-3 w-3" />
+                      Invia
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Footer actions */}
           <div className="flex items-center gap-2 pt-1 border-t">
             <Link href={`/progetti/${project.slug}?tab=social`} className="flex-1">
@@ -444,6 +552,7 @@ function ProjectSocialCard({
           </div>
         </div>
       )}
+
 
       <input
         ref={fileInputRef}
@@ -515,6 +624,10 @@ export default function SocialMediaPage() {
   const postsQuery = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'social-posts') : null, [firestore]);
   const { data: allPosts } = useCollection<SocialPost>(postsQuery, { includeRef: true } as any);
 
+  // Messaggi WhatsApp — collectionGroup
+  const messaggiQuery = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'messaggi') : null, [firestore]);
+  const { data: allMessaggi } = useCollection<Messaggio>(messaggiQuery, { includeRef: true } as any);
+
   const projectIds = useMemo(() => new Set(progetti.map(p => p.id)), [progetti]);
 
   const postsByProject = useMemo(() => {
@@ -527,6 +640,24 @@ export default function SocialMediaPage() {
     });
     return map;
   }, [allPosts, projectIds]);
+
+  const msgsByProject = useMemo(() => {
+    const map = new Map<string, Messaggio[]>();
+    (allMessaggi ?? []).forEach((msg: any) => {
+      const pid = msg.ref?.parent?.parent?.id;
+      if (!pid || !projectIds.has(pid) || msg.status === 'scartato') return;
+      if (!map.has(pid)) map.set(pid, []);
+      map.get(pid)!.push(msg);
+    });
+    return map;
+  }, [allMessaggi, projectIds]);
+
+  // Conteggio totale messaggi in attesa (per il subtitle)
+  const totalPendingMsgs = useMemo(() => {
+    let count = 0;
+    msgsByProject.forEach(msgs => { count += msgs.filter(m => m.status === 'pianificato').length; });
+    return count;
+  }, [msgsByProject]);
 
   const allGroups = myGroups ?? [];
   const visibleProgetti = progetti.filter(p => !hiddenIds.has(p.id));
@@ -559,9 +690,15 @@ export default function SocialMediaPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Social Media</h1>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-sm flex items-center gap-2">
               {visibleProgetti.length} {visibleProgetti.length === 1 ? 'progetto' : 'progetti'} attivi
               {hiddenProgetti.length > 0 && ` · ${hiddenProgetti.length} nascosti`}
+              {totalPendingMsgs > 0 && (
+                <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
+                  <Bell className="h-3 w-3" />
+                  {totalPendingMsgs} msg WhatsApp in attesa
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -597,6 +734,7 @@ export default function SocialMediaPage() {
               key={project.id}
               project={project}
               posts={postsByProject.get(project.id) ?? []}
+              messaggi={msgsByProject.get(project.id) ?? []}
               groups={allGroups}
               isHidden={false}
               onToggleHide={() => toggleHide(project.id)}
@@ -618,6 +756,7 @@ export default function SocialMediaPage() {
                   key={project.id}
                   project={project}
                   posts={postsByProject.get(project.id) ?? []}
+                  messaggi={msgsByProject.get(project.id) ?? []}
                   groups={allGroups}
                   isHidden={true}
                   onToggleHide={() => toggleHide(project.id)}

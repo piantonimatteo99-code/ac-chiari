@@ -15,6 +15,7 @@ import type { Tariffa } from '../tesserati/tariffe/page';
 
 import dynamic from 'next/dynamic';
 import { UserProfileDialog } from '@/components/user-profile-dialog';
+import { AddFamiliareDialog } from '@/components/add-familiare-dialog';
 
 const UploadReceiptDialog = dynamic(() => 
     import('@/components/upload-receipt-dialog').then(mod => mod.UploadReceiptDialog), 
@@ -32,6 +33,8 @@ export interface UnifiedMember extends Partial<Membro>, Partial<UserData> {
   groupId?: string;
   familyId?: string;
   dataNascita?: string;
+  codiceFiscale?: string;
+  luogoNascita?: string;
 }
 
 
@@ -44,8 +47,16 @@ export default function IscrizioniPage() {
     const [paymentSelections, setPaymentSelections] = useState<Record<string, PaymentSelection>>({});
     const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    
-    
+
+    // Dialog per modificare i dati di un membro ghost (figlio senza account proprio)
+    const [editingFamiliare, setEditingFamiliare] = useState<Membro | null>(null);
+    const [isFamiliareDialogOpen, setIsFamiliareDialogOpen] = useState(false);
+
+    const handleOpenEditFamiliare = useCallback((membro: Membro) => {
+        setEditingFamiliare(membro);
+        setIsFamiliareDialogOpen(true);
+    }, []);
+
     const handleSelectionChange = useCallback((raccoltaId: string, selection: PaymentSelection) => {
         setPaymentSelections(prev => ({
             ...prev,
@@ -72,6 +83,12 @@ export default function IscrizioniPage() {
     }, [firestore]);
     const { data: tariffe, isLoading: isLoadingTariffe } = useCollection<Tariffa>(tariffeQuery);
 
+    // Mappa id→Membro per accesso rapido dai figli ghost nella card
+    const membroById = useMemo((): Record<string, Membro> => {
+        if (!membri) return {};
+        return Object.fromEntries(membri.map(m => [m.id, m]));
+    }, [membri]);
+
     const userAndFamily = useMemo((): UnifiedMember[] => {
         if (!userData && !membri) return [];
         
@@ -83,23 +100,29 @@ export default function IscrizioniPage() {
                 cognome: userData.cognome,
                 groupId: userData.groupId,
                 familyId: userData.id, 
-                dataNascita: userData.dataNascita
+                dataNascita: userData.dataNascita,
+                // Propaga i campi anagrafici necessari per la verifica tesseramento
+                codiceFiscale: userData.codiceFiscale,
+                luogoNascita: userData.luogoNascita,
             });
         }
 
         if (membri) {
-        membri.forEach(membro => {
-            if(membro.id && membro.nome && membro.cognome) {
-                allFamilyMembers.push({
-                    id: membro.id,
-                    nome: membro.nome,
-                    cognome: membro.cognome,
-                    groupId: membro.groupId,
-                    familyId: userData?.id,
-                    dataNascita: membro.dataNascita
-                });
-            }
-        });
+            membri.forEach(membro => {
+                if(membro.id && membro.nome && membro.cognome) {
+                    allFamilyMembers.push({
+                        id: membro.id,
+                        nome: membro.nome,
+                        cognome: membro.cognome,
+                        groupId: membro.groupId,
+                        familyId: userData?.id,
+                        dataNascita: membro.dataNascita,
+                        // Propaga i campi anagrafici necessari per la verifica tesseramento
+                        codiceFiscale: membro.codiceFiscale,
+                        luogoNascita: membro.luogoNascita,
+                    });
+                }
+            });
         }
 
         return allFamilyMembers;
@@ -242,6 +265,10 @@ export default function IscrizioniPage() {
                         familyMembers={userAndFamily}
                         onSelectionChange={handleSelectionChange}
                         tariffe={tariffe}
+                        currentUserId={currentUserId}
+                        onOpenUserProfile={() => setIsProfileOpen(true)}
+                        onEditFamiliare={handleOpenEditFamiliare}
+                        membroById={membroById}
                     />
                 );
             })}
@@ -277,10 +304,22 @@ export default function IscrizioniPage() {
                 />
             )}
 
-
-
-            {/* Profile dialog triggered from alert */}
+            {/* Profile dialog — triggered dall'alert globale o dal bottone "Completa" del capofamiglia */}
             <UserProfileDialog isOpen={isProfileOpen} onOpenChange={setIsProfileOpen} />
+
+            {/* Dialog modifica dati per figli ghost — triggered dal bottone "Completa" nella card */}
+            {user && (
+                <AddFamiliareDialog
+                    isOpen={isFamiliareDialogOpen}
+                    onOpenChange={(open) => {
+                        setIsFamiliareDialogOpen(open);
+                        if (!open) setEditingFamiliare(null);
+                    }}
+                    membroToEdit={editingFamiliare}
+                    user={user}
+                    userData={userData ?? null}
+                />
+            )}
         </div>
     );
 }
