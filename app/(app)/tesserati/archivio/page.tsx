@@ -9,6 +9,7 @@ import type { Membro } from '../../nucleo-familiare/page';
 import { Button } from '@/components/ui/button';
 import { ArchiveRestore } from 'lucide-react';
 import { UserData, useUserData } from '@/src/hooks/use-user-data';
+import { formatDisplayDate } from '@/lib/utils';
 
 interface UnifiedMember extends Partial<Membro>, Partial<UserData> {
     id: string;
@@ -97,14 +98,7 @@ export default function ArchivioPage() {
   };
   
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/D';
-    try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return 'Data non valida';
-        return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
-        return 'Data non valida';
-    }
+    return formatDisplayDate(dateString, 'N/D');
   };
 
   const isLoading = isUserLoading || isLoadingMembers || isLoadingUsers;

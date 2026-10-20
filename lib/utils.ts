@@ -9,11 +9,35 @@ export function slugify(text: string): string {
   if (!text) return '';
   return text
     .toString()
-    .normalize('NFD') // split an accented letter in the base letter and the acent
-    .replace(/[\u0300-\u036f]/g, '') // remove all previously split accents
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, '-') // replace spaces with -
-    .replace(/[^\w-]+/g, '') // remove all non-word chars
-    .replace(/--+/g, '-'); // replace multiple - with single -
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
+}
+
+export function parseCustomDate(dateString?: string | null): Date | null {
+  if (!dateString) return null;
+  const str = String(dateString).trim();
+  if (!str) return null;
+
+  // DD/MM/YYYY
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+    const [d, m, y] = str.split('/').map(Number);
+    const date = new Date(y, m - 1, d);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  // YYYY-MM-DD or other valid strings
+  const date = new Date(str);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+export function formatDisplayDate(dateString?: string | null, fallback = '—'): string {
+  if (!dateString) return fallback;
+  const d = parseCustomDate(dateString);
+  if (!d) return fallback === '—' && dateString ? dateString : fallback;
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }

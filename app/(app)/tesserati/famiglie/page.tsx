@@ -9,6 +9,7 @@ import type { UserData } from '@/src/hooks/use-user-data';
 import type { Membro } from '../../nucleo-familiare/page';
 import type { Group } from '../../admin/gestione-gruppi/tutti-i-gruppi/page';
 import { Badge } from '@/components/ui/badge';
+import { formatDisplayDate } from '@/lib/utils';
 
 interface Famiglia {
     id: string;
@@ -38,14 +39,7 @@ interface FamigliaViewModel {
 }
 
 const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/D';
-    try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return 'Data non valida';
-        return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
-        return 'Data non valida';
-    }
+    return formatDisplayDate(dateString, 'N/D');
 };
 
 const getCurrentMembershipYear = () => {

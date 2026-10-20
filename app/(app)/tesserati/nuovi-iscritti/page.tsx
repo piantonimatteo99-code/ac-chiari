@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import { formatDisplayDate } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface UnifiedMember extends Partial<Membro>, Partial<UserData> {
@@ -101,10 +102,7 @@ const getCurrentMembershipYear = () => {
 };
 
 function formatDate(dateString?: string) {
-  if (!dateString) return 'N/D';
-  try {
-    return new Date(dateString).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch { return 'Data non valida'; }
+  return formatDisplayDate(dateString, 'N/D');
 }
 
 function ScoreBadge({ score }: { score: number }) {

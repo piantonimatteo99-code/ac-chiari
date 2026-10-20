@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useFirestore } from '@/src/firebase';
 import { doc, writeBatch, arrayRemove, arrayUnion, updateDoc, deleteField } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, parseCustomDate } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import Link from 'next/link';
@@ -44,7 +44,9 @@ type PaymentPhase = 'caparra' | 'saldo';
 
 const getTariffaForMember = (member: UnifiedMember, tariffe: Tariffa[]): Tariffa | undefined => {
     if (!member.dataNascita || !tariffe) return undefined;
-    const birthYear = new Date(member.dataNascita).getFullYear();
+    const parsedDate = parseCustomDate(member.dataNascita);
+    if (!parsedDate) return undefined;
+    const birthYear = parsedDate.getFullYear();
     if (isNaN(birthYear)) return undefined;
 
     for (const tariffa of tariffe.sort((a, b) => a.order - b.order)) {
@@ -220,7 +222,11 @@ export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionCha
             const selectedArray = Array.from(selectedTesserati);
             const membersToConsider = relevantMembers
                 .filter(m => selectedArray.includes(m.id) && m.dataNascita)
-                .sort((a, b) => new Date(b.dataNascita!).getTime() - new Date(a.dataNascita!).getTime()); // oldest first
+                .sort((a, b) => {
+                    const da = parseCustomDate(a.dataNascita)?.getTime() ?? 0;
+                    const db = parseCustomDate(b.dataNascita)?.getTime() ?? 0;
+                    return da - db; // oldest first (smaller timestamp)
+                });
             
             const numMembers = membersToConsider.length;
 
@@ -364,7 +370,11 @@ export function IscrizioneFamigliaCard({ raccolta, familyMembers, onSelectionCha
             const selectedArray = Array.from(selectedTesserati);
             const membersToConsider = relevantMembers
                 .filter(m => selectedArray.includes(m.id) && m.dataNascita)
-                .sort((a, b) => new Date(a.dataNascita!).getTime() - new Date(b.dataNascita!).getTime());
+                .sort((a, b) => {
+                    const da = parseCustomDate(a.dataNascita)?.getTime() ?? 0;
+                    const db = parseCustomDate(b.dataNascita)?.getTime() ?? 0;
+                    return da - db;
+                });
             
             const numMembers = membersToConsider.length;
 

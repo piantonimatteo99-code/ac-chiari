@@ -14,6 +14,7 @@ import { UserData, useUserData } from '@/src/hooks/use-user-data';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useDebounce } from 'use-debounce';
+import { formatDisplayDate } from '@/lib/utils';
 
 interface UnifiedMember extends Partial<Membro>, Partial<UserData> {
     id: string;
@@ -296,14 +297,7 @@ export default function TesseratiSubPage() {
 
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/D';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'Data non valida';
-      return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
-      return 'Data non valida';
-    }
+    return formatDisplayDate(dateString, 'N/D');
   };
 
   const isLoading = isUserLoading || isLoadingMembers || isLoadingUsers || isLoadingGroups || isLoadingImported;
