@@ -146,7 +146,7 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
       };
 
       let formId = savedFormId;
-      if (formId && existingForm) {
+      if (formId) {
         await updateDoc(doc(firestore, 'forms', formId), payload);
       } else {
         const ref = await addDoc(collection(firestore, 'forms'), {

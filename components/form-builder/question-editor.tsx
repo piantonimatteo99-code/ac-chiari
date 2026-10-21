@@ -208,7 +208,7 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
             <div className="space-y-2">
               <Label className="text-xs">
                 Opzioni
-                {(question.type === 'price_item' || question.type === 'quantity_picker') && (
+                {question.type === 'price_item' && (
                   <span className="ml-1 text-muted-foreground font-normal">(con prezzo € per opzione)</span>
                 )}
               </Label>
@@ -223,7 +223,7 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
                       placeholder="Etichetta opzione"
                       className="h-7 text-sm flex-1"
                     />
-                    {(question.type === 'price_item' || question.type === 'quantity_picker') && (
+                    {question.type === 'price_item' && (
                       <div className="flex items-center gap-1 shrink-0">
                         <span className="text-xs text-muted-foreground">€</span>
                         <Input
