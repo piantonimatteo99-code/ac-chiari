@@ -409,75 +409,93 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
     };
 
     /**
-     * Conferma l'incasso contanti per più membri in un'unica operazione batch (carrello tesseramento).
-     * Per ogni membro:
-     *  - Aggiunge l'id a raccolta.tesseratiIds
-     *  - Crea un documento movimenti-contanti con phase: 'tesseramento'
-     *  - Aggiorna il campo tesseramento sul documento utente/membro
+     * Conferma l'incasso contanti per più membri in un'unica operazione batch (carrello educatore).
+     * Gestisce sia il tesseramento sia le fasi caparra/saldo delle raccolte standard.
      */
-    const handleBatchTesseramentoConfirm = async (memberIds: string[], amounts: Record<string, number>) => {
+    const handleBatchPaymentConfirm = async (memberIds: string[], amounts: Record<string, number>, phase: 'tesseramento' | 'caparra' | 'saldo') => {
         if (!firestore || memberIds.length === 0) return;
 
-        const getCurrentMembershipYear = () => {
-            const today = new Date();
-            return today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
-        };
+        if (phase === 'tesseramento') {
+            // ── Tesseramento: logica esistente ──────────────────────────────
+            const getCurrentMembershipYear = () => {
+                const today = new Date();
+                return today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
+            };
 
-        const getMemberDocRef = async (memberId: string): Promise<any | null> => {
-            const userDocRef = doc(firestore, 'users', memberId);
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists()) return userDocRef;
-            // Cerca tra i membri delle famiglie
-            const membersSnapshot = await getDocs(collectionGroup(firestore, 'membri'));
-            const memberDoc = membersSnapshot.docs.find(d => d.id === memberId);
-            if (memberDoc) return memberDoc.ref;
-            console.error('Documento membro non trovato:', memberId);
-            return null;
-        };
+            const getMemberDocRef = async (memberId: string): Promise<any | null> => {
+                const userDocRef = doc(firestore, 'users', memberId);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) return userDocRef;
+                const membersSnapshot = await getDocs(collectionGroup(firestore, 'membri'));
+                const memberDoc = membersSnapshot.docs.find(d => d.id === memberId);
+                if (memberDoc) return memberDoc.ref;
+                console.error('Documento membro non trovato:', memberId);
+                return null;
+            };
 
+            const raccoltaRef = doc(firestore, 'raccolte', raccolta.id);
+            const membershipYear = getCurrentMembershipYear();
+            const batch = writeBatch(firestore);
+
+            batch.update(raccoltaRef, { tesseratiIds: arrayUnion(...memberIds) });
+
+            for (const memberId of memberIds) {
+                const importo = amounts[memberId] ?? 0;
+                const movRef = doc(collection(firestore, 'movimenti-contanti'));
+                batch.set(movRef, {
+                    raccoltaId: raccolta.id,
+                    memberId,
+                    phase: 'tesseramento',
+                    importo,
+                    createdAt: serverTimestamp(),
+                    registeredBy: currentUserId || 'system',
+                    tipo: 'raccolta',
+                    isDelivered: false,
+                    isDeposited: false,
+                    isGhostPayment: true,
+                });
+            }
+
+            await batch.commit();
+
+            for (const memberId of memberIds) {
+                const memberRef = await getMemberDocRef(memberId);
+                if (memberRef) {
+                    try {
+                        await updateDoc(memberRef, { tesseramento: membershipYear });
+                    } catch (err) {
+                        console.error(`Errore aggiornamento tesseramento per ${memberId}:`, err);
+                    }
+                }
+            }
+            return;
+        }
+
+        // ── Raccolta standard: caparra o saldo ────────────────────────────
         const raccoltaRef = doc(firestore, 'raccolte', raccolta.id);
-        const membershipYear = getCurrentMembershipYear();
-
+        const paidIdsField = phase === 'caparra' ? 'caparraPaidIds' : 'saldoPaidIds';
         const batch = writeBatch(firestore);
 
-        // Aggiunge tutti gli id a tesseratiIds in un'unica operazione
-        batch.update(raccoltaRef, {
-            tesseratiIds: arrayUnion(...memberIds),
-        });
+        batch.update(raccoltaRef, { [paidIdsField]: arrayUnion(...memberIds) });
 
-        // Crea un movimento contanti per ogni membro
         for (const memberId of memberIds) {
             const importo = amounts[memberId] ?? 0;
             const movRef = doc(collection(firestore, 'movimenti-contanti'));
             batch.set(movRef, {
                 raccoltaId: raccolta.id,
                 memberId,
-                phase: 'tesseramento',
+                phase,
                 importo,
                 createdAt: serverTimestamp(),
                 registeredBy: currentUserId || 'system',
                 tipo: 'raccolta',
-                isDelivered: false,   // da consegnare al cassiere
+                isDelivered: false,
                 isDeposited: false,
                 isGhostPayment: true,
             });
         }
 
-        // Esegue il batch principale
         await batch.commit();
-
-        // Aggiorna l'anno di tesseramento su ogni documento membro/utente
-        // (operazione separata perché richiede getDocs per risolvere i refs)
-        for (const memberId of memberIds) {
-            const memberRef = await getMemberDocRef(memberId);
-            if (memberRef) {
-                try {
-                    await updateDoc(memberRef, { tesseramento: membershipYear });
-                } catch (err) {
-                    console.error(`Errore aggiornamento tesseramento per ${memberId}:`, err);
-                }
-            }
-        }
     };
 
     const calculateTotals = (faseKey: 'faseConferma' | 'faseCaparra' | 'faseSaldo') => {
@@ -768,9 +786,10 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                         myEducatorGroupIds={myEducatorGroupIds}
                         onRequestGhostAction={handleRequestGhostAction}
                         getGhostAmount={calculateMemberPaymentAmount}
+                        isEducatore={isEducatore && !isAdmin}
                         tariffe={tariffeData ?? undefined}
                         currentUserId={currentUserId}
-                        onBatchTesseramentoConfirm={raccolta.tipo === 'tesseramento' ? handleBatchTesseramentoConfirm : undefined}
+                        onBatchPaymentConfirm={handleBatchPaymentConfirm}
                     />
                 </div>
             </AccordionContent>

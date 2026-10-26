@@ -36,10 +36,11 @@ interface MembriRaccoltaListProps {
   myEducatorGroupIds?: Set<string>;
   onRequestGhostAction?: (ghostId: string, ghostName: string, phase: 'conferma' | 'caparra' | 'saldo', currentValue: boolean, isPlaceholder?: boolean) => void;
   getGhostAmount?: (ghostId: string, phase: 'caparra' | 'saldo') => number;
-  // Carrello tesseramento (solo per raccolta.tipo === 'tesseramento')
+  // Carrello pagamenti educatore (tutte le raccolte attive)
+  isEducatore?: boolean; // true = mostra carrello; false/undefined = nessun carrello
   tariffe?: Tariffa[];
   currentUserId?: string;
-  onBatchTesseramentoConfirm?: (memberIds: string[], amounts: Record<string, number>) => Promise<void>;
+  onBatchPaymentConfirm?: (memberIds: string[], amounts: Record<string, number>, phase: 'tesseramento' | 'caparra' | 'saldo') => Promise<void>;
 }
 
 const NESSUNA_KEYWORDS = [
@@ -128,13 +129,21 @@ type ColumnVisibility = {
 type PaymentStatus = 'tutti' | 'pagato' | 'da_pagare';
 
 
-export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, isLoading, canManageGhosts, canManageAll, myEducatorGroupIds, onRequestGhostAction, getGhostAmount, tariffe, currentUserId: _currentUserId, onBatchTesseramentoConfirm }: MembriRaccoltaListProps) {
+export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, isLoading, canManageGhosts, canManageAll, myEducatorGroupIds, onRequestGhostAction, getGhostAmount, isEducatore, tariffe, currentUserId: _currentUserId, onBatchPaymentConfirm }: MembriRaccoltaListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
 
-  // Stato carrello per il tesseramento (solo quando raccolta.tipo === 'tesseramento')
+  // Stato carrello (visibile solo per educatori)
   const [cartMembers, setCartMembers] = useState<Set<string>>(new Set());
   const [isCartProcessing, setIsCartProcessing] = useState(false);
+
+  // Fase carrello: per tesseramento → 'tesseramento'; per raccolte standard → 'caparra' o 'saldo'
+  const defaultCartPhase = (() => {
+    if (raccolta.tipo === 'tesseramento') return 'tesseramento' as const;
+    if (raccolta.faseCaparra.attiva) return 'caparra' as const;
+    return 'saldo' as const;
+  })();
+  const [cartPhase, setCartPhase] = useState<'tesseramento' | 'caparra' | 'saldo'>(defaultCartPhase);
 
   const [selectedGroup, setSelectedGroup] = useState('tutti');
   const [confermaStatus, setConfermaStatus] = useState<PaymentStatus>('tutti');
@@ -192,68 +201,72 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
   }, [allMembers, raccolta.saldoPaidIds]);
 
   /**
-   * Calcola, per ogni membro nel carrello tesseramento, l'importo da incassare
-   * tenendo conto degli sconti famiglia:
-   *   - 1 membro per nucleo: quotaIntera
-   *   - 2-3 membri per nucleo: quotaScontata
-   *   - 4° membro in poi (i più giovani per dataNascita): gratuita
-   * Il conteggio parte dalla somma di: già tesserati (tesseratiIds) + selezionati nel carrello.
-   * I più giovani (dataNascita più recente) ricevono la gratuità.
+   * Calcola, per ogni membro nel carrello, l'importo da incassare.
+   *
+   * - Raccolta "tesseramento": usa le tariffe con sconto famiglia (logica esistente)
+   * - Raccolta standard: usa l'importo della fase selezionata (caparra/saldo),
+   *   rispettando le tariffe personalizzate per gruppo se presenti.
    */
   const cartAmounts = useMemo<Record<string, number>>(() => {
-    if (raccolta.tipo !== 'tesseramento' || !tariffe || cartMembers.size === 0) return {};
+    if (cartMembers.size === 0) return {};
 
-    // Raggruppa i membri del carrello per familyId
-    const byFamily = new Map<string, UnifiedMember[]>();
+    // ── Tesseramento: tariffe con sconto famiglia ──────────────────────────
+    if (raccolta.tipo === 'tesseramento' && tariffe) {
+      const byFamily = new Map<string, UnifiedMember[]>();
+      cartMembers.forEach(memberId => {
+        const member = allMembers.find(m => m.id === memberId);
+        if (!member) return;
+        const fid = member.familyId ?? `solo:${memberId}`;
+        if (!byFamily.has(fid)) byFamily.set(fid, []);
+        byFamily.get(fid)!.push(member);
+      });
+
+      const amounts: Record<string, number> = {};
+
+      byFamily.forEach((familyCart, fid) => {
+        const alreadyTesserated = allMembers.filter(
+          m => m.familyId === fid &&
+            !cartMembers.has(m.id) &&
+            (raccolta.tesseratiIds ?? []).includes(m.id)
+        ).length;
+
+        const sortedCart = [...familyCart].sort((a, b) => {
+          const ya = getBirthYear(a.dataNascita) ?? 0;
+          const yb = getBirthYear(b.dataNascita) ?? 0;
+          return ya - yb;
+        });
+
+        sortedCart.forEach((member, idx) => {
+          const globalIndex = alreadyTesserated + idx;
+          const tariffa = getTariffaForMember(member, tariffe);
+          let importo = 0;
+          if (globalIndex === 0) importo = tariffa?.quotaIntera ?? 0;
+          else if (globalIndex < 3) importo = tariffa?.quotaScontata ?? 0;
+          else importo = tariffa?.gratuita ?? 0;
+          amounts[member.id] = importo;
+        });
+      });
+
+      return amounts;
+    }
+
+    // ── Raccolta standard: importo della fase selezionata ─────────────────
+    const amounts: Record<string, number> = {};
+    const faseData = cartPhase === 'caparra' ? raccolta.faseCaparra : raccolta.faseSaldo;
+
     cartMembers.forEach(memberId => {
       const member = allMembers.find(m => m.id === memberId);
       if (!member) return;
-      const fid = member.familyId ?? `solo:${memberId}`;
-      if (!byFamily.has(fid)) byFamily.set(fid, []);
-      byFamily.get(fid)!.push(member);
-    });
-
-    const amounts: Record<string, number> = {};
-
-    byFamily.forEach((familyCart, fid) => {
-      // Quanti membri di questa famiglia sono già tesserati (esclusi quelli nel carrello)
-      const alreadyTesserated = allMembers.filter(
-        m => m.familyId === fid &&
-          !cartMembers.has(m.id) &&
-          (raccolta.tesseratiIds ?? []).includes(m.id)
-      ).length;
-
-      // Ordina i membri del carrello per anno di nascita ASC (più vecchi prima)
-      // → i più giovani (ultimi) ricevono la gratuità
-      // Usa getBirthYear per gestire anche il formato DD/MM/YYYY degli imported-members
-      const sortedCart = [...familyCart].sort((a, b) => {
-        const ya = getBirthYear(a.dataNascita) ?? 0;
-        const yb = getBirthYear(b.dataNascita) ?? 0;
-        return ya - yb; // ASC: i più anziani (anno più piccolo) vengono prima
-      });
-
-      sortedCart.forEach((member, idx) => {
-        const globalIndex = alreadyTesserated + idx; // posizione nella famiglia (0-based)
-        const tariffa = getTariffaForMember(member, tariffe);
-        let importo = 0;
-
-        if (globalIndex === 0) {
-          // Primo membro: quota intera
-          importo = tariffa?.quotaIntera ?? 0;
-        } else if (globalIndex < 3) {
-          // 2° e 3° membro: quota scontata
-          importo = tariffa?.quotaScontata ?? 0;
-        } else {
-          // 4° membro in poi: gratuità
-          importo = tariffa?.gratuita ?? 0;
-        }
-
-        amounts[member.id] = importo;
-      });
+      const customTariff = raccolta.tariffePersonalizzate?.find(t => t.groupId === member.groupId);
+      const customImporto = cartPhase === 'caparra' ? customTariff?.importoCaparra : customTariff?.importoSaldo;
+      const importo = (customImporto !== undefined && customImporto !== '')
+        ? (parseFloat(customImporto) || parseFloat(faseData.importo) || 0)
+        : (parseFloat(faseData.importo) || 0);
+      amounts[memberId] = importo;
     });
 
     return amounts;
-  }, [cartMembers, allMembers, raccolta.tipo, raccolta.tesseratiIds, tariffe]);
+  }, [cartMembers, allMembers, raccolta, tariffe, cartPhase]);
 
   /** Totale carrello */
   const cartTotal = useMemo(
@@ -276,11 +289,10 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
 
   /** Conferma l'incasso contanti per tutti i membri nel carrello */
   const handleCartConfirm = async () => {
-    if (!onBatchTesseramentoConfirm || cartMembers.size === 0) return;
+    if (!onBatchPaymentConfirm || cartMembers.size === 0) return;
     setIsCartProcessing(true);
     try {
-      await onBatchTesseramentoConfirm(Array.from(cartMembers), cartAmounts);
-      // Svuota il carrello dopo la conferma
+      await onBatchPaymentConfirm(Array.from(cartMembers), cartAmounts, cartPhase);
       setCartMembers(new Set());
     } finally {
       setIsCartProcessing(false);
@@ -549,8 +561,8 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
         <Table>
           <TableHeader>
             <TableRow>
-              {/* Colonna selezione carrello: solo per tesseramento, per chi può gestire i ghost */}
-              {raccolta.tipo === 'tesseramento' && canManageGhosts && (
+              {/* Colonna selezione carrello: solo per educatori */}
+              {isEducatore && (
                 <TableHead className="w-10 text-center">Sel.</TableHead>
               )}
               {columnVisibility.nomeCognome && <TableHead>Nome e Cognome</TableHead>}
@@ -583,28 +595,41 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                   // Verifica se il membro è già tesserato (non può essere aggiunto al carrello)
                  const isAlreadyTesserated = (raccolta.tesseratiIds ?? []).includes(member.id);
 
-                 // Per il tesseramento: l'educatore può selezionare il membro nel carrello
-                 // solo se non è già tesserato e può agire su di lui
-                 const canAddToCart = raccolta.tipo === 'tesseramento' && canActOnMember && !isAlreadyTesserated;
+                 // Logica canAddToCart:
+                 // - tesseramento: solo se non già tesserato e canActOnMember
+                 // - raccolta standard: se confermato e non ha ancora pagato la fase selezionata
+                 let canAddToCart = false;
+                 if (isEducatore && canActOnMember) {
+                   if (raccolta.tipo === 'tesseramento') {
+                     canAddToCart = !isAlreadyTesserated;
+                   } else if (cartPhase === 'caparra' && raccolta.faseCaparra.attiva) {
+                     canAddToCart = isConfirmed && !hasPaidCaparra;
+                   } else if (cartPhase === 'saldo' && raccolta.faseSaldo.attiva) {
+                     canAddToCart = isConfirmed && !hasPaidSaldo;
+                   }
+                 }
+
+                 // Stato visivo: già completato (tesserato, o ha pagato la fase corrente)
+                 const isCartDone = raccolta.tipo === 'tesseramento'
+                   ? isAlreadyTesserated
+                   : (cartPhase === 'caparra' ? hasPaidCaparra : hasPaidSaldo);
 
                  return (
                     <TableRow key={member.id} className={cartMembers.has(member.id) ? 'bg-emerald-50 dark:bg-emerald-950/20' : ''}>
-                        {/* Checkbox carrello tesseramento */}
-                        {raccolta.tipo === 'tesseramento' && canManageGhosts && (
+                        {/* Checkbox carrello educatore */}
+                        {isEducatore && (
                           <TableCell className="text-center">
-                            {isAlreadyTesserated ? (
-                              // Già tesserato: icona verde, non selezionabile
-                              <span title="Già tesserato">
+                            {isCartDone ? (
+                              <span title={raccolta.tipo === 'tesseramento' ? 'Già tesserato' : 'Già pagato'}>
                                 <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
                               </span>
                             ) : canAddToCart ? (
                               <Checkbox
                                 checked={cartMembers.has(member.id)}
                                 onCheckedChange={() => toggleCartMember(member.id)}
-                                aria-label={`Seleziona ${member.nome} ${member.cognome} per il tesseramento`}
+                                aria-label={`Seleziona ${member.nome} ${member.cognome}`}
                               />
                             ) : (
-                              // Non autorizzato
                               <span className="text-muted-foreground/40 text-xs">—</span>
                             )}
                           </TableCell>
@@ -621,11 +646,26 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                          Ghost
                                         </Badge>
                                     )}
-                                    {/* Badge stato tesseramento nella riga */}
+                                    {/* Badge stato nella riga */}
                                     {raccolta.tipo === 'tesseramento' && isAlreadyTesserated && (
                                       <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
                                         Tesserato
                                       </Badge>
+                                    )}
+                                    {raccolta.tipo !== 'tesseramento' && isEducatore && (
+                                      cartPhase === 'caparra' ? (
+                                        hasPaidCaparra && (
+                                          <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
+                                            Caparra ✓
+                                          </Badge>
+                                        )
+                                      ) : (
+                                        hasPaidSaldo && (
+                                          <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
+                                            Saldo ✓
+                                          </Badge>
+                                        )
+                                      )
                                     )}
                                 </div>
                             </TableCell>
@@ -719,109 +759,135 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
         </Table>
       )}
 
-      {/* ── Pannello carrello tesseramento ──────────────────────────────────── */}
-      {raccolta.tipo === 'tesseramento' && canManageGhosts && cartMembers.size > 0 && (
-        <div className="rounded-lg border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 p-4 space-y-3">
-          {/* Intestazione carrello */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5 text-emerald-700" />
-              <h3 className="font-semibold text-emerald-800 dark:text-emerald-300 text-sm">
-                Carrello Tesseramento — {cartMembers.size} {cartMembers.size === 1 ? 'membro selezionato' : 'membri selezionati'}
-              </h3>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
-              onClick={() => setCartMembers(new Set())}
-              disabled={isCartProcessing}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1" />
-              Svuota
-            </Button>
-          </div>
-
-          {/* Elenco membri nel carrello con importo e tipo sconto */}
-          <div className="space-y-1">
-            {Array.from(cartMembers).map(memberId => {
-              const member = allMembers.find(m => m.id === memberId);
-              if (!member) return null;
-              const importo = cartAmounts[memberId] ?? 0;
-              const tariffa = tariffe ? getTariffaForMember(member, tariffe) : undefined;
-
-              // Determina etichetta tipo tariffa per capire quale sconto viene applicato
-              let tipoLabel = '';
-              if (tariffa) {
-                if (importo === tariffa.quotaIntera) tipoLabel = 'quota intera';
-                else if (importo === tariffa.quotaScontata) tipoLabel = 'quota scontata';
-                else if (importo === tariffa.gratuita) tipoLabel = importo === 0 ? 'gratuito' : 'gratuità';
-              }
-
-              return (
-                <div
-                  key={memberId}
-                  className="flex items-center justify-between rounded-md bg-white dark:bg-emerald-900/20 border border-emerald-200 px-3 py-2"
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => toggleCartMember(memberId)}
-                      disabled={isCartProcessing}
-                      aria-label={`Rimuovi ${member.nome} ${member.cognome} dal carrello`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="font-medium text-sm truncate">
-                      {member.nome} {member.cognome}
-                    </span>
-                    {member.isPlaceholder && (
-                      <Badge variant="outline" className="text-[10px] text-yellow-600 border-yellow-300 bg-yellow-50 px-1.5 py-0 h-4 shrink-0">
-                        Ghost
-                      </Badge>
+      {/* ── Pannello carrello educatore (sticky in basso, tutte le raccolte) ── */}
+      {isEducatore && cartMembers.size > 0 && (
+        <div className="sticky bottom-4 z-50 mx-0 mt-0">
+          <div className="rounded-xl border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 p-4 space-y-3 shadow-2xl">
+            {/* Intestazione carrello */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <ShoppingCart className="h-5 w-5 text-emerald-700" />
+                <h3 className="font-semibold text-emerald-800 dark:text-emerald-300 text-sm">
+                  Carrello —&nbsp;{cartMembers.size} {cartMembers.size === 1 ? 'membro selezionato' : 'membri selezionati'}
+                </h3>
+                {/* Selettore fase per raccolte standard */}
+                {raccolta.tipo !== 'tesseramento' && (
+                  <div className="flex gap-1 ml-2">
+                    {raccolta.faseCaparra.attiva && (
+                      <button
+                        type="button"
+                        onClick={() => { setCartPhase('caparra'); setCartMembers(new Set()); }}
+                        className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${cartPhase === 'caparra' ? 'bg-emerald-600 text-white border-emerald-600' : 'text-emerald-700 border-emerald-400 hover:bg-emerald-100'}`}
+                      >
+                        Caparra
+                      </button>
                     )}
-                    {tariffa && (
-                      <span className="text-[10px] text-muted-foreground shrink-0">{tariffa.label}</span>
+                    {raccolta.faseSaldo.attiva && (
+                      <button
+                        type="button"
+                        onClick={() => { setCartPhase('saldo'); setCartMembers(new Set()); }}
+                        className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${cartPhase === 'saldo' ? 'bg-emerald-600 text-white border-emerald-600' : 'text-emerald-700 border-emerald-400 hover:bg-emerald-100'}`}
+                      >
+                        Saldo
+                      </button>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {tipoLabel && (
-                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">
-                        ({tipoLabel})
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                onClick={() => setCartMembers(new Set())}
+                disabled={isCartProcessing}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Svuota
+              </Button>
+            </div>
+
+            {/* Elenco membri nel carrello */}
+            <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+              {Array.from(cartMembers).map(memberId => {
+                const member = allMembers.find(m => m.id === memberId);
+                if (!member) return null;
+                const importo = cartAmounts[memberId] ?? 0;
+                const tariffa = tariffe ? getTariffaForMember(member, tariffe) : undefined;
+
+                let tipoLabel = '';
+                if (tariffa) {
+                  if (importo === tariffa.quotaIntera) tipoLabel = 'quota intera';
+                  else if (importo === tariffa.quotaScontata) tipoLabel = 'quota scontata';
+                  else if (importo === tariffa.gratuita) tipoLabel = importo === 0 ? 'gratuito' : 'gratuità';
+                } else if (raccolta.tipo !== 'tesseramento') {
+                  tipoLabel = cartPhase === 'caparra' ? 'caparra' : 'saldo';
+                }
+
+                return (
+                  <div
+                    key={memberId}
+                    className="flex items-center justify-between rounded-md bg-white dark:bg-emerald-900/20 border border-emerald-200 px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => toggleCartMember(memberId)}
+                        disabled={isCartProcessing}
+                        aria-label={`Rimuovi ${member.nome} ${member.cognome} dal carrello`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="font-medium text-sm truncate">
+                        {member.nome} {member.cognome}
                       </span>
-                    )}
-                    <span className="font-bold text-sm tabular-nums">
-                      € {importo.toFixed(2)}
-                    </span>
+                      {member.isPlaceholder && (
+                        <Badge variant="outline" className="text-[10px] text-yellow-600 border-yellow-300 bg-yellow-50 px-1.5 py-0 h-4 shrink-0">
+                          Ghost
+                        </Badge>
+                      )}
+                      {tariffa && (
+                        <span className="text-[10px] text-muted-foreground shrink-0">{tariffa.label}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {tipoLabel && (
+                        <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">
+                          ({tipoLabel})
+                        </span>
+                      )}
+                      <span className="font-bold text-sm tabular-nums">
+                        € {importo.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Totale e pulsante conferma */}
-          <div className="flex items-center justify-between pt-2 border-t border-emerald-300">
-            <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground">Totale da incassare</span>
-              <span className="text-xl font-bold text-emerald-800 dark:text-emerald-300 tabular-nums">
-                € {cartTotal.toFixed(2)}
-              </span>
+                );
+              })}
             </div>
-            <Button
-              onClick={handleCartConfirm}
-              disabled={isCartProcessing || !onBatchTesseramentoConfirm}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-            >
-              {isCartProcessing ? (
-                <>Registrazione in corso...</>
-              ) : (
-                <>
-                  <Banknote className="h-4 w-4" />
-                  Conferma incasso contanti — € {cartTotal.toFixed(2)}
-                </>
-              )}
-            </Button>
+
+            {/* Totale e pulsante conferma */}
+            <div className="flex items-center justify-between pt-2 border-t border-emerald-300">
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground">Totale da incassare</span>
+                <span className="text-xl font-bold text-emerald-800 dark:text-emerald-300 tabular-nums">
+                  € {cartTotal.toFixed(2)}
+                </span>
+              </div>
+              <Button
+                onClick={handleCartConfirm}
+                disabled={isCartProcessing || !onBatchPaymentConfirm}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+              >
+                {isCartProcessing ? (
+                  <>Registrazione in corso...</>
+                ) : (
+                  <>
+                    <Banknote className="h-4 w-4" />
+                    Conferma incasso contanti — € {cartTotal.toFixed(2)}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}
