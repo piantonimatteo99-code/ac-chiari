@@ -113,6 +113,16 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
     });
   }, []);
 
+  // Firestore non accetta `undefined`: converte ricorsivamente undefined → null
+  const sanitizeForFirestore = (value: unknown): unknown => {
+    if (value === undefined) return null;
+    if (value === null || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(sanitizeForFirestore);
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeForFirestore(v)])
+    );
+  };
+
   const handleSave = async (status: 'draft' | 'active' = 'draft') => {
     if (!firestore || !user) return;
     if (!title.trim()) {
@@ -126,12 +136,13 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
 
     setIsSaving(true);
     try {
+      const sanitizedQuestions = sanitizeForFirestore(questions) as typeof questions;
       const payload = {
         projectId,
         createdBy: user.uid,
         title: title.trim(),
         description: description.trim() || null,
-        questions,
+        questions: sanitizedQuestions,
         isPublic,
         allowAnonymous,
         generateCollection,
