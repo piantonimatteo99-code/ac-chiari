@@ -35,6 +35,8 @@ export interface UserData {
     groupId?: string;
     groupName?: string;
     tesseramento?: number;
+    /** User-chosen color id for calendar events (see CALENDAR_COLORS in lib/calendar-colors.ts) */
+    calendarColor?: string;
 }
 
 /**

@@ -32,6 +32,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EventDetailDialog } from '@/components/event-detail-dialog';
 import type { Membro } from '../nucleo-familiare/page';
+import { getCalendarColorHex } from '@/lib/calendar-colors';
 
 // Extended event type that can include Google Calendar events
 type CalendarEvent = (Evento & { isGoogleCalendar?: false }) | {
@@ -55,6 +56,7 @@ function DayWithEvents({
   onEmptyClick,
   canAddEvents,
   isSelected,
+  userColor,
   ...props
 }: {
   date: Date;
@@ -64,6 +66,8 @@ function DayWithEvents({
   onEmptyClick: (date: Date) => void;
   canAddEvents: boolean;
   isSelected?: boolean;
+  /** Hex color chosen by the user for their calendar events */
+  userColor?: string;
 }) {
     const isOutside = date.getMonth() !== displayMonth.getMonth();
     
@@ -147,9 +151,12 @@ function DayWithEvents({
                                   ? 'bg-emerald-500/90 hover:bg-emerald-600 text-white'
                                   : isCampoEvent
                                   ? 'bg-amber-500/90 hover:bg-amber-600 text-white'
+                                  : userColor
+                                  ? 'text-white hover:opacity-90'
                                   : 'bg-primary/90 hover:bg-primary text-primary-foreground',
                                 roundingClass
                             )}
+                            style={(!isGcal && !isCampoEvent && userColor) ? { backgroundColor: userColor } : undefined}
                         >
                             {showTitle ? (
                                 <span className="truncate block">{isCampoEvent ? '⛺ ' : ''}{event.title}</span>
@@ -170,8 +177,11 @@ function DayWithEvents({
                         "w-1.5 h-1.5 rounded-full shrink-0",
                         event.isGoogleCalendar ? 'bg-emerald-500'
                           : (event as any).isCampo ? 'bg-amber-500'
-                          : 'bg-primary'
-                      )} 
+                          : (!userColor ? 'bg-primary' : '')
+                      )}
+                      style={(!event.isGoogleCalendar && !(event as any).isCampo && userColor)
+                        ? { backgroundColor: userColor }
+                        : undefined}
                     />
                 ))}
                 {dayEvents.length > 4 && (
@@ -440,6 +450,12 @@ export default function CalendarioPage() {
   }, [allEvents, selectedDate]);
 
   const getGroupName = useCallback((id: string) => groups?.find(g => g.id === id)?.name, [groups]);
+
+  // User-chosen calendar color (hex), or undefined to use CSS primary variable
+  const userCalendarColor = useMemo(
+    () => getCalendarColorHex(userData?.calendarColor),
+    [userData?.calendarColor]
+  );
 
   return (
     <TooltipProvider>
@@ -811,6 +827,7 @@ export default function CalendarioPage() {
                         onEmptyClick={handleCellClick}
                         canAddEvents={canAddEvents}
                         isSelected={isSameDay(props.date, selectedDate)}
+                        userColor={userCalendarColor}
                       />
                     )
                 }}
@@ -848,7 +865,9 @@ export default function CalendarioPage() {
                   )}
                 >
                   <div className="flex items-start gap-2">
-                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : 'bg-primary')} />
+                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : (!userCalendarColor ? 'bg-primary' : ''))}
+                      style={(!event.isGoogleCalendar && userCalendarColor) ? { backgroundColor: userCalendarColor } : undefined}
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold leading-tight mb-1 truncate">{event.title}</p>
                       <p className="text-muted-foreground text-xs">
@@ -895,7 +914,9 @@ export default function CalendarioPage() {
                   )}
                 >
                   <div className="flex items-start gap-2">
-                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : 'bg-primary')} />
+                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : (!userCalendarColor ? 'bg-primary' : ''))}
+                      style={(!event.isGoogleCalendar && userCalendarColor) ? { backgroundColor: userCalendarColor } : undefined}
+                    />
                     <div className="flex-1">
                       <p className="font-semibold leading-tight mb-1">{event.title}</p>
                       <p className="text-muted-foreground text-xs">
