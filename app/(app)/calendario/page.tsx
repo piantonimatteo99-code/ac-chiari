@@ -411,13 +411,10 @@ export default function CalendarioPage() {
 
   const handleCellClick = useCallback((date: Date) => {
     setSelectedDate(date);
-    // On mobile: just select the date, don't open dialog
-    if (typeof window !== 'undefined' && window.innerWidth < 768) return;
-    if (!canAddEvents) return;
-    setEditingEvent(null);
-    setInitialDate(date);
-    setIsDialogOpen(true);
-  }, [canAddEvents]);
+    // Clicking a day selects it and shows its events in the side panel (desktop)
+    // or in the list below the calendar (mobile).
+    // New events can be added via the "Aggiungi Impegno" button at the top.
+  }, []);
   
   const handleDialogChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -778,6 +775,7 @@ export default function CalendarioPage() {
       </div>
       
       {view === 'month' && (
+        <div className="flex flex-col lg:flex-row lg:flex-1 lg:min-h-0 gap-4">
         <Card className="lg:flex-1 lg:flex lg:flex-col lg:min-h-0 overflow-hidden">
             <CardContent className="p-0 lg:flex-1 lg:flex lg:flex-col lg:min-h-0">
             <Calendar
@@ -819,6 +817,53 @@ export default function CalendarioPage() {
             />
             </CardContent>
         </Card>
+
+        {/* Desktop Selected Day Panel */}
+        <div className="hidden lg:flex flex-col w-72 shrink-0 gap-2 overflow-hidden">
+          <div className="flex items-center justify-between shrink-0">
+            <h3 className="font-semibold text-base capitalize leading-tight">
+              {selectedDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </h3>
+            {canAddEvents && (
+              <Button size="icon" variant="ghost" onClick={handleAddNew} className="h-8 w-8 shrink-0">
+                <PlusCircle className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 overflow-y-auto flex-1 min-h-0">
+            {selectedDayEvents.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-8 text-center border rounded-lg border-dashed">
+                Nessun impegno
+              </p>
+            ) : (
+              selectedDayEvents.map(event => (
+                <div
+                  key={event.id}
+                  onClick={() => handleEditEvent(event)}
+                  className={cn(
+                    "flex flex-col p-3 rounded-xl border text-sm cursor-pointer shrink-0",
+                    event.isGoogleCalendar
+                      ? "bg-emerald-50/50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900"
+                      : "bg-card shadow-sm hover:bg-accent/50"
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : 'bg-primary')} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold leading-tight mb-1 truncate">{event.title}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {event.allDay
+                          ? 'Tutto il giorno'
+                          : `${(event.startDate instanceof Date ? event.startDate : (event.startDate as any)?.toDate ? (event.startDate as any).toDate() : new Date(event.startDate as any)).toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'})} – ${(event.endDate instanceof Date ? event.endDate : (event.endDate as any)?.toDate ? (event.endDate as any).toDate() : new Date(event.endDate as any)).toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'})}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        </div>
       )}
 
       {/* Mobile Selected Day Events List */}
