@@ -207,7 +207,7 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
           {HAS_OPTIONS.includes(question.type) && (
             <div className="space-y-2">
               <Label className="text-xs">
-                Opzioni
+                {question.type === 'quantity_picker' ? 'Voci (il compilatore inserirà un numero per ciascuna)' : 'Opzioni'}
                 {question.type === 'price_item' && (
                   <span className="ml-1 text-muted-foreground font-normal">(con prezzo € per opzione)</span>
                 )}
@@ -220,7 +220,7 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
                       id={`q-opt-label-${opt.id}`}
                       value={opt.label}
                       onChange={e => updateOption(opt.id, { label: e.target.value })}
-                      placeholder="Etichetta opzione"
+                      placeholder={question.type === 'quantity_picker' ? 'Es: Menù adulti' : 'Etichetta opzione'}
                       className="h-7 text-sm flex-1"
                     />
                     {question.type === 'price_item' && (
@@ -251,7 +251,7 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
               </div>
               <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={addOption}>
                 <Plus className="h-3 w-3" />
-                Aggiungi opzione
+                Aggiungi {question.type === 'quantity_picker' ? 'voce' : 'opzione'}
               </Button>
             </div>
           )}

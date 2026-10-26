@@ -48,13 +48,8 @@ function computeTotal(form: FormSchema, answers: Record<string, AnswerValue>): n
     }
 
     if (q.type === 'quantity_picker') {
-      const quantities = answers[q.id] as Record<string, number> | null;
-      if (!quantities) continue;
-      for (const opt of q.options) {
-        if (opt.price && quantities[opt.id]) {
-          total += opt.price * (quantities[opt.id] ?? 0);
-        }
-      }
+      // quantity_picker non ha prezzi: nessun contributo al totale
+      continue;
     }
   }
   return total;
@@ -223,42 +218,31 @@ function QuestionField({
 
       {type === 'quantity_picker' && options && (
         <div className="space-y-2">
-          <div className="grid grid-cols-[1fr_auto_auto] gap-0 rounded-xl border overflow-hidden">
-            {/* Header */}
-            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/40 border-b">Voce</div>
-            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/40 border-b text-center">Quantità</div>
-            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/40 border-b text-right">Subtotale</div>
-            {/* Righe */}
+          <div className="rounded-xl border overflow-hidden">
             {options.map((opt, oi) => {
               const quantities = (value as Record<string, number>) ?? {};
               const qty = quantities[opt.id] ?? 0;
-              const subtotal = (opt.price ?? 0) * qty;
               return (
-                <>
-                  <div key={`label-${opt.id}`} className={`flex flex-col justify-center px-3 py-2.5 ${oi > 0 ? 'border-t' : ''}`}>
-                    <span className="text-sm font-medium">{opt.label}</span>
-                    {opt.price != null && (
-                      <span className="text-xs text-muted-foreground">€ {opt.price.toFixed(2)} / persona</span>
-                    )}
-                  </div>
-                  <div key={`qty-${opt.id}`} className={`flex items-center justify-center gap-1.5 px-2 py-2.5 ${oi > 0 ? 'border-t' : ''}`}>
+                <div
+                  key={opt.id}
+                  className={`flex items-center gap-3 px-3 py-2.5 ${oi > 0 ? 'border-t' : ''}`}
+                >
+                  <span className="text-sm font-medium flex-1">{opt.label}</span>
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       className="w-7 h-7 rounded-full border flex items-center justify-center text-base font-bold hover:bg-muted transition-colors disabled:opacity-30"
                       disabled={qty <= 0}
                       onClick={() => onChange({ ...quantities, [opt.id]: Math.max(0, qty - 1) })}
                     >−</button>
-                    <span className="w-6 text-center text-sm font-semibold tabular-nums">{qty}</span>
+                    <span className="w-8 text-center text-sm font-semibold tabular-nums">{qty}</span>
                     <button
                       type="button"
                       className="w-7 h-7 rounded-full border flex items-center justify-center text-base font-bold hover:bg-muted transition-colors"
                       onClick={() => onChange({ ...quantities, [opt.id]: qty + 1 })}
                     >+</button>
                   </div>
-                  <div key={`sub-${opt.id}`} className={`flex items-center justify-end px-3 py-2.5 tabular-nums text-sm font-semibold ${oi > 0 ? 'border-t' : ''} ${subtotal > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}>
-                    € {subtotal.toFixed(2)}
-                  </div>
-                </>
+                </div>
               );
             })}
           </div>
