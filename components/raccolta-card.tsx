@@ -786,7 +786,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                         myEducatorGroupIds={myEducatorGroupIds}
                         onRequestGhostAction={handleRequestGhostAction}
                         getGhostAmount={calculateMemberPaymentAmount}
-                        isEducatore={isEducatore && !isAdmin}
+                        isEducatore={isAdmin || isEducatore}
                         tariffe={tariffeData ?? undefined}
                         currentUserId={currentUserId}
                         onBatchPaymentConfirm={handleBatchPaymentConfirm}
