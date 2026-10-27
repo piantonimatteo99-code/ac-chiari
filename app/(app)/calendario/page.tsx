@@ -7,16 +7,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
+  DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, PlusCircle, CalendarDays, Loader2, Unlink, RefreshCw, Settings2, AlertTriangle, Info } from 'lucide-react';
+import { ChevronDown, PlusCircle, CalendarDays, Loader2, Unlink, RefreshCw, Settings2, AlertTriangle, Info, Check } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { it } from 'date-fns/locale';
 import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/src/firebase';
-import { collection, query, where, doc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import type { Group } from '../admin/gestione-gruppi/tutti-i-gruppi/page';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AddEventDialog, type Evento } from '@/components/add-event-dialog';
@@ -32,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EventDetailDialog } from '@/components/event-detail-dialog';
 import type { Membro } from '../nucleo-familiare/page';
-import { getCalendarColorHex } from '@/lib/calendar-colors';
+import { getCalendarColorHex, CALENDAR_COLORS } from '@/lib/calendar-colors';
 
 // Extended event type that can include Google Calendar events
 type CalendarEvent = (Evento & { isGoogleCalendar?: false }) | {
@@ -56,7 +55,7 @@ function DayWithEvents({
   onEmptyClick,
   canAddEvents,
   isSelected,
-  userColor,
+  groupColors,
   ...props
 }: {
   date: Date;
@@ -66,8 +65,8 @@ function DayWithEvents({
   onEmptyClick: (date: Date) => void;
   canAddEvents: boolean;
   isSelected?: boolean;
-  /** Hex color chosen by the user for their calendar events */
-  userColor?: string;
+  /** Per-group hex colors chosen by the user: groupId → colorId */
+  groupColors?: Record<string, string>;
 }) {
     const isOutside = date.getMonth() !== displayMonth.getMonth();
     
@@ -92,6 +91,16 @@ function DayWithEvents({
                 return endB.getTime() - endA.getTime();
             });
     }, [date, isOutside, events]);
+
+    // Returns the hex color for a non-GCal, non-campo event based on groupColors
+    const getEventColor = (event: CalendarEvent): string | undefined => {
+        if (event.isGoogleCalendar || (event as any).isCampo) return undefined;
+        for (const gId of (event.groupIds ?? [])) {
+            const cId = groupColors?.[gId];
+            if (cId && cId !== 'default') return getCalendarColorHex(cId);
+        }
+        return undefined;
+    };
 
     const handleCellClick = (e: React.MouseEvent) => {
         if (!isOutside && canAddEvents) {
@@ -139,6 +148,7 @@ function DayWithEvents({
                     const showTitle = isStart || date.getDay() === 1;
                     const isGcal = event.isGoogleCalendar;
                     const isCampoEvent = !isGcal && (event as any).isCampo;
+                    const customColor = getEventColor(event);
 
                     return (
                         <button
@@ -151,12 +161,12 @@ function DayWithEvents({
                                   ? 'bg-emerald-500/90 hover:bg-emerald-600 text-white'
                                   : isCampoEvent
                                   ? 'bg-amber-500/90 hover:bg-amber-600 text-white'
-                                  : userColor
+                                  : customColor
                                   ? 'text-white hover:opacity-90'
                                   : 'bg-primary/90 hover:bg-primary text-primary-foreground',
                                 roundingClass
                             )}
-                            style={(!isGcal && !isCampoEvent && userColor) ? { backgroundColor: userColor } : undefined}
+                            style={customColor ? { backgroundColor: customColor } : undefined}
                         >
                             {showTitle ? (
                                 <span className="truncate block">{isCampoEvent ? '⛺ ' : ''}{event.title}</span>
@@ -170,20 +180,21 @@ function DayWithEvents({
 
             {/* Below 1024px: Dots */}
             <div className="flex lg:hidden flex-wrap gap-0.5 px-0.5 justify-center pb-1 relative z-10 pointer-events-none mt-auto">
-                {dayEvents.slice(0, 4).map(event => (
-                    <div 
-                      key={event.id}
-                      className={cn(
-                        "w-1.5 h-1.5 rounded-full shrink-0",
-                        event.isGoogleCalendar ? 'bg-emerald-500'
-                          : (event as any).isCampo ? 'bg-amber-500'
-                          : (!userColor ? 'bg-primary' : '')
-                      )}
-                      style={(!event.isGoogleCalendar && !(event as any).isCampo && userColor)
-                        ? { backgroundColor: userColor }
-                        : undefined}
-                    />
-                ))}
+                {dayEvents.slice(0, 4).map(event => {
+                    const dotColor = getEventColor(event);
+                    return (
+                        <div 
+                          key={event.id}
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full shrink-0",
+                            event.isGoogleCalendar ? 'bg-emerald-500'
+                              : (event as any).isCampo ? 'bg-amber-500'
+                              : !dotColor ? 'bg-primary' : ''
+                          )}
+                          style={dotColor ? { backgroundColor: dotColor } : undefined}
+                        />
+                    );
+                })}
                 {dayEvents.length > 4 && (
                     <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-muted-foreground" />
                 )}
@@ -451,11 +462,26 @@ export default function CalendarioPage() {
 
   const getGroupName = useCallback((id: string) => groups?.find(g => g.id === id)?.name, [groups]);
 
-  // User-chosen calendar color (hex), or undefined to use CSS primary variable
-  const userCalendarColor = useMemo(
-    () => getCalendarColorHex(userData?.calendarColor),
-    [userData?.calendarColor]
-  );
+  // Per-group colors from user preferences: groupId → colorId
+  const groupColors = useMemo(() => userData?.groupColors ?? {}, [userData?.groupColors]);
+
+  // Save a per-group color preference to Firestore immediately
+  const handleGroupColorChange = useCallback(async (groupId: string, colorId: string) => {
+    if (!firestore || !user) return;
+    await updateDoc(doc(firestore, 'users', user.uid), {
+      [`groupColors.${groupId}`]: colorId,
+    });
+  }, [firestore, user]);
+
+  // Helper used in side panels: returns event hex color based on groupColors
+  const getEventPanelColor = useCallback((event: CalendarEvent): string | undefined => {
+    if (event.isGoogleCalendar) return undefined;
+    for (const gId of (event.groupIds ?? [])) {
+      const cId = groupColors[gId];
+      if (cId && cId !== 'default') return getCalendarColorHex(cId);
+    }
+    return undefined;
+  }, [groupColors]);
 
   return (
     <TooltipProvider>
@@ -751,27 +777,98 @@ export default function CalendarioPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-[calc(100vw-2rem)] sm:w-auto max-w-[300px]">
-              <DropdownMenuRadioGroup value={selectedGroup} onValueChange={setSelectedGroup}>
-                {/* Personal view - always available */}
-                <DropdownMenuRadioItem value="personale">I miei impegni</DropdownMenuRadioItem>
-                {/* Family view - only if user has family with other groups */}
-                {hasFamilyGroups && (
-                  <DropdownMenuRadioItem value="famiglia">Nucleo familiare</DropdownMenuRadioItem>
-                )}
-                {/* Admin/educatore extras */}
-                {canAddEvents && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuRadioItem value="tutti">Tutti i gruppi</DropdownMenuRadioItem>
-                    <DropdownMenuSeparator />
-                    {groups?.map(group => (
-                      <DropdownMenuRadioItem key={group.id} value={group.id}>
-                        {group.name}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </>
-                )}
-              </DropdownMenuRadioGroup>
+              {/* Personal view - always available */}
+              <DropdownMenuItem onSelect={() => setSelectedGroup('personale')} className="flex items-center gap-2 cursor-pointer">
+                <div className={cn("h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors", selectedGroup === 'personale' ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
+                I miei impegni
+              </DropdownMenuItem>
+              {/* Family view - only if user has family with other groups */}
+              {hasFamilyGroups && (
+                <DropdownMenuItem onSelect={() => setSelectedGroup('famiglia')} className="flex items-center gap-2 cursor-pointer">
+                  <div className={cn("h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors", selectedGroup === 'famiglia' ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
+                  Nucleo familiare
+                </DropdownMenuItem>
+              )}
+              {/* Admin/educatore extras */}
+              {canAddEvents && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setSelectedGroup('tutti')} className="flex items-center gap-2 cursor-pointer">
+                    <div className={cn("h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors", selectedGroup === 'tutti' ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
+                    Tutti i gruppi
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {groups?.map(group => {
+                    const colorId = groupColors[group.id] ?? 'default';
+                    const colorHex = getCalendarColorHex(colorId);
+                    return (
+                      <DropdownMenuItem
+                        key={group.id}
+                        onSelect={() => setSelectedGroup(group.id)}
+                        className="flex items-center justify-between gap-2 pr-1.5 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className={cn("h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors", selectedGroup === group.id ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
+                          <span className="truncate">{group.name}</span>
+                        </div>
+                        {/* Color picker dot — stops propagation so dropdown stays open */}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              onPointerDown={e => { e.stopPropagation(); e.preventDefault(); }}
+                              onClick={e => { e.stopPropagation(); e.preventDefault(); }}
+                              className={cn(
+                                'h-5 w-5 rounded-full shrink-0 border-2 border-white/60 shadow-sm hover:scale-110 transition-transform',
+                                !colorHex ? 'bg-primary' : ''
+                              )}
+                              style={colorHex ? { backgroundColor: colorHex } : undefined}
+                              title={`Colore: ${CALENDAR_COLORS.find(c => c.id === colorId)?.label ?? 'Predefinito'}`}
+                            />
+                          </PopoverTrigger>
+                          <PopoverContent
+                            side="right"
+                            align="center"
+                            className="w-auto p-3 z-[300] shadow-xl"
+                            onPointerDown={e => e.stopPropagation()}
+                          >
+                            <p className="text-xs font-semibold mb-2.5 text-center truncate max-w-[120px]">{group.name}</p>
+                            <div className="flex flex-wrap gap-1.5" style={{ maxWidth: '132px' }}>
+                              {/* Default (primary) */}
+                              <button
+                                type="button"
+                                className={cn(
+                                  'h-6 w-6 rounded-full bg-primary border-2 transition-all hover:scale-110 flex items-center justify-center',
+                                  colorId === 'default' ? 'border-foreground shadow-md' : 'border-transparent'
+                                )}
+                                onClick={() => handleGroupColorChange(group.id, 'default')}
+                                title="Predefinito"
+                              >
+                                {colorId === 'default' && <span className="h-1.5 w-1.5 rounded-full bg-white/80 block" />}
+                              </button>
+                              {CALENDAR_COLORS.map(color => (
+                                <button
+                                  key={color.id}
+                                  type="button"
+                                  className={cn(
+                                    'h-6 w-6 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center',
+                                    colorId === color.id ? 'border-foreground shadow-md' : 'border-transparent'
+                                  )}
+                                  style={{ backgroundColor: color.hex }}
+                                  onClick={() => handleGroupColorChange(group.id, color.id)}
+                                  title={color.label}
+                                >
+                                  {colorId === color.id && <span className="h-1.5 w-1.5 rounded-full bg-white/80 block" />}
+                                </button>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -827,7 +924,7 @@ export default function CalendarioPage() {
                         onEmptyClick={handleCellClick}
                         canAddEvents={canAddEvents}
                         isSelected={isSameDay(props.date, selectedDate)}
-                        userColor={userCalendarColor}
+                        groupColors={groupColors}
                       />
                     )
                 }}
@@ -865,8 +962,8 @@ export default function CalendarioPage() {
                   )}
                 >
                   <div className="flex items-start gap-2">
-                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : (!userCalendarColor ? 'bg-primary' : ''))}
-                      style={(!event.isGoogleCalendar && userCalendarColor) ? { backgroundColor: userCalendarColor } : undefined}
+                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : (!getEventPanelColor(event) ? 'bg-primary' : ''))}
+                      style={(!event.isGoogleCalendar && getEventPanelColor(event)) ? { backgroundColor: getEventPanelColor(event) } : undefined}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold leading-tight mb-1 truncate">{event.title}</p>
@@ -914,8 +1011,8 @@ export default function CalendarioPage() {
                   )}
                 >
                   <div className="flex items-start gap-2">
-                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : (!userCalendarColor ? 'bg-primary' : ''))}
-                      style={(!event.isGoogleCalendar && userCalendarColor) ? { backgroundColor: userCalendarColor } : undefined}
+                    <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", event.isGoogleCalendar ? 'bg-emerald-500' : (!getEventPanelColor(event) ? 'bg-primary' : ''))}
+                      style={(!event.isGoogleCalendar && getEventPanelColor(event)) ? { backgroundColor: getEventPanelColor(event) } : undefined}
                     />
                     <div className="flex-1">
                       <p className="font-semibold leading-tight mb-1">{event.title}</p>

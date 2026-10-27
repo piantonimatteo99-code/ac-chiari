@@ -13,8 +13,6 @@ import { useFirestore, useUser } from '@/src/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useUserData } from '@/src/hooks/use-user-data';
 import { triggerNotification } from '@/lib/trigger-notification';
-import { cn } from '@/lib/utils';
-import { CALENDAR_COLORS, getCalendarColorHex } from '@/lib/calendar-colors';
 
 const cap = (s: string) =>
   s.length > 0 ? s.charAt(0).toUpperCase() + s.slice(1) : '';
@@ -51,7 +49,6 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
     provincia: '',
     cap: '',
     consenso: true,
-    calendarColor: 'default',
   });
   const [nessunaAllergia, setNessunaAllergia] = useState(false);
 
@@ -75,7 +72,6 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
         provincia: (userData as any).provincia || '',
         cap: (userData as any).cap || '',
         consenso: (userData as any).consenso ?? true,
-        calendarColor: (userData as any).calendarColor || 'default',
       });
       setSaved(false);
       setError(null);
@@ -125,7 +121,6 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
         provincia: form.provincia.trim().toUpperCase(),
         cap: form.cap.trim(),
         consenso: form.consenso,
-        calendarColor: form.calendarColor || 'default',
         updatedAt: serverTimestamp(),
       };
       await setDoc(doc(firestore, 'users', user.uid), userPayload, { merge: true });
@@ -320,74 +315,6 @@ export function UserProfileDialog({ isOpen, onOpenChange, onSaved }: UserProfile
                     placeholder="Es. Arachidi, lattosio, glutine..."
                   />
                 )}
-              </div>
-
-              {/* Colore calendario */}
-              <div className="space-y-3 border-t pt-4">
-                <div>
-                  <Label className="text-sm font-medium">Colore impegni nel calendario</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Scegli un colore per personalizzare le barre degli impegni nel calendario
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2.5 items-center">
-                  {/* Default / primary */}
-                  <button
-                    type="button"
-                    onClick={() => set('calendarColor', 'default')}
-                    className={cn(
-                      'h-8 w-8 rounded-full bg-primary border-2 transition-all duration-150 flex items-center justify-center',
-                      !form.calendarColor || form.calendarColor === 'default'
-                        ? 'border-foreground scale-110 shadow-md ring-2 ring-foreground/20'
-                        : 'border-transparent hover:scale-105 hover:shadow'
-                    )}
-                    title="Predefinito"
-                  >
-                    {(!form.calendarColor || form.calendarColor === 'default') && (
-                      <span className="block h-2 w-2 rounded-full bg-white/80" />
-                    )}
-                  </button>
-
-                  {CALENDAR_COLORS.map(color => (
-                    <button
-                      key={color.id}
-                      type="button"
-                      onClick={() => set('calendarColor', color.id)}
-                      className={cn(
-                        'h-8 w-8 rounded-full border-2 transition-all duration-150 flex items-center justify-center',
-                        form.calendarColor === color.id
-                          ? 'border-foreground scale-110 shadow-md ring-2 ring-foreground/20'
-                          : 'border-transparent hover:scale-105 hover:shadow'
-                      )}
-                      style={{ backgroundColor: color.hex }}
-                      title={color.label}
-                    >
-                      {form.calendarColor === color.id && (
-                        <span className="block h-2 w-2 rounded-full bg-white/80" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Preview */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <div
-                    className="h-4 w-24 rounded-sm"
-                    style={
-                      form.calendarColor && form.calendarColor !== 'default'
-                        ? { backgroundColor: getCalendarColorHex(form.calendarColor) }
-                        : undefined
-                    }
-                    {...((!form.calendarColor || form.calendarColor === 'default') && {
-                      className: 'h-4 w-24 rounded-sm bg-primary',
-                    })}
-                  />
-                  <span>
-                    {form.calendarColor && form.calendarColor !== 'default'
-                      ? CALENDAR_COLORS.find(c => c.id === form.calendarColor)?.label ?? ''
-                      : 'Colore predefinito'}
-                  </span>
-                </div>
               </div>
 
               {/* Consenso */}
