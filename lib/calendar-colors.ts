@@ -39,8 +39,10 @@ export const GROUP_INDEX_COLORS: string[] = [
 /**
  * Returns the automatic hex color for a group at the given index.
  * Matches the color shown in the dashboard legend.
+ * Returns the first color for any negative index (group not found fallback).
  */
 export function getGroupIndexColor(index: number): string {
+  if (index < 0) return GROUP_INDEX_COLORS[0];
   return GROUP_INDEX_COLORS[index % GROUP_INDEX_COLORS.length];
 }
 

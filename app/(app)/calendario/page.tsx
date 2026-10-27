@@ -864,9 +864,12 @@ export default function CalendarioPage() {
                     Tutti i gruppi
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  {groups?.map(group => {
+                  {groups?.map((group, groupIndex) => {
                     const colorId = groupColors[group.id] ?? 'default';
-                    const colorHex = getCalendarColorHex(colorId);
+                    // Use the user's custom color if set, otherwise auto-index color (same as calendar events)
+                    const colorHex = getCalendarColorHex(colorId) ?? getGroupIndexColor(groupIndex);
+                    // Un gruppo appare "selezionato" se è esplicitamente selezionato OPPURE se si è in modalità "tutti"
+                    const isGroupActive = selectedGroup === group.id || selectedGroup === 'tutti';
                     return (
                       <DropdownMenuItem
                         key={group.id}
@@ -874,7 +877,13 @@ export default function CalendarioPage() {
                         className="flex items-center justify-between gap-2 pr-1.5 cursor-pointer"
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className={cn("h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors", selectedGroup === group.id ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
+                          <div
+                            className="h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors"
+                            style={isGroupActive
+                              ? { backgroundColor: colorHex, borderColor: colorHex }
+                              : { borderColor: 'rgb(156 163 175 / 0.4)' }
+                            }
+                          />
                           <span className="truncate">{group.name}</span>
                         </div>
                         {/* Color dot — click opens page-level Dialog (avoids Radix nesting issues) */}
@@ -887,11 +896,8 @@ export default function CalendarioPage() {
                             e.stopPropagation();
                             setColorPickerGroup({ id: group.id, name: group.name });
                           }}
-                          className={cn(
-                            'h-5 w-5 rounded-full shrink-0 border-2 border-white/60 shadow-sm hover:scale-110 transition-transform',
-                            !colorHex ? 'bg-primary' : ''
-                          )}
-                          style={colorHex ? { backgroundColor: colorHex } : undefined}
+                          className="h-5 w-5 rounded-full shrink-0 border-2 border-white/60 shadow-sm hover:scale-110 transition-transform"
+                          style={{ backgroundColor: colorHex }}
                           title={`Cambia colore per ${group.name}`}
                         />
                       </DropdownMenuItem>
