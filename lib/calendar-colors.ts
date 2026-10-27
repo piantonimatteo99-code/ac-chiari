@@ -21,8 +21,32 @@ export const CALENDAR_COLORS: CalendarColor[] = [
 ];
 
 /**
- * Returns the hex string for a given colorId,
- * or undefined to fall back to the CSS --primary variable.
+ * Shared group-index color palette — identical to the dashboard MEMBER_COLORS.
+ * The calendar and dashboard both use this for automatic group coloring.
+ * Index 0 = first group in the list, index 1 = second, etc.
+ */
+export const GROUP_INDEX_COLORS: string[] = [
+  '#6366f1', // indigo  (index 0)
+  '#10b981', // emerald (index 1)
+  '#f59e0b', // amber   (index 2)
+  '#ef4444', // red     (index 3)
+  '#8b5cf6', // violet  (index 4)
+  '#06b6d4', // cyan    (index 5)
+  '#f97316', // orange  (index 6)
+  '#14b8a6', // teal    (index 7)
+];
+
+/**
+ * Returns the automatic hex color for a group at the given index.
+ * Matches the color shown in the dashboard legend.
+ */
+export function getGroupIndexColor(index: number): string {
+  return GROUP_INDEX_COLORS[index % GROUP_INDEX_COLORS.length];
+}
+
+/**
+ * Returns the hex string for a manually-chosen colorId,
+ * or undefined to fall back to the automatic group-index color.
  */
 export function getCalendarColorHex(colorId?: string): string | undefined {
   if (!colorId || colorId === 'default') return undefined;

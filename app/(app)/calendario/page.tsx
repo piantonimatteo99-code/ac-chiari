@@ -32,7 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { EventDetailDialog } from '@/components/event-detail-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Membro } from '../nucleo-familiare/page';
-import { getCalendarColorHex, CALENDAR_COLORS } from '@/lib/calendar-colors';
+import { getCalendarColorHex, CALENDAR_COLORS, getGroupIndexColor } from '@/lib/calendar-colors';
 
 // Extended event type that can include Google Calendar events
 type CalendarEvent = (Evento & { isGoogleCalendar?: false }) | {
@@ -57,6 +57,7 @@ function DayWithEvents({
   canAddEvents,
   isSelected,
   groupColors,
+  groups,
   ...props
 }: {
   date: Date;
@@ -68,6 +69,8 @@ function DayWithEvents({
   isSelected?: boolean;
   /** Per-group hex colors chosen by the user: groupId → colorId */
   groupColors?: Record<string, string>;
+  /** Full list of groups — used to derive the automatic index color matching the dashboard */
+  groups?: Group[];
 }) {
     const isOutside = date.getMonth() !== displayMonth.getMonth();
     
@@ -99,6 +102,9 @@ function DayWithEvents({
         for (const gId of (event.groupIds ?? [])) {
             const cId = groupColors?.[gId];
             if (cId && cId !== 'default') return getCalendarColorHex(cId);
+            // Fall back to dashboard-matching auto color by group index
+            const idx = (groups ?? []).findIndex(g => g.id === gId);
+            if (idx >= 0) return getGroupIndexColor(idx);
         }
         return undefined;
     };
@@ -482,9 +488,12 @@ export default function CalendarioPage() {
     for (const gId of (event.groupIds ?? [])) {
       const cId = groupColors[gId];
       if (cId && cId !== 'default') return getCalendarColorHex(cId);
+      // Fall back to dashboard-matching auto color by group index
+      const idx = (groups ?? []).findIndex(g => g.id === gId);
+      if (idx >= 0) return getGroupIndexColor(idx);
     }
     return undefined;
-  }, [groupColors]);
+  }, [groupColors, groups]);
 
   return (
     <TooltipProvider>
@@ -946,6 +955,7 @@ export default function CalendarioPage() {
                         canAddEvents={canAddEvents}
                         isSelected={isSameDay(props.date, selectedDate)}
                         groupColors={groupColors}
+                        groups={groups ?? []}
                       />
                     )
                 }}

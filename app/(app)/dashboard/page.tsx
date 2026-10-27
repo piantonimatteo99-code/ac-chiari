@@ -51,6 +51,7 @@ import {
 import type { Evento } from '@/components/add-event-dialog';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
+import { getGroupIndexColor } from '@/lib/calendar-colors';
 
 
 const getCurrentMembershipYear = () => {
@@ -59,14 +60,9 @@ const getCurrentMembershipYear = () => {
   return month >= 8 ? today.getFullYear() : today.getFullYear() - 1;
 };
 
-// --- MEMBER COLOR PALETTE (8 distinct colors) ---
-const MEMBER_COLORS = [
-  '#6366f1', '#10b981', '#f59e0b', '#ef4444',
-  '#8b5cf6', '#06b6d4', '#f97316', '#14b8a6',
-];
-
+// --- MEMBER COLOR PALETTE — defined in lib/calendar-colors.ts, shared with the calendar ---
 function getMemberColor(index: number): string {
-  return MEMBER_COLORS[index % MEMBER_COLORS.length];
+  return getGroupIndexColor(index);
 }
 
 // ============================================================
