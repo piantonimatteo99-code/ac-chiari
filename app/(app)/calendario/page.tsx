@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EventDetailDialog } from '@/components/event-detail-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Membro } from '../nucleo-familiare/page';
 import { getCalendarColorHex, CALENDAR_COLORS } from '@/lib/calendar-colors';
 
@@ -246,6 +247,8 @@ export default function CalendarioPage() {
   const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrateResult, setMigrateResult] = useState<string | null>(null);
+  /** Group whose color is being edited — opens the color-picker Dialog */
+  const [colorPickerGroup, setColorPickerGroup] = useState<{ id: string; name: string } | null>(null);
 
   // Set default filter once loading is done — non-admin users default to 'personale'
   // Do NOT gate on userData: new users with no Firestore doc must also be filtered
@@ -499,6 +502,60 @@ export default function CalendarioPage() {
         event={detailEvent as any}
         getGroupName={getGroupName}
       />
+
+      {/* Group color picker — Dialog at page level to avoid Radix nesting issues */}
+      <Dialog open={!!colorPickerGroup} onOpenChange={open => { if (!open) setColorPickerGroup(null); }}>
+        <DialogContent className="sm:max-w-xs p-5">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Colore per &quot;{colorPickerGroup?.name}&quot;
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-2.5 pt-2">
+            {/* Default / primary */}
+            <button
+              type="button"
+              className={cn(
+                'h-9 w-9 rounded-full bg-primary border-2 flex items-center justify-center transition-all hover:scale-110',
+                (groupColors[colorPickerGroup?.id ?? ''] ?? 'default') === 'default'
+                  ? 'border-foreground shadow-md scale-110'
+                  : 'border-transparent'
+              )}
+              onClick={() => {
+                if (colorPickerGroup) handleGroupColorChange(colorPickerGroup.id, 'default');
+                setColorPickerGroup(null);
+              }}
+              title="Predefinito"
+            >
+              {(groupColors[colorPickerGroup?.id ?? ''] ?? 'default') === 'default' && (
+                <span className="h-2 w-2 rounded-full bg-white/80 block" />
+              )}
+            </button>
+            {CALENDAR_COLORS.map(color => (
+              <button
+                key={color.id}
+                type="button"
+                className={cn(
+                  'h-9 w-9 rounded-full border-2 flex items-center justify-center transition-all hover:scale-110',
+                  groupColors[colorPickerGroup?.id ?? ''] === color.id
+                    ? 'border-foreground shadow-md scale-110'
+                    : 'border-transparent'
+                )}
+                style={{ backgroundColor: color.hex }}
+                onClick={() => {
+                  if (colorPickerGroup) handleGroupColorChange(colorPickerGroup.id, color.id);
+                  setColorPickerGroup(null);
+                }}
+                title={color.label}
+              >
+                {groupColors[colorPickerGroup?.id ?? ''] === color.id && (
+                  <span className="h-2 w-2 rounded-full bg-white/80 block" />
+                )}
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {isProgrammingMode && (
         canAddEvents ? (
@@ -811,59 +868,23 @@ export default function CalendarioPage() {
                           <div className={cn("h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors", selectedGroup === group.id ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
                           <span className="truncate">{group.name}</span>
                         </div>
-                        {/* Color picker dot — stops propagation so dropdown stays open */}
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              onPointerDown={e => { e.stopPropagation(); e.preventDefault(); }}
-                              onClick={e => { e.stopPropagation(); e.preventDefault(); }}
-                              className={cn(
-                                'h-5 w-5 rounded-full shrink-0 border-2 border-white/60 shadow-sm hover:scale-110 transition-transform',
-                                !colorHex ? 'bg-primary' : ''
-                              )}
-                              style={colorHex ? { backgroundColor: colorHex } : undefined}
-                              title={`Colore: ${CALENDAR_COLORS.find(c => c.id === colorId)?.label ?? 'Predefinito'}`}
-                            />
-                          </PopoverTrigger>
-                          <PopoverContent
-                            side="right"
-                            align="center"
-                            className="w-auto p-3 z-[300] shadow-xl"
-                            onPointerDown={e => e.stopPropagation()}
-                          >
-                            <p className="text-xs font-semibold mb-2.5 text-center truncate max-w-[120px]">{group.name}</p>
-                            <div className="flex flex-wrap gap-1.5" style={{ maxWidth: '132px' }}>
-                              {/* Default (primary) */}
-                              <button
-                                type="button"
-                                className={cn(
-                                  'h-6 w-6 rounded-full bg-primary border-2 transition-all hover:scale-110 flex items-center justify-center',
-                                  colorId === 'default' ? 'border-foreground shadow-md' : 'border-transparent'
-                                )}
-                                onClick={() => handleGroupColorChange(group.id, 'default')}
-                                title="Predefinito"
-                              >
-                                {colorId === 'default' && <span className="h-1.5 w-1.5 rounded-full bg-white/80 block" />}
-                              </button>
-                              {CALENDAR_COLORS.map(color => (
-                                <button
-                                  key={color.id}
-                                  type="button"
-                                  className={cn(
-                                    'h-6 w-6 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center',
-                                    colorId === color.id ? 'border-foreground shadow-md' : 'border-transparent'
-                                  )}
-                                  style={{ backgroundColor: color.hex }}
-                                  onClick={() => handleGroupColorChange(group.id, color.id)}
-                                  title={color.label}
-                                >
-                                  {colorId === color.id && <span className="h-1.5 w-1.5 rounded-full bg-white/80 block" />}
-                                </button>
-                              ))}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
+                        {/* Color dot — click opens page-level Dialog (avoids Radix nesting issues) */}
+                        <button
+                          type="button"
+                          onPointerDown={e => e.stopPropagation()}
+                          onPointerUp={e => e.stopPropagation()}
+                          onClick={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setColorPickerGroup({ id: group.id, name: group.name });
+                          }}
+                          className={cn(
+                            'h-5 w-5 rounded-full shrink-0 border-2 border-white/60 shadow-sm hover:scale-110 transition-transform',
+                            !colorHex ? 'bg-primary' : ''
+                          )}
+                          style={colorHex ? { backgroundColor: colorHex } : undefined}
+                          title={`Cambia colore per ${group.name}`}
+                        />
                       </DropdownMenuItem>
                     );
                   })}
