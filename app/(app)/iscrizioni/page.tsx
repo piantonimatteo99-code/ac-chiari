@@ -276,13 +276,13 @@ export default function IscrizioniPage() {
             )}
 
             {totalDue > 0 && (
-                <div className="fixed bottom-0 left-0 sm:left-64 right-0 p-4 border-t bg-background/95 backdrop-blur-sm">
-                    <div className="max-w-6xl mx-auto flex items-center justify-between">
+                <div className="fixed bottom-0 left-0 sm:left-64 right-0 z-50 border-t bg-background/95 backdrop-blur-sm shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+                    <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 px-4 py-3">
                         <div>
-                            <p className="text-sm font-medium">Totale selezioni per {membersToPayCount} {membersToPayCount > 1 ? 'membri' : 'membro'}:</p>
-                            <p className='text-3xl font-bold'>€{totalDue.toFixed(2)}</p>
+                            <p className="text-xs text-muted-foreground">Totale per {membersToPayCount} {membersToPayCount > 1 ? 'membri' : 'membro'}</p>
+                            <p className='text-2xl font-bold leading-tight'>€{totalDue.toFixed(2)}</p>
                         </div>
-                        <Button size="lg" onClick={handleOpenPaymentDialog}>
+                        <Button size="lg" onClick={handleOpenPaymentDialog} className="shrink-0">
                            Paga e Carica Ricevuta <ArrowRight className='ml-2 h-4 w-4' />
                         </Button>
                     </div>
