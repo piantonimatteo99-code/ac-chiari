@@ -51,7 +51,7 @@ import {
 import type { Evento } from '@/components/add-event-dialog';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
 import type { Group } from '@/app/(app)/admin/gestione-gruppi/tutti-i-gruppi/page';
-import { getGroupIndexColor } from '@/lib/calendar-colors';
+import { getGroupIndexColor, getCalendarColorHex } from '@/lib/calendar-colors';
 
 
 const getCurrentMembershipYear = () => {
@@ -65,6 +65,15 @@ function getMemberColor(index: number): string {
   return getGroupIndexColor(index);
 }
 
+/** Returns the effective hex color for a group: user-custom override first, then auto-index. */
+function getGroupColor(groupId: string, index: number, groupColors?: Record<string, string>): string {
+  if (groupColors) {
+    const customHex = getCalendarColorHex(groupColors[groupId]);
+    if (customHex) return customHex;
+  }
+  return getGroupIndexColor(index);
+}
+
 // ============================================================
 // MINI CALENDAR
 // ============================================================
@@ -75,9 +84,10 @@ interface MiniCalendarProps {
   groups: Group[];
   isEducatore: boolean;
   onEventClick: (e: Evento) => void;
+  groupColors?: Record<string, string>;
 }
 
-function MiniCalendar({ events, membri, filtredMembroId, groups, isEducatore, onEventClick }: MiniCalendarProps) {
+function MiniCalendar({ events, membri, filtredMembroId, groups, isEducatore, onEventClick, groupColors }: MiniCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const monthDays = useMemo(() => {
@@ -98,10 +108,11 @@ function MiniCalendar({ events, membri, filtredMembroId, groups, isEducatore, on
 
       const dots: { event: Evento; color: string }[] = [];
       if (isEducatore) {
-        // Color by group
+        // Color by group — respect user's custom groupColors
         dayEvts.forEach(e => {
           const gIdx = groups.findIndex(g => e.groupIds?.includes(g.id));
-          dots.push({ event: e, color: getMemberColor(gIdx >= 0 ? gIdx : 0) });
+          const gId = gIdx >= 0 ? groups[gIdx].id : '';
+          dots.push({ event: e, color: getGroupColor(gId, gIdx >= 0 ? gIdx : 0, groupColors) });
         });
       } else {
         // Color by member
@@ -208,7 +219,7 @@ function MiniCalendar({ events, membri, filtredMembroId, groups, isEducatore, on
 // ============================================================
 // UPCOMING EVENTS CARD
 // ============================================================
-function UpcomingEventsCard({ events, groups, isEducatore }: { events: Evento[]; groups: Group[]; isEducatore: boolean }) {
+function UpcomingEventsCard({ events, groups, isEducatore, groupColors }: { events: Evento[]; groups: Group[]; isEducatore: boolean; groupColors?: Record<string, string> }) {
   const upcoming = useMemo(() => {
     return events
       .filter(e => {
@@ -251,7 +262,8 @@ function UpcomingEventsCard({ events, groups, isEducatore }: { events: Evento[];
             const d = e.startDate?.toDate ? e.startDate.toDate() : new Date(e.startDate);
             const groupNames = groups.filter(g => e.groupIds?.includes(g.id)).map(g => g.name).join(', ');
             const gIdx = groups.findIndex(g => e.groupIds?.includes(g.id));
-            const color = getMemberColor(gIdx >= 0 ? gIdx : i);
+            const gId = gIdx >= 0 ? groups[gIdx].id : '';
+            const color = getGroupColor(gId, gIdx >= 0 ? gIdx : i, groupColors);
             return (
               <div key={e.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="shrink-0 rounded-lg overflow-hidden w-10 text-center"
@@ -588,6 +600,9 @@ export default function DashboardPage() {
 
   const isAdmin = useMemo(() => userData?.roles?.includes('admin') ?? false, [userData]);
   const isEducatore = useMemo(() => userData?.roles?.includes('educatore') ?? false, [userData]);
+  
+  // Per-group color overrides set by the user in the calendar
+  const groupColors = useMemo(() => userData?.groupColors ?? {}, [userData]);
 
   // My groups (for educatori/admin)
   const myGroupsQuery = useMemoFirebase(() => {
@@ -726,6 +741,7 @@ export default function DashboardPage() {
             events={relevantEvents}
             groups={myGroups ?? []}
             isEducatore={isEducatore || isAdmin}
+            groupColors={groupColors}
           />
 
           {/* Presenze recenti — visibile per chiunque abbia componenti familiari */}
@@ -762,6 +778,7 @@ export default function DashboardPage() {
                 groups={myGroups ?? []}
                 isEducatore={isEducatore || isAdmin}
                 onEventClick={() => {}}
+                groupColors={groupColors}
               />
 
               {/* Color legend: groups (educator/admin) */}
@@ -771,7 +788,7 @@ export default function DashboardPage() {
                   <p className="text-[10px] font-semibold uppercase text-muted-foreground mt-2">Legenda gruppi</p>
                   {myGroups.slice(0, 5).map((g, i) => (
                     <div key={g.id} className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: getMemberColor(i) }} />
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: getGroupColor(g.id, i, groupColors) }} />
                       <span className="text-xs text-muted-foreground truncate">{g.name}</span>
                     </div>
                   ))}
@@ -809,7 +826,7 @@ export default function DashboardPage() {
                     {myGroups.map((g, i) => (
                       <div key={g.id} className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: getMemberColor(i) }} />
+                          <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: getGroupColor(g.id, i, groupColors) }} />
                           <span className="text-sm font-medium">{g.name}</span>
                         </div>
                         <Badge variant="outline" className="text-xs">

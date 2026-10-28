@@ -845,13 +845,23 @@ export default function CalendarioPage() {
             <DropdownMenuContent className="w-[calc(100vw-2rem)] sm:w-auto max-w-[300px]">
               {/* Personal view - always available */}
               <DropdownMenuItem onSelect={() => setSelectedGroup('personale')} className="flex items-center gap-2 cursor-pointer">
-                <div className={cn("h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors", selectedGroup === 'personale' ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
+                <div className={cn(
+                  "h-3.5 w-3.5 rounded-sm border-2 shrink-0 flex items-center justify-center transition-colors",
+                  selectedGroup === 'personale' ? 'bg-slate-500 border-slate-500' : 'border-slate-300 dark:border-slate-600'
+                )}>
+                  {selectedGroup === 'personale' && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                </div>
                 I miei impegni
               </DropdownMenuItem>
               {/* Family view - only if user has family with other groups */}
               {hasFamilyGroups && (
                 <DropdownMenuItem onSelect={() => setSelectedGroup('famiglia')} className="flex items-center gap-2 cursor-pointer">
-                  <div className={cn("h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors", selectedGroup === 'famiglia' ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
+                  <div className={cn(
+                    "h-3.5 w-3.5 rounded-sm border-2 shrink-0 flex items-center justify-center transition-colors",
+                    selectedGroup === 'famiglia' ? 'bg-slate-500 border-slate-500' : 'border-slate-300 dark:border-slate-600'
+                  )}>
+                    {selectedGroup === 'famiglia' && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                  </div>
                   Nucleo familiare
                 </DropdownMenuItem>
               )}
@@ -860,7 +870,12 @@ export default function CalendarioPage() {
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => setSelectedGroup('tutti')} className="flex items-center gap-2 cursor-pointer">
-                    <div className={cn("h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors", selectedGroup === 'tutti' ? 'bg-primary border-primary' : 'border-muted-foreground/40')} />
+                    <div className={cn(
+                      "h-3.5 w-3.5 rounded-sm border-2 shrink-0 flex items-center justify-center transition-colors",
+                      selectedGroup === 'tutti' ? 'bg-slate-500 border-slate-500' : 'border-slate-300 dark:border-slate-600'
+                    )}>
+                      {selectedGroup === 'tutti' && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                    </div>
                     Tutti i gruppi
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -877,16 +892,16 @@ export default function CalendarioPage() {
                         className="flex items-center justify-between gap-2 pr-1.5 cursor-pointer"
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div
-                            className="h-3.5 w-3.5 rounded-full border-2 shrink-0 transition-colors"
-                            style={isGroupActive
-                              ? { backgroundColor: colorHex, borderColor: colorHex }
-                              : { borderColor: 'rgb(156 163 175 / 0.4)' }
-                            }
-                          />
+                          {/* Left: fixed checkbox-style indicator (neutral gray) */}
+                          <div className={cn(
+                            "h-3.5 w-3.5 rounded-sm border-2 shrink-0 flex items-center justify-center transition-colors",
+                            isGroupActive ? 'bg-slate-500 border-slate-500' : 'border-slate-300 dark:border-slate-600'
+                          )}>
+                            {isGroupActive && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                          </div>
                           <span className="truncate">{group.name}</span>
                         </div>
-                        {/* Color dot — click opens page-level Dialog (avoids Radix nesting issues) */}
+                        {/* Right: color dot — shows group color, click opens color picker Dialog */}
                         <button
                           type="button"
                           onPointerDown={e => e.stopPropagation()}
