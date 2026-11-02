@@ -230,19 +230,16 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
             (raccolta.tesseratiIds ?? []).includes(m.id)
         ).length;
 
-        const sortedCart = [...familyCart].sort((a, b) => {
-          const ya = getBirthYear(a.dataNascita) ?? 0;
-          const yb = getBirthYear(b.dataNascita) ?? 0;
-          return ya - yb;
-        });
+        // Totale fratelli nella famiglia (già tesserati + nel carrello corrente)
+        const totalFamilyCount = alreadyTesserated + familyCart.length;
 
-        sortedCart.forEach((member, idx) => {
-          const globalIndex = alreadyTesserated + idx;
+        // REGOLA: tutti i fratelli ricevono lo sconto del 20% se ≥2 nella stessa famiglia
+        familyCart.forEach(member => {
           const tariffa = getTariffaForMember(member, tariffe);
           let importo = 0;
-          if (globalIndex === 0) importo = tariffa?.quotaIntera ?? 0;
-          else if (globalIndex < 3) importo = tariffa?.quotaScontata ?? 0;
-          else importo = tariffa?.gratuita ?? 0;
+          if (totalFamilyCount >= 4)      importo = tariffa?.gratuita ?? 0;        // 4°+: gratuità
+          else if (totalFamilyCount >= 2) importo = tariffa?.quotaScontata ?? 0;   // 2°/3°: tutti scontati
+          else                            importo = tariffa?.quotaIntera ?? 0;     // figlio unico: pieno
           amounts[member.id] = importo;
         });
       });
@@ -300,6 +297,20 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
   };
 
   const calculateTotal = (member: UnifiedMember): number => {
+    // Per il tesseramento: il totale atteso è la tariffa del membro
+    if (raccolta.tipo === 'tesseramento') {
+      if (!tariffe) return 0;
+      const tariffa = getTariffaForMember(member, tariffe);
+      if (!tariffa) return 0;
+      // Calcola il totale considerando lo sconto fratelli (stessa logica del carrello)
+      const familyCount = allMembers.filter(
+        m => m.familyId === member.familyId && raccolta.gruppiId.includes(m.groupId ?? '')
+      ).length;
+      if (familyCount >= 4) return tariffa.gratuita ?? 0;
+      if (familyCount >= 2) return tariffa.quotaScontata ?? 0;
+      return tariffa.quotaIntera ?? 0;
+    }
+
     const isConfirmed = confermatiIds?.includes(member.id) ?? false;
     if (!isConfirmed) return 0;
     
@@ -334,6 +345,13 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
   };
 
   const calculatePaidTotal = (member: UnifiedMember): number => {
+    // Per il tesseramento: il pagato è la tariffa effettivamente incassata (se tesserato)
+    if (raccolta.tipo === 'tesseramento') {
+      const isAlreadyTesserated = (raccolta.tesseratiIds ?? []).includes(member.id);
+      if (!isAlreadyTesserated) return 0;
+      return calculateTotal(member); // usa la stessa logica del totale atteso
+    }
+
     const isConfirmed = confermatiIds?.includes(member.id) ?? false;
     if (!isConfirmed) return 0;
 
