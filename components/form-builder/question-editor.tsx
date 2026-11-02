@@ -203,6 +203,25 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
             </div>
           )}
 
+          {/* Toggle allowQuantity — solo per price_item */}
+          {question.type === 'price_item' && (
+            <div className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-2.5">
+              <Switch
+                id={`q-qty-${question.id}`}
+                checked={question.allowQuantity ?? false}
+                onCheckedChange={v => update({ allowQuantity: v })}
+              />
+              <div>
+                <Label htmlFor={`q-qty-${question.id}`} className="text-xs font-medium cursor-pointer">
+                  Consenti quantità per opzione
+                </Label>
+                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                  Il compilatore potrà inserire un numero per ogni voce (es. 3 menù adulti × € 15)
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Opzioni (choice/select/price_item/quantity_picker) */}
           {HAS_OPTIONS.includes(question.type) && (
             <div className="space-y-2">

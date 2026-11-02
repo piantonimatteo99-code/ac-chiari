@@ -47,6 +47,7 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
   );
   const [isPublic, setIsPublic] = useState(existingForm?.isPublic ?? true);
   const [allowAnonymous, setAllowAnonymous] = useState(existingForm?.allowAnonymous ?? true);
+  const [allowPortalLogin, setAllowPortalLogin] = useState(existingForm?.allowPortalLogin ?? true);
   const [generateCollection, setGenerateCollection] = useState(existingForm?.generateCollection ?? false);
   const [collectionTitle, setCollectionTitle] = useState(existingForm?.collectionTitle ?? '');
   // Pagamento
@@ -145,6 +146,7 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
         questions: sanitizedQuestions,
         isPublic,
         allowAnonymous,
+        allowPortalLogin,
         generateCollection,
         collectionTitle: generateCollection ? (collectionTitle.trim() || title.trim()) : null,
         accettaBonifico,
@@ -356,6 +358,21 @@ export function FormBuilder({ projectId, existingForm, onSaved }: Props) {
                   id="form-anon"
                   checked={allowAnonymous}
                   onCheckedChange={setAllowAnonymous}
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Accesso al portale post-invio</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Dopo l&apos;invio viene proposto il login al portale AC Chiari.
+                    Disattiva durante fasi di test o per moduli solo anonimi.
+                  </p>
+                </div>
+                <Switch
+                  id="form-portal-login"
+                  checked={allowPortalLogin}
+                  onCheckedChange={setAllowPortalLogin}
                 />
               </div>
             </CardContent>

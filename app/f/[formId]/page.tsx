@@ -40,10 +40,21 @@ function computeTotal(form: FormSchema, answers: Record<string, AnswerValue>): n
     if (q.type === 'price_item') {
       const ans = answers[q.id];
       if (!ans) continue;
-      const selectedIds = Array.isArray(ans) ? ans : [ans as string];
-      for (const optId of selectedIds) {
-        const opt = q.options.find(o => o.id === optId);
-        if (opt?.price) total += opt.price;
+      if (q.allowQuantity) {
+        // Modalità quantità: Record<optId, qty> × prezzo
+        const quantities = ans as Record<string, number>;
+        for (const opt of q.options) {
+          if (opt.price && quantities[opt.id]) {
+            total += opt.price * (quantities[opt.id] ?? 0);
+          }
+        }
+      } else {
+        // Modalità checkbox: somma prezzi delle opzioni selezionate
+        const selectedIds = Array.isArray(ans) ? ans : [ans as string];
+        for (const optId of selectedIds) {
+          const opt = q.options.find(o => o.id === optId);
+          if (opt?.price) total += opt.price;
+        }
       }
     }
 
@@ -188,7 +199,7 @@ function QuestionField({
         </div>
       )}
 
-      {type === 'price_item' && options && (
+      {type === 'price_item' && options && !question.allowQuantity && (
         <div className="space-y-2">
           {options.map(opt => {
             const selected = Array.isArray(value) ? value : [];
@@ -213,6 +224,47 @@ function QuestionField({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {type === 'price_item' && options && question.allowQuantity && (
+        <div className="space-y-2">
+          <div className="rounded-xl border overflow-hidden">
+            {options.map((opt, oi) => {
+              const quantities = (value as Record<string, number>) ?? {};
+              const qty = quantities[opt.id] ?? 0;
+              const subtotal = (opt.price ?? 0) * qty;
+              return (
+                <div key={opt.id} className={`flex items-center gap-3 px-3 py-2.5 ${oi > 0 ? 'border-t' : ''}`}>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium">{opt.label}</span>
+                    {opt.price != null && (
+                      <span className="text-xs text-muted-foreground ml-2">€ {opt.price.toFixed(2)} cad.</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      className="w-7 h-7 rounded-full border flex items-center justify-center text-base font-bold hover:bg-muted transition-colors disabled:opacity-30"
+                      disabled={qty <= 0}
+                      onClick={() => onChange({ ...quantities, [opt.id]: Math.max(0, qty - 1) })}
+                    >−</button>
+                    <span className="w-8 text-center text-sm font-semibold tabular-nums">{qty}</span>
+                    <button
+                      type="button"
+                      className="w-7 h-7 rounded-full border flex items-center justify-center text-base font-bold hover:bg-muted transition-colors"
+                      onClick={() => onChange({ ...quantities, [opt.id]: qty + 1 })}
+                    >+</button>
+                  </div>
+                  {opt.price != null && (
+                    <span className={`text-sm font-semibold tabular-nums w-16 text-right shrink-0 ${subtotal > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                      € {subtotal.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -271,7 +323,9 @@ function IdentificationStep({
   onComplete: () => void;
 }) {
   const firestore = useFirestore();
-  const [step, setStep] = useState<IdentStep>('choice');
+  const [step, setStep] = useState<IdentStep>(
+    form.allowPortalLogin === false ? 'anonymous' : 'choice'
+  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [extName, setExtName] = useState('');
@@ -301,8 +355,25 @@ function IdentificationStep({
             .map(o => `${o.label} × ${quantities[o.id]}`);
           if (lines.length === 0) return null;
           valueStr = lines.join(', ');
+        } else if (q.type === 'price_item' && q.options) {
+          if (q.allowQuantity) {
+            // Modalità quantità: Record<optId, qty>
+            const quantities = ans as Record<string, number>;
+            const lines = q.options
+              .filter(o => quantities[o.id] > 0)
+              .map(o => {
+                const sub = (o.price ?? 0) * quantities[o.id];
+                return `${o.label} × ${quantities[o.id]}${sub > 0 ? ` (€ ${sub.toFixed(2)})` : ''}`;
+              });
+            if (lines.length === 0) return null;
+            valueStr = lines.join(', ');
+          } else {
+            const ids = Array.isArray(ans) ? ans : [ans as string];
+            valueStr = ids.map(id => q.options?.find(o => o.id === id)?.label ?? id).join(', ');
+            if (!valueStr) return null;
+          }
         } else if (
-          q.type === 'single_choice' || q.type === 'price_item' ||
+          q.type === 'single_choice' ||
           q.type === 'select' || q.type === 'multiple_choice'
         ) {
           const ids = Array.isArray(ans) ? ans : [ans as string];
@@ -740,7 +811,23 @@ export default function PublicFormPage() {
               const lines = q.options.filter(o => quantities[o.id] > 0).map(o => `${o.label} × ${quantities[o.id]}`);
               return lines.length > 0 ? { label: q.label, value: lines.join(', ') } : null;
             }
-            if (['single_choice','price_item','select','multiple_choice'].includes(q.type)) {
+            if (q.type === 'price_item' && q.options) {
+              if (q.allowQuantity) {
+                const quantities = ans as Record<string, number>;
+                const lines = q.options
+                  .filter(o => quantities[o.id] > 0)
+                  .map(o => {
+                    const sub = (o.price ?? 0) * quantities[o.id];
+                    return `${o.label} × ${quantities[o.id]}${sub > 0 ? ` (€ ${sub.toFixed(2)})` : ''}`;
+                  });
+                return lines.length > 0 ? { label: q.label, value: lines.join(', ') } : null;
+              } else {
+                const ids = Array.isArray(ans) ? ans : [ans as string];
+                const val = ids.map(id => q.options?.find(o => o.id === id)?.label ?? id).join(', ');
+                return val ? { label: q.label, value: val } : null;
+              }
+            }
+            if (['single_choice','select','multiple_choice'].includes(q.type)) {
               const ids = Array.isArray(ans) ? ans : [ans as string];
               const val = ids.map(id => q.options?.find(o => o.id === id)?.label ?? id).join(', ');
               return val ? { label: q.label, value: val } : null;

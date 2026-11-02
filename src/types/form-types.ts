@@ -28,6 +28,7 @@ export interface FormQuestion {
   placeholder?: string;   // per text, textarea, number, email, phone
   minValue?: number;      // per number
   maxValue?: number;      // per number
+  allowQuantity?: boolean; // solo per price_item: permette di inserire una quantità per ogni opzione (prezzo × quantità)
 }
 
 export interface FormSchema {
@@ -48,6 +49,8 @@ export interface FormSchema {
   beneficiario?: string;
   // Scadenza: chiude automaticamente il form dopo questa data
   closeAt?: any;            // Firestore Timestamp o null
+  // Opzioni di accesso post-invio
+  allowPortalLogin?: boolean; // se false, nasconde l'opzione di login al portale dopo l'invio (default true)
   status: 'draft' | 'active' | 'closed';
   createdAt: any;
   updatedAt: any;
