@@ -662,36 +662,53 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         )}
                         {columnVisibility.nomeCognome && (
                             <TableCell className="font-medium">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    {member.nome} {member.cognome}
-                                    {member.isPlaceholder && (
-                                        <Badge
-                                         variant="outline"
-                                         className="text-[10px] text-yellow-600 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 px-1.5 py-0 h-4 ml-1 whitespace-nowrap"
-                                        >
-                                         Ghost
-                                        </Badge>
-                                    )}
-                                    {/* Badge stato nella riga */}
-                                    {raccolta.tipo === 'tesseramento' && isAlreadyTesserated && (
-                                      <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
-                                        Tesserato
-                                      </Badge>
-                                    )}
-                                    {raccolta.tipo !== 'tesseramento' && isEducatore && (
-                                      cartPhase === 'caparra' ? (
-                                        hasPaidCaparra && (
-                                          <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
-                                            Caparra ✓
-                                          </Badge>
-                                        )
-                                      ) : (
-                                        hasPaidSaldo && (
-                                          <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
-                                            Saldo ✓
-                                          </Badge>
-                                        )
-                                      )
+                                <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        {member.isFromForm
+                                            ? (member.displayName && member.displayName !== 'In attesa di identificazione'
+                                                ? member.displayName
+                                                : (`${member.nome} ${member.cognome}`.trim() || 'Sconosciuto'))
+                                            : `${member.nome} ${member.cognome}`}
+                                        {member.isFromForm && (
+                                            <Badge variant="outline" className="text-[10px] text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-950/30 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
+                                                Form
+                                            </Badge>
+                                        )}
+                                        {member.isFromForm && member.displayName === 'In attesa di identificazione' && (
+                                            <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-300 bg-orange-50 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
+                                                In attesa
+                                            </Badge>
+                                        )}
+                                        {member.isPlaceholder && (
+                                            <Badge variant="outline" className="text-[10px] text-yellow-600 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
+                                                Ghost
+                                            </Badge>
+                                        )}
+                                        {raccolta.tipo === 'tesseramento' && isAlreadyTesserated && (
+                                            <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
+                                                Tesserato
+                                            </Badge>
+                                        )}
+                                        {raccolta.tipo !== 'tesseramento' && isEducatore && (
+                                            cartPhase === 'caparra' ? (
+                                                hasPaidCaparra && (
+                                                    <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
+                                                        Caparra ?
+                                                    </Badge>
+                                                )
+                                            ) : (
+                                                hasPaidSaldo && (
+                                                    <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300 px-1.5 py-0 h-4 ml-1 whitespace-nowrap">
+                                                        Saldo ?
+                                                    </Badge>
+                                                )
+                                            )
+                                        )}
+                                    </div>
+                                    {member.isFromForm && (member.email || member.phone) && (
+                                        <span className="text-[11px] text-muted-foreground">
+                                            {member.email || member.phone}
+                                        </span>
                                     )}
                                 </div>
                             </TableCell>
