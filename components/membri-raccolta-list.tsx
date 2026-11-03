@@ -25,6 +25,13 @@ export interface UnifiedMember extends Partial<Membro>, Partial<UserData> {
   familyId?: string; // UID of the family head
   ref?: any;
   isPlaceholder?: boolean;
+  /** Partecipante proveniente da un modulo form (non registrato) */
+  isFromForm?: boolean;
+  /** displayName completo per i partecipanti da form */
+  displayName?: string;
+  phone?: string;
+  summaryLines?: { label: string; value: string }[];
+  total?: number | null;
 }
 interface MembriRaccoltaListProps {
   raccolta: Raccolta;

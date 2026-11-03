@@ -149,6 +149,14 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
     }, [firestore]);
     const { data: groupsData } = useCollection<Group>(groupsQuery);
 
+    // Righe da form (solo per raccolte create da un modulo)
+    const formRowsQuery = useMemoFirebase(() => {
+        const fromFormId = (raccolta as any).fromFormId;
+        if (!firestore || !fromFormId) return null;
+        return query(collection(firestore, 'form_collection_rows'), where('raccoltaId', '==', raccolta.id));
+    }, [firestore, raccolta.id, (raccolta as any).fromFormId]);
+    const { data: formRowsData } = useCollection<any>(formRowsQuery);
+
     // Ruoli educatori dell'utente corrente (per verificare accesso contabilità)
     const myEducatorRolesQuery = useMemoFirebase(() => {
         const uid = userData?.id ?? '';
@@ -225,21 +233,48 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
             });
         });
         
+
+        // Partecipanti da moduli (raccolte create da form)
+        formRowsData?.forEach(row => {
+            // Estrai nome/cognome dal displayName ("Nome Cognome")
+            const parts = (row.displayName || '').trim().split(' ');
+            const nome = parts[0] || '';
+            const cognome = parts.slice(1).join(' ') || '';
+            addToList({
+                id: row.id,
+                nome,
+                cognome,
+                groupId: undefined,
+                groupName: 'Esterni (form)',
+                familyId: undefined,
+                isPlaceholder: false,
+                isFromForm: true,
+                displayName: row.displayName,
+                email: row.email,
+                phone: row.phone,
+                summaryLines: row.summaryLines,
+                total: row.total,
+                ...row,
+            });
+        });
         return combinedList;
 
-    }, [usersData, membersData, importedMembersData, groupsData]);
+    }, [usersData, membersData, importedMembersData, groupsData, formRowsData]);
 
     const targetGroupMembers = useMemo(() => {
+        const isFromForm = !!(raccolta as any).fromFormId;
         const targetGroupIds = new Set(raccolta.gruppiId);
         return allMembers
             .filter(member => {
+                // I partecipanti da form (isFromForm) sono sempre inclusi nella lista
+                if ((member as any).isFromForm) return isFromForm;
                 if (!member.groupId || !targetGroupIds.has(member.groupId)) return false;
-                // Se filterGroupId è impostato, mostra solo i membri di quel gruppo
+                // Se filterGroupId � impostato, mostra solo i membri di quel gruppo
                 if (filterGroupId && member.groupId !== filterGroupId) return false;
                 return true;
             })
             .sort((a, b) => (a.cognome || '').localeCompare(b.cognome || ''));
-    }, [allMembers, raccolta.gruppiId, filterGroupId]);
+    }, [allMembers, raccolta.gruppiId, filterGroupId, (raccolta as any).fromFormId]);
 
 
     const isLoading = isLoadingMembers || isLoadingUsers || isLoadingMovimentiContanti;
