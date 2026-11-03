@@ -313,6 +313,7 @@ function IdentificationStep({
   total,
   responseId,
   collectionRowId,
+  raccoltaId,
   onComplete,
 }: {
   form: FormSchema;
@@ -320,6 +321,7 @@ function IdentificationStep({
   total: number;
   responseId: string;
   collectionRowId: string | null;
+  raccoltaId: string | null;
   onComplete: () => void;
 }) {
   const firestore = useFirestore();
@@ -421,49 +423,18 @@ function IdentificationStep({
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const u = cred.user;
 
-      // ── Cerca o crea una raccolta specifica per questo form (MAI toccare quella del progetto) ──
-      if (form.generateCollection) {
+      // ── Aggiorna la raccolta già creata al submit con i dati dell'utente ──
+      if (form.generateCollection && raccoltaId) {
         try {
-          const [userSnap, existingRaccoltaSnap] = await Promise.all([
-            getDoc(doc(firestore, 'users', u.uid)),
-            getDocs(query(collection(firestore, 'raccolte'), where('fromFormId', '==', form.id))),
-          ]);
-
+          const userSnap = await getDoc(doc(firestore, 'users', u.uid));
           const userGroupId = userSnap.exists() ? (userSnap.data().groupId as string | undefined) : undefined;
-          let raccoltaId: string;
-
-          if (existingRaccoltaSnap.empty) {
-            // Crea raccolta separata per il form usando le sue impostazioni di pagamento
-            const raccoltaRef = await addDoc(collection(firestore, 'raccolte'), {
-              nome: form.collectionTitle || form.title,
-              tipo: 'standard',
-              gruppiId: userGroupId ? [userGroupId] : [],
-              accettaBonifico: form.accettaBonifico ?? true,
-              accettaContanti: form.accettaContanti ?? false,
-              iban: form.iban ?? 'IT67Q0200854341000100216072',
-              beneficiario: form.beneficiario ?? 'PARROCCHIA DEI SANTI FAUSTINO E GIOVITA UNICREDIT',
-              faseConferma: { attiva: false, importo: '0', dataFine: null, conclusa: false },
-              faseCaparra: { attiva: false, importo: '0', dataFine: null, conclusa: false },
-              faseSaldo: { attiva: true, importo: '0', dataFine: null, conclusa: false, tariffaFratelliAttiva: false, importoTariffaFratelli: '' },
-              archived: false,
-              confermatiIds: [],
-              caparraPaidIds: [],
-              saldoPaidIds: [],
-              tesseratiIds: [],
-              createdAt: serverTimestamp(),
-              fromFormId: form.id,
-            });
-            raccoltaId = raccoltaRef.id;
-          } else {
-            raccoltaId = existingRaccoltaSnap.docs[0].id;
-          }
 
           const raccoltaUpdate: Record<string, any> = { confermatiIds: arrayUnion(u.uid) };
           if (userGroupId) raccoltaUpdate.gruppiId = arrayUnion(userGroupId);
           if (total > 0) raccoltaUpdate[`formCustomAmounts.${u.uid}`] = total;
           await updateDoc(doc(firestore, 'raccolte', raccoltaId), raccoltaUpdate);
         } catch (e) {
-          console.warn('[Form login] Errore raccolta:', e);
+          console.warn('[Form login] Errore aggiornamento raccolta:', e);
         }
       }
 
@@ -492,32 +463,22 @@ function IdentificationStep({
     try {
       await saveCollectionRow(undefined, extName.trim(), extEmail.trim() || undefined, extPhone.trim() || undefined);
 
-      // ── Per esterni con totale: crea un movimento nella raccolta del progetto ──
-      if (firestore && form.projectId && total > 0) {
+      // ── Per esterni con totale: aggiorna la raccolta del form già creata ──
+      if (firestore && total > 0 && raccoltaId) {
         try {
-          const projectSnap = await getDoc(doc(firestore, 'progetti', form.projectId));
-          if (projectSnap.exists()) {
-            const raccoltaId = projectSnap.data().raccoltaId as string | undefined;
-            if (raccoltaId) {
-              await addDoc(collection(firestore, 'movimenti-contanti'), {
-                raccoltaId,
-                memberId: null,
-                phase: 'saldo',
-                importo: total,
-                note: `Esterno: ${extName.trim()}${extEmail.trim() ? ` <${extEmail.trim()}>` : ''}${extPhone.trim() ? ` ☎${extPhone.trim()}` : ''} — modulo: ${form.title}`,
-                createdAt: serverTimestamp(),
-                registeredBy: 'form-external',
-                tipo: 'raccolta',
-                isDelivered: false,
-                isDeposited: false,
-                isFormPayment: true,
-                isExternalUser: true,
-                formId: form.id,
-              });
-            }
-          }
+          // Segna come "esterno" nella raccolta: aggiungiamo un entry in externalSubmissions
+          await updateDoc(doc(firestore, 'raccolte', raccoltaId), {
+            [`externalSubmissions.${responseId}`]: {
+              displayName: extName.trim(),
+              email: extEmail.trim() || null,
+              phone: extPhone.trim() || null,
+              total,
+              responseId,
+              submittedAt: serverTimestamp(),
+            },
+          });
         } catch (e) {
-          console.warn('[Form external] Impossibile registrare movimento raccolta:', e);
+          console.warn('[Form external] Impossibile aggiornare raccolta:', e);
         }
       }
 
@@ -732,6 +693,7 @@ export default function PublicFormPage() {
   const [phase, setPhase] = useState<'form' | 'identification' | 'success'>('form');
   const [savedResponseId, setSavedResponseId] = useState<string | null>(null);
   const [savedCollectionRowId, setSavedCollectionRowId] = useState<string | null>(null);
+  const [savedRaccoltaId, setSavedRaccoltaId] = useState<string | null>(null);
 
   // Carica schema form
   useEffect(() => {
@@ -800,8 +762,7 @@ export default function PublicFormPage() {
       setSavedResponseId(ref.id);
 
       if (form.generateCollection) {
-        // Crea subito la riga nella raccolta (anche se l'utente non completa l'identificazione)
-        // Verrà aggiornata con nome/email nell'IdentificationStep
+        // Calcola summaryLines per la riga raccolta
         const summaryLines = form.questions
           .map(q => {
             const ans = answers[q.id];
@@ -836,9 +797,50 @@ export default function PublicFormPage() {
           })
           .filter(Boolean) as { label: string; value: string }[];
 
+        // ── Crea o recupera la raccolta Firestore al momento del submit ──
+        // Così esiste indipendentemente dall'identificazione dell'utente
+        let raccoltaId: string | null = null;
+        if (total > 0) {
+          try {
+            const existingSnap = await getDocs(
+              query(collection(firestore, 'raccolte'), where('fromFormId', '==', form.id))
+            );
+            if (existingSnap.empty) {
+              const raccoltaRef = await addDoc(collection(firestore, 'raccolte'), {
+                nome: form.collectionTitle || form.title,
+                tipo: 'standard',
+                gruppiId: [],
+                accettaBonifico: form.accettaBonifico ?? true,
+                accettaContanti: form.accettaContanti ?? false,
+                iban: form.iban ?? null,
+                beneficiario: form.beneficiario ?? null,
+                faseConferma: { attiva: false, importo: '0', dataFine: null, conclusa: false },
+                faseCaparra: { attiva: false, importo: '0', dataFine: null, conclusa: false },
+                faseSaldo: { attiva: true, importo: '0', dataFine: null, conclusa: false, tariffaFratelliAttiva: false, importoTariffaFratelli: '' },
+                archived: false,
+                confermatiIds: [],
+                caparraPaidIds: [],
+                saldoPaidIds: [],
+                tesseratiIds: [],
+                formCustomAmounts: {},
+                createdAt: serverTimestamp(),
+                fromFormId: form.id,
+                projectId: form.projectId,
+              });
+              raccoltaId = raccoltaRef.id;
+            } else {
+              raccoltaId = existingSnap.docs[0].id;
+            }
+            setSavedRaccoltaId(raccoltaId);
+          } catch (e) {
+            console.warn('[Form submit] Errore creazione raccolta:', e);
+          }
+        }
+
         const rowRef = await addDoc(collection(firestore, 'form_collection_rows'), {
           formId: form.id,
           responseId: ref.id,
+          raccoltaId: raccoltaId ?? null,
           userId: null,
           displayName: 'In attesa di identificazione',
           email: null,
@@ -935,6 +937,7 @@ export default function PublicFormPage() {
                 total={total}
                 responseId={savedResponseId}
                 collectionRowId={savedCollectionRowId}
+                raccoltaId={savedRaccoltaId}
                 onComplete={() => setPhase('success')}
               />
             </CardContent>

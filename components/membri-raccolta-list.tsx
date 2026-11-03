@@ -509,7 +509,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
   }, [filteredMembers, confermatiIds]);
 
   return (
-    <div className='space-y-4'>
+    <div className={cartMembers.size > 0 ? 'space-y-4 pb-52' : 'space-y-4'}>
         <div className="flex flex-col sm:flex-row gap-2">
             <Input 
                 placeholder="Cerca per nome, cognome o gruppo..." 
@@ -777,10 +777,10 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
         </Table>
       )}
 
-      {/* ── Pannello carrello educatore (sticky in basso, tutte le raccolte) ── */}
+      {/* ── Pannello carrello educatore (fixed in basso, visibile ovunque nello schermo) ── */}
       {isEducatore && cartMembers.size > 0 && (
-        <div className="sticky bottom-4 z-50 mx-0 mt-0">
-          <div className="rounded-xl border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 p-4 space-y-3 shadow-2xl">
+        <div className="fixed bottom-0 left-0 sm:left-64 right-0 z-50 p-3 bg-background/80 backdrop-blur-sm">
+          <div className="rounded-xl border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 p-4 space-y-3 shadow-2xl max-w-5xl mx-auto">
             {/* Intestazione carrello */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 flex-wrap">
