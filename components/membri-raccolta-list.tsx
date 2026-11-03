@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import type { UserData } from '@/src/hooks/use-user-data';
 import type { Membro } from '@/app/(app)/nucleo-familiare/page';
@@ -776,9 +777,8 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
           </TableFooter>
         </Table>
       )}
-
-      {/* ── Pannello carrello educatore (fixed in basso, visibile ovunque nello schermo) ── */}
-      {isEducatore && cartMembers.size > 0 && (
+      {/* Carrello educatore - usa Portal per uscire dall'overflow:hidden dell'Accordion */}
+      {isEducatore && cartMembers.size > 0 && typeof document !== 'undefined' && createPortal(
         <div className="fixed bottom-0 left-0 sm:left-64 right-0 z-50 p-3 bg-background/80 backdrop-blur-sm">
           <div className="rounded-xl border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 p-4 space-y-3 shadow-2xl max-w-5xl mx-auto">
             {/* Intestazione carrello */}
@@ -908,7 +908,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Sezione riepilogo allergie */}
       {membersWithAllergie.length > 0 && (
