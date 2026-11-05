@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { getAuth } from 'firebase/auth';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -413,6 +414,37 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
 
         await batch.commit();
 
+        // Invia ricevuta via email se il membro ha un'email inserita
+        if (paid) {
+            const targetMember = allMembers.find(m => m.id === ghostId);
+            const memberEmail = targetMember?.email;
+            const memberName = `${targetMember?.nome || ''} ${targetMember?.cognome || ''}`.trim() || targetMember?.displayName || 'Partecipante';
+            const phaseLabel = phase === 'caparra' ? 'Caparra' : 'Saldo';
+            if (memberEmail && memberEmail.includes('@')) {
+                getAuth().currentUser?.getIdToken().then(idToken => {
+                    fetch('/api/send-payment-email', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${idToken}`,
+                        },
+                        body: JSON.stringify({
+                            directEmail: memberEmail,
+                            directDisplayName: memberName,
+                            familyHeadId: targetMember?.familyId || undefined,
+                            paymentItems: [{
+                                memberName,
+                                raccoltaNome: raccolta.nome,
+                                phase: phaseLabel,
+                                amount: String(importo),
+                            }],
+                            paymentMethod: 'contanti',
+                        }),
+                    }).catch(e => console.warn('Errore invio ricevuta email:', e));
+                }).catch(e => console.warn('Token non disponibile per email:', e));
+            }
+        }
+
         // Se annullo, elimino anche il movimento contanti associato
         if (!paid) {
             const movSnap = await getDocs(
@@ -534,6 +566,37 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         }
 
         await batch.commit();
+
+        // Invia ricevute via email per ciascun membro con email inserita
+        getAuth().currentUser?.getIdToken().then(idToken => {
+            for (const memberId of memberIds) {
+                const targetMember = allMembers.find(m => m.id === memberId);
+                const memberEmail = targetMember?.email;
+                if (!memberEmail || !memberEmail.includes('@')) continue;
+                const importo = amounts[memberId] ?? 0;
+                const memberName = `${targetMember?.nome || ''} ${targetMember?.cognome || ''}`.trim() || targetMember?.displayName || 'Partecipante';
+                const phaseLabel = phase === 'caparra' ? 'Caparra' : 'Saldo';
+                fetch('/api/send-payment-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${idToken}`,
+                    },
+                    body: JSON.stringify({
+                        directEmail: memberEmail,
+                        directDisplayName: memberName,
+                        familyHeadId: targetMember?.familyId || undefined,
+                        paymentItems: [{
+                            memberName,
+                            raccoltaNome: raccolta.nome,
+                            phase: phaseLabel,
+                            amount: String(importo),
+                        }],
+                        paymentMethod: 'contanti',
+                    }),
+                }).catch(e => console.warn('Errore invio ricevuta batch:', e));
+            }
+        }).catch(e => console.warn('Token non disponibile:', e));
     };
 
     const calculateTotals = (faseKey: 'faseConferma' | 'faseCaparra' | 'faseSaldo') => {

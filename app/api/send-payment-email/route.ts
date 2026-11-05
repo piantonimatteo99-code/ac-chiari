@@ -15,7 +15,9 @@ export interface PaymentItem {
 }
 
 interface EmailPayload {
-  familyHeadId: string;
+  familyHeadId?: string;
+  directEmail?: string;
+  directDisplayName?: string;
   paymentItems: PaymentItem[];
   paymentId?: string;
   receiptUrl?: string;
@@ -208,9 +210,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body: EmailPayload = await request.json();
-    const { familyHeadId, paymentItems, paymentId, receiptUrl, paymentMethod } = body;
+    const { familyHeadId, directEmail, directDisplayName, paymentItems, paymentId, receiptUrl, paymentMethod } = body;
 
-    if (!familyHeadId || !paymentItems || paymentItems.length === 0) {
+    if ((!familyHeadId && !directEmail) || !paymentItems || paymentItems.length === 0) {
       return NextResponse.json({ error: 'Dati mancanti' }, { status: 400 });
     }
 
@@ -229,29 +231,37 @@ export async function POST(request: NextRequest) {
 
     // ── Recupera TUTTI i membri del nucleo con account registrato ────────────────
     // Includiamo: il capofamiglia + tutti con familyId == familyHeadId
-    const familyHead = await getFamilyHeadEmail(familyHeadId);
-    
-    // Find all users linked to this family
-    const db = adminDb;
-    const linkedMembersSnap = await db.collection('users')
-      .where('familyId', '==', familyHeadId)
-      .get();
-
-    // Build recipient list: start with family head if found
     const recipients: { email: string; displayName: string }[] = [];
-    if (familyHead) {
-      recipients.push(familyHead);
+
+    // Se e' specificata un'email diretta (es. partecipante da modulo o utente singolo con email)
+    if (directEmail && directEmail.includes('@')) {
+      recipients.push({
+        email: directEmail.trim(),
+        displayName: directDisplayName || paymentItems[0]?.memberName || 'Partecipante',
+      });
     }
-    for (const memberDoc of linkedMembersSnap.docs) {
-      const m = memberDoc.data();
-      if (m.email && m.email !== familyHead?.email) {
-        recipients.push({
-          email: m.email,
-          displayName: m.displayName || `${m.nome || ''} ${m.cognome || ''}`.trim() || 'Membro',
-        });
+
+    // Se e' specificato familyHeadId, cerca anche nella famiglia
+    if (familyHeadId) {
+      const familyHead = await getFamilyHeadEmail(familyHeadId);
+      if (familyHead && !recipients.some(r => r.email === familyHead.email)) {
+        recipients.push(familyHead);
+      }
+      const db = adminDb;
+      const linkedMembersSnap = await db.collection('users')
+        .where('familyId', '==', familyHeadId)
+        .get();
+
+      for (const memberDoc of linkedMembersSnap.docs) {
+        const m = memberDoc.data();
+        if (m.email && !recipients.some(r => r.email === m.email)) {
+          recipients.push({
+            email: m.email,
+            displayName: m.displayName || `${m.nome || ''} ${m.cognome || ''}`.trim() || 'Membro',
+          });
+        }
       }
     }
-
     if (recipients.length === 0) {
       console.warn(`[email] Nessun destinatario trovato per familyId: ${familyHeadId}`);
       return NextResponse.json({ success: true, skipped: true, reason: 'Nessun destinatario trovato' });
@@ -262,8 +272,8 @@ export async function POST(request: NextRequest) {
 
     const subject =
       paymentMethod === 'bonifico'
-        ? `✅ Pagamento confermato — ACR-${paymentId}`
-        : `✅ Pagamento in contanti registrato`;
+        ? (paymentId ? `✅ Ricevuta pagamento — ACR-${paymentId}` : `✅ Ricevuta pagamento — ${paymentItems[0]?.raccoltaNome || 'AC Chiari'}`)
+        : `✅ Ricevuta pagamento in contanti — ${paymentItems[0]?.raccoltaNome || 'AC Chiari'}`;
 
     const sentTo: string[] = [];
     for (const recipient of recipients) {

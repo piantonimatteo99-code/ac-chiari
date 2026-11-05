@@ -391,6 +391,8 @@ export default function PagamentiContantiPage() {
                     },
                     body: JSON.stringify({
                       familyHeadId,
+                      directEmail: member?.email || undefined,
+                      directDisplayName: memberName,
                       paymentItems: [{
                         memberName,
                         raccoltaNome: raccolta.nome,
