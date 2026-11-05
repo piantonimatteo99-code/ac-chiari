@@ -143,6 +143,12 @@ export default function PagamentiContantiPage() {
     }, [firestore]);
     const { data: groupsData } = useCollection<Group>(groupsQuery);
 
+    const formCollectionRowsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'form_collection_rows');
+    }, [firestore]);
+    const { data: formCollectionRowsData } = useCollection<any>(formCollectionRowsQuery);
+
     const allMembers = useMemo(() => {
         if (!membersData && !usersData) return [];
         const combinedList: UnifiedMember[] = [];
@@ -258,10 +264,37 @@ export default function PagamentiContantiPage() {
 
     }, [cashMovements, usersData]);
 
-    const getTargetGroupMembers = (raccolta: Raccolta) => {
+    const getTargetGroupMembers = (raccolta: Raccolta): UnifiedMember[] => {
         const targetGroupIds = new Set(raccolta.gruppiId);
-        return allMembers
-            .filter(member => member.groupId && targetGroupIds.has(member.groupId))
+        const regularMembers = allMembers
+            .filter(member => member.groupId && targetGroupIds.has(member.groupId));
+
+        // Aggiungi i partecipanti da form (raccolte create da un modulo)
+        const fromFormId = (raccolta as any).fromFormId;
+        const formMembers: UnifiedMember[] = fromFormId
+            ? (formCollectionRowsData ?? []).filter((row: any) => {
+                if (row.formId !== fromFormId) return false;
+                if (row.raccoltaId && row.raccoltaId !== raccolta.id) return false;
+                return true;
+              }).map((row: any) => {
+                const parts = (row.displayName || '').trim().split(' ');
+                return {
+                    id: row.id,
+                    nome: parts[0] || '',
+                    cognome: parts.slice(1).join(' ') || '',
+                    groupId: undefined,
+                    groupName: 'Esterni (form)',
+                    familyId: undefined,
+                    isFromForm: true,
+                    displayName: row.displayName,
+                    email: row.email,
+                    phone: row.phone,
+                    total: row.total,
+                } as UnifiedMember;
+              })
+            : [];
+
+        return [...regularMembers, ...formMembers]
             .sort((a, b) => (a.cognome || '').localeCompare(b.cognome || ''));
     };
     

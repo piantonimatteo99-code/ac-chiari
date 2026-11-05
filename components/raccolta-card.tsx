@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useMemo, useState } from 'react';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -542,6 +542,11 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
 
         const confirmedInGroups = raccolta.confermatiIds?.filter(id => targetGroupMembers.some(m => m.id === id)) || [];
 
+        // Partecipanti da form: contano sempre come iscritti confermati
+        const formMembers = targetGroupMembers.filter(m => (m as any).isFromForm);
+        const formMembersCount = formMembers.length;
+        const formMembersTotal = formMembers.reduce((sum, m) => sum + ((m as any).total ?? 0), 0);
+
         // Helper: risolve l'importo di una fase per un membro con eventuale tariffa personalizzata per gruppo
         const getCustomOrDefault = (member: UnifiedMember, defaultImporto: string, customImporto: string | undefined): number => {
             if (customImporto !== undefined && customImporto !== '') {
@@ -556,11 +561,12 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                 const faseData = raccolta.faseConferma;
                 denominator = targetGroupMembers.length;
                 const confirmedMembers = targetGroupMembers.filter(m => raccolta.confermatiIds?.includes(m.id));
-                numerator = confirmedMembers.length;
+                numerator = confirmedMembers.length + formMembersCount;
                 incasso = confirmedMembers.reduce((sum, member) => {
                     const ct = raccolta.tariffePersonalizzate?.find(t => t.groupId === member.groupId);
                     return sum + getCustomOrDefault(member, faseData.importo, ct?.importoConferma);
                 }, 0);
+                incasso += formMembersTotal;
                 break;
             }
             case 'faseCaparra': {

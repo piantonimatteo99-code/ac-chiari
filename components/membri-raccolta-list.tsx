@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -40,7 +40,7 @@ interface MembriRaccoltaListProps {
   isLoading: boolean;
   // Educator ghost management
   canManageGhosts?: boolean;
-  canManageAll?: boolean; // Admin o educatore con accesso contabilità: gestisce tutti i partecipanti
+  canManageAll?: boolean; // Admin o educatore con accesso contabilitÃ : gestisce tutti i partecipanti
   myEducatorGroupIds?: Set<string>;
   onRequestGhostAction?: (ghostId: string, ghostName: string, phase: 'conferma' | 'caparra' | 'saldo', currentValue: boolean, isPlaceholder?: boolean) => void;
   getGhostAmount?: (ghostId: string, phase: 'caparra' | 'saldo') => number;
@@ -63,16 +63,16 @@ export function isNessunaAllergia(str: string): boolean {
 }
 
 /**
- * Estrae l'anno di nascita da un valore dataNascita che può essere:
- *  - Stringa ISO "YYYY-MM-DD"  →  new Date() funziona
- *  - Stringa italiana "DD/MM/YYYY"  →  new Date() restituirebbe NaN, gestita manualmente
+ * Estrae l'anno di nascita da un valore dataNascita che puÃ² essere:
+ *  - Stringa ISO "YYYY-MM-DD"  â†’  new Date() funziona
+ *  - Stringa italiana "DD/MM/YYYY"  â†’  new Date() restituirebbe NaN, gestita manualmente
  *  - Firestore Timestamp (oggetto con .toDate())
  *  - Oggetto Date nativo
  */
 const getBirthYear = (dataNascita: unknown): number | null => {
   if (!dataNascita) return null;
 
-  // Firestore Timestamp → .toDate()
+  // Firestore Timestamp â†’ .toDate()
   if (typeof dataNascita === 'object' && dataNascita !== null && typeof (dataNascita as any).toDate === 'function') {
     const d = (dataNascita as any).toDate() as Date;
     const y = d.getFullYear();
@@ -87,7 +87,7 @@ const getBirthYear = (dataNascita: unknown): number | null => {
 
   const str = String(dataNascita).trim();
 
-  // Formato DD/MM/YYYY (il più comune per i ghost importati da CSV)
+  // Formato DD/MM/YYYY (il piÃ¹ comune per i ghost importati da CSV)
   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
     const parts = str.split('/');
     return parseInt(parts[2], 10) || null;
@@ -145,7 +145,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
   const [cartMembers, setCartMembers] = useState<Set<string>>(new Set());
   const [isCartProcessing, setIsCartProcessing] = useState(false);
 
-  // Fase carrello: per tesseramento → 'tesseramento'; per raccolte standard → 'caparra' o 'saldo'
+  // Fase carrello: per tesseramento â†’ 'tesseramento'; per raccolte standard â†’ 'caparra' o 'saldo'
   const defaultCartPhase = (() => {
     if (raccolta.tipo === 'tesseramento') return 'tesseramento' as const;
     if (raccolta.faseCaparra.attiva) return 'caparra' as const;
@@ -195,7 +195,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
   }, [allMembers, raccolta.confermatiIds]);
 
   // Conta i fratelli che hanno PAGATO il saldo (usato in calculatePaidTotal)
-  // Coerente con la formula retroattiva: N fratelli pagati → N × scontato
+  // Coerente con la formula retroattiva: N fratelli pagati â†’ N Ã— scontato
   const paidSaldoFamilyCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     if (!raccolta.saldoPaidIds) return counts;
@@ -218,7 +218,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
   const cartAmounts = useMemo<Record<string, number>>(() => {
     if (cartMembers.size === 0) return {};
 
-    // ── Tesseramento: tariffe con sconto famiglia ──────────────────────────
+    // â”€â”€ Tesseramento: tariffe con sconto famiglia â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (raccolta.tipo === 'tesseramento' && tariffe) {
       const byFamily = new Map<string, UnifiedMember[]>();
       cartMembers.forEach(memberId => {
@@ -238,15 +238,15 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
             (raccolta.tesseratiIds ?? []).includes(m.id)
         ).length;
 
-        // Totale fratelli nella famiglia (già tesserati + nel carrello corrente)
+        // Totale fratelli nella famiglia (giÃ  tesserati + nel carrello corrente)
         const totalFamilyCount = alreadyTesserated + familyCart.length;
 
-        // REGOLA: tutti i fratelli ricevono lo sconto del 20% se ≥2 nella stessa famiglia
+        // REGOLA: tutti i fratelli ricevono lo sconto del 20% se â‰¥2 nella stessa famiglia
         familyCart.forEach(member => {
           const tariffa = getTariffaForMember(member, tariffe);
           let importo = 0;
-          if (totalFamilyCount >= 4)      importo = tariffa?.gratuita ?? 0;        // 4°+: gratuità
-          else if (totalFamilyCount >= 2) importo = tariffa?.quotaScontata ?? 0;   // 2°/3°: tutti scontati
+          if (totalFamilyCount >= 4)      importo = tariffa?.gratuita ?? 0;        // 4Â°+: gratuitÃ 
+          else if (totalFamilyCount >= 2) importo = tariffa?.quotaScontata ?? 0;   // 2Â°/3Â°: tutti scontati
           else                            importo = tariffa?.quotaIntera ?? 0;     // figlio unico: pieno
           amounts[member.id] = importo;
         });
@@ -255,7 +255,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
       return amounts;
     }
 
-    // ── Raccolta standard: importo della fase selezionata ─────────────────
+    // â”€â”€ Raccolta standard: importo della fase selezionata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const amounts: Record<string, number> = {};
     const faseData = cartPhase === 'caparra' ? raccolta.faseCaparra : raccolta.faseSaldo;
 
@@ -305,7 +305,10 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
   };
 
   const calculateTotal = (member: UnifiedMember): number => {
-    // Per il tesseramento: il totale atteso è la tariffa del membro
+    // Per i partecipanti da form: il totale e' quello registrato nella form_collection_row
+    if (member.isFromForm) return member.total ?? 0;
+
+    // Per il tesseramento: il totale atteso Ã¨ la tariffa del membro
     if (raccolta.tipo === 'tesseramento') {
       if (!tariffe) return 0;
       const tariffa = getTariffaForMember(member, tariffe);
@@ -340,7 +343,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
     
     let saldoImporto = getPhaseImporto(faseSaldo.importo, customTariff?.importoSaldo);
     
-    // Applica sconto fratelli solo se non c'è tariffa personalizzata per il saldo
+    // Applica sconto fratelli solo se non c'Ã¨ tariffa personalizzata per il saldo
     if (!customTariff?.importoSaldo && faseSaldo.tariffaFratelliAttiva && member.familyId && (familyCounts[member.familyId] || 0) >= 2) {
         saldoImporto = parseFloat(faseSaldo.importoTariffaFratelli || '0') || saldoImporto;
     }
@@ -353,7 +356,10 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
   };
 
   const calculatePaidTotal = (member: UnifiedMember): number => {
-    // Per il tesseramento: il pagato è la tariffa effettivamente incassata (se tesserato)
+    // Per i partecipanti da form: il pagato e' sempre 0 (il pagamento avviene esternamente)
+    if (member.isFromForm) return 0;
+
+    // Per il tesseramento: il pagato Ã¨ la tariffa effettivamente incassata (se tesserato)
     if (raccolta.tipo === 'tesseramento') {
       const isAlreadyTesserated = (raccolta.tesseratiIds ?? []).includes(member.id);
       if (!isAlreadyTesserated) return 0;
@@ -386,7 +392,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
     }
     if (faseSaldo.attiva && hasPaidSaldo) {
         let saldoImporto = getPhaseImporto(faseSaldo.importo, customTariff?.importoSaldo);
-        // Applica sconto fratelli solo se non c'è tariffa personalizzata per il saldo
+        // Applica sconto fratelli solo se non c'Ã¨ tariffa personalizzata per il saldo
         // e se >= 2 fratelli hanno effettivamente PAGATO (non solo confermato)
         if (!customTariff?.importoSaldo && faseSaldo.tariffaFratelliAttiva && member.familyId && (paidSaldoFamilyCounts[member.familyId] || 0) >= 2) {
             saldoImporto = parseFloat(faseSaldo.importoTariffaFratelli || '0') || saldoImporto;
@@ -410,7 +416,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
             member.groupName?.toLowerCase().includes(lowercasedFilter)
             : true;
 
-        const groupMatch = selectedGroup === 'tutti' || member.groupId === selectedGroup;
+        const groupMatch = selectedGroup === 'tutti' || member.groupId === selectedGroup || member.isFromForm === true;
         
         const confermaMatch = faseConferma.attiva ? (
             confermaStatus === 'tutti' ||
@@ -502,7 +508,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                     </Link>
                 );
             }
-            // Fallback se non ci sono dettagli di pagamento ma è segnato come pagato
+            // Fallback se non ci sono dettagli di pagamento ma Ã¨ segnato come pagato
             return <Badge variant="default" className='bg-green-600'>Pagato</Badge>;
         }
 
@@ -610,7 +616,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                  const totalAmount = calculateTotal(member);
                  const paidAmount = calculatePaidTotal(member);
 
-                 // Admin o educatori con contabilità possono agire su TUTTI i partecipanti (ghost e reali) di tutti i gruppi
+                 // Admin o educatori con contabilitÃ  possono agire su TUTTI i partecipanti (ghost e reali) di tutti i gruppi
                  // Educatori regolari possono agire solo sui ghost del loro gruppo
                  const canActOnMember =
                    canManageGhosts && (
@@ -618,11 +624,11 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                      (member.isPlaceholder && (myEducatorGroupIds?.has(member.groupId ?? '') ?? false))
                    );
 
-                  // Verifica se il membro è già tesserato (non può essere aggiunto al carrello)
+                  // Verifica se il membro Ã¨ giÃ  tesserato (non puÃ² essere aggiunto al carrello)
                  const isAlreadyTesserated = (raccolta.tesseratiIds ?? []).includes(member.id);
 
                  // Logica canAddToCart:
-                 // - tesseramento: solo se non già tesserato e canActOnMember
+                 // - tesseramento: solo se non giÃ  tesserato e canActOnMember
                  // - raccolta standard: se confermato e non ha ancora pagato la fase selezionata
                  let canAddToCart = false;
                  if (isEducatore && canActOnMember) {
@@ -635,7 +641,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                    }
                  }
 
-                 // Stato visivo: già completato (tesserato, o ha pagato la fase corrente)
+                 // Stato visivo: giÃ  completato (tesserato, o ha pagato la fase corrente)
                  const isCartDone = raccolta.tipo === 'tesseramento'
                    ? isAlreadyTesserated
                    : (cartPhase === 'caparra' ? hasPaidCaparra : hasPaidSaldo);
@@ -646,7 +652,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         {isEducatore && (
                           <TableCell className="text-center">
                             {isCartDone ? (
-                              <span title={raccolta.tipo === 'tesseramento' ? 'Già tesserato' : 'Già pagato'}>
+                              <span title={raccolta.tipo === 'tesseramento' ? 'GiÃ  tesserato' : 'GiÃ  pagato'}>
                                 <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
                               </span>
                             ) : canAddToCart ? (
@@ -656,7 +662,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                 aria-label={`Seleziona ${member.nome} ${member.cognome}`}
                               />
                             ) : (
-                              <span className="text-muted-foreground/40 text-xs">—</span>
+                              <span className="text-muted-foreground/40 text-xs">â€”</span>
                             )}
                           </TableCell>
                         )}
@@ -743,7 +749,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                 >
                                   {hasPaidCaparra
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
-                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Caparra {getGhostAmount ? `€${getGhostAmount(member.id, 'caparra').toFixed(2)}` : ''}</>}
+                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Caparra {getGhostAmount ? `â‚¬${getGhostAmount(member.id, 'caparra').toFixed(2)}` : ''}</>}
                                 </Button>
                               ) : (
                                 renderPaymentCell(member.id, 'caparra')
@@ -761,15 +767,15 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                 >
                                   {hasPaidSaldo
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
-                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Saldo {getGhostAmount ? `€${getGhostAmount(member.id, 'saldo').toFixed(2)}` : ''}</>}
+                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Saldo {getGhostAmount ? `â‚¬${getGhostAmount(member.id, 'saldo').toFixed(2)}` : ''}</>}
                                 </Button>
                               ) : (
                                 renderPaymentCell(member.id, 'saldo')
                               )}
                             </TableCell>
                         )}
-                        {columnVisibility.pagato && <TableCell className="text-right tabular-nums">€ {paidAmount.toFixed(2)}</TableCell>}
-                        {columnVisibility.totale && <TableCell className="text-right tabular-nums">€ {totalAmount.toFixed(2)}</TableCell>}
+                        {columnVisibility.pagato && <TableCell className="text-right tabular-nums">â‚¬ {paidAmount.toFixed(2)}</TableCell>}
+                        {columnVisibility.totale && <TableCell className="text-right tabular-nums">â‚¬ {totalAmount.toFixed(2)}</TableCell>}
                         {columnVisibility.allergie && (
                             <TableCell>
                                 {member.allergie && !isNessunaAllergia(member.allergie) ? (
@@ -777,7 +783,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                         {member.allergie}
                                     </span>
                                 ) : (
-                                    <span className="text-xs text-muted-foreground/50">—</span>
+                                    <span className="text-xs text-muted-foreground/50">â€”</span>
                                 )}
                             </TableCell>
                         )}
@@ -795,8 +801,8 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
           <TableFooter>
             <TableRow>
                 <TableCell colSpan={visibleColumnCount - 2}><span className='font-bold'>Totali Filtrati</span></TableCell>
-                {columnVisibility.pagato && <TableCell className="text-right font-bold tabular-nums">€ {tableTotals.totalPaid.toFixed(2)}</TableCell>}
-                {columnVisibility.totale && <TableCell className="text-right font-bold tabular-nums">€ {tableTotals.totalDue.toFixed(2)}</TableCell>}
+                {columnVisibility.pagato && <TableCell className="text-right font-bold tabular-nums">â‚¬ {tableTotals.totalPaid.toFixed(2)}</TableCell>}
+                {columnVisibility.totale && <TableCell className="text-right font-bold tabular-nums">â‚¬ {tableTotals.totalDue.toFixed(2)}</TableCell>}
             </TableRow>
           </TableFooter>
         </Table>
@@ -810,7 +816,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
               <div className="flex items-center gap-2 flex-wrap">
                 <ShoppingCart className="h-5 w-5 text-emerald-700" />
                 <h3 className="font-semibold text-emerald-800 dark:text-emerald-300 text-sm">
-                  Carrello —&nbsp;{cartMembers.size} {cartMembers.size === 1 ? 'membro selezionato' : 'membri selezionati'}
+                  Carrello â€”&nbsp;{cartMembers.size} {cartMembers.size === 1 ? 'membro selezionato' : 'membri selezionati'}
                 </h3>
                 {/* Selettore fase per raccolte standard */}
                 {raccolta.tipo !== 'tesseramento' && (
@@ -860,7 +866,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                 if (tariffa) {
                   if (importo === tariffa.quotaIntera) tipoLabel = 'quota intera';
                   else if (importo === tariffa.quotaScontata) tipoLabel = 'quota scontata';
-                  else if (importo === tariffa.gratuita) tipoLabel = importo === 0 ? 'gratuito' : 'gratuità';
+                  else if (importo === tariffa.gratuita) tipoLabel = importo === 0 ? 'gratuito' : 'gratuitÃ ';
                 } else if (raccolta.tipo !== 'tesseramento') {
                   tipoLabel = cartPhase === 'caparra' ? 'caparra' : 'saldo';
                 }
@@ -899,7 +905,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         </span>
                       )}
                       <span className="font-bold text-sm tabular-nums">
-                        € {importo.toFixed(2)}
+                        â‚¬ {importo.toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -912,7 +918,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
               <div className="flex flex-col">
                 <span className="text-xs text-muted-foreground">Totale da incassare</span>
                 <span className="text-xl font-bold text-emerald-800 dark:text-emerald-300 tabular-nums">
-                  € {cartTotal.toFixed(2)}
+                  â‚¬ {cartTotal.toFixed(2)}
                 </span>
               </div>
               <Button
@@ -925,7 +931,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                 ) : (
                   <>
                     <Banknote className="h-4 w-4" />
-                    Conferma incasso contanti — € {cartTotal.toFixed(2)}
+                    Conferma incasso contanti â€” â‚¬ {cartTotal.toFixed(2)}
                   </>
                 )}
               </Button>
@@ -940,7 +946,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-600" />
             <h3 className="font-semibold text-orange-800 text-sm">
-              Allergie / Intolleranze — Iscritti a questo progetto
+              Allergie / Intolleranze â€” Iscritti a questo progetto
             </h3>
           </div>
           <p className="text-xs text-orange-700">
@@ -962,11 +968,11 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                       {member.nome} {member.cognome}
                     </td>
                     <td className="py-2 pr-4 text-orange-700">
-                      {member.groupName || '—'}
+                      {member.groupName || 'â€”'}
                     </td>
                     <td className="py-2">
                       <span className="inline-block text-xs font-semibold text-orange-800 bg-orange-100 border border-orange-300 rounded-full px-3 py-1">
-                        ⚠️ {member.allergie}
+                        âš ï¸ {member.allergie}
                       </span>
                     </td>
                   </tr>
