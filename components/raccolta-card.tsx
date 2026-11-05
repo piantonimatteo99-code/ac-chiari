@@ -153,8 +153,8 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
     const formRowsQuery = useMemoFirebase(() => {
         const fromFormId = (raccolta as any).fromFormId;
         if (!firestore || !fromFormId) return null;
-        return query(collection(firestore, 'form_collection_rows'), where('raccoltaId', '==', raccolta.id));
-    }, [firestore, raccolta.id, (raccolta as any).fromFormId]);
+        return query(collection(firestore, 'form_collection_rows'), where('formId', '==', fromFormId));
+    }, [firestore, (raccolta as any).fromFormId]);
     const { data: formRowsData } = useCollection<any>(formRowsQuery);
 
     // Ruoli educatori dell'utente corrente (per verificare accesso contabilità)
@@ -236,6 +236,8 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
 
         // Partecipanti da moduli (raccolte create da form)
         formRowsData?.forEach(row => {
+            // Includi solo righe di questa raccolta (o senza raccoltaId assegnato)
+            if (row.raccoltaId && row.raccoltaId !== raccolta.id) return;
             // Estrai nome/cognome dal displayName ("Nome Cognome")
             const parts = (row.displayName || '').trim().split(' ');
             const nome = parts[0] || '';
@@ -259,7 +261,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         });
         return combinedList;
 
-    }, [usersData, membersData, importedMembersData, groupsData, formRowsData]);
+    }, [usersData, membersData, importedMembersData, groupsData, formRowsData, raccolta.id]);
 
     const targetGroupMembers = useMemo(() => {
         const isFromForm = !!(raccolta as any).fromFormId;
