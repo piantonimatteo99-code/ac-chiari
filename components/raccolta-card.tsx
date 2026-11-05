@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -157,7 +157,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
     }, [firestore, (raccolta as any).fromFormId]);
     const { data: formRowsData } = useCollection<any>(formRowsQuery);
 
-    // Ruoli educatori dell'utente corrente (per verificare accesso contabilità)
+    // Ruoli educatori dell'utente corrente (per verificare accesso contabilitÃ )
     const myEducatorRolesQuery = useMemoFirebase(() => {
         const uid = userData?.id ?? '';
         if (!firestore || !uid) return null;
@@ -211,10 +211,10 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         });
 
         importedMembersData?.forEach(imported => {
-            if (imported.matchedWith) return; // già matchato, non mostrarlo come ghost
+            if (imported.matchedWith) return; // giÃ  matchato, non mostrarlo come ghost
             const resolvedGroup = ghostGroupMap.get(imported.id);
 
-            // familyId virtuale basato sull'indirizzo → sconto fratelli per ghost stessa famiglia
+            // familyId virtuale basato sull'indirizzo â†’ sconto fratelli per ghost stessa famiglia
             const addressKey = [imported.via, imported.numeroCivico, imported.citta]
                 .map((s: string) => (s || '').toLowerCase().trim().replace(/\s+/g, ''))
                 .filter(Boolean)
@@ -271,7 +271,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                 // I partecipanti da form (isFromForm) sono sempre inclusi nella lista
                 if ((member as any).isFromForm) return isFromForm;
                 if (!member.groupId || !targetGroupIds.has(member.groupId)) return false;
-                // Se filterGroupId � impostato, mostra solo i membri di quel gruppo
+                // Se filterGroupId è impostato, mostra solo i membri di quel gruppo
                 if (filterGroupId && member.groupId !== filterGroupId) return false;
                 return true;
             })
@@ -281,12 +281,12 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
 
     const isLoading = isLoadingMembers || isLoadingUsers || isLoadingMovimentiContanti;
 
-    // ── Rilevamento educatore e suoi gruppi ──────────────────────────────────
+    // â”€â”€ Rilevamento educatore e suoi gruppi â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const isAdmin = userData?.roles?.includes('admin') ?? false;
     const isEducatore = userData?.roles?.includes('educatore') ?? false;
     const currentUserId = userData?.id ?? '';
 
-    // Gruppi in cui l'utente corrente è educatore
+    // Gruppi in cui l'utente corrente Ã¨ educatore
     const myEducatorGroupIds = useMemo(() => {
         if (!groupsData || !currentUserId) return new Set<string>();
         return new Set(
@@ -296,7 +296,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         );
     }, [groupsData, currentUserId]);
 
-    // Educatore con accesso alla contabilità delle raccolte attive
+    // Educatore con accesso alla contabilitÃ  delle raccolte attive
     const hasAccountingAccess = useMemo(() => {
         if (!myEducatorRolesData) return false;
         return myEducatorRolesData.some(role =>
@@ -305,27 +305,27 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
     }, [myEducatorRolesData]);
 
     const canManageGhosts = isAdmin || isEducatore;
-    // Admin o educatori con accesso contabilità possono gestire TUTTI i partecipanti di TUTTI i gruppi
+    // Admin o educatori con accesso contabilitÃ  possono gestire TUTTI i partecipanti di TUTTI i gruppi
     const canManageAll = isAdmin || hasAccountingAccess;
 
-    // ── Dialog pagamento ghost ────────────────────────────────────────────────
+    // â”€â”€ Dialog pagamento ghost â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     type GhostAction = 'conferma' | 'caparra' | 'saldo';
     const [ghostDialog, setGhostDialog] = useState<{
         ghostId: string;
         ghostName: string;
         phase: GhostAction;
-        currentValue: boolean; // stato attuale (true = già pagato/confermato)
+        currentValue: boolean; // stato attuale (true = giÃ  pagato/confermato)
         amount: number;
         isPlaceholder?: boolean;
     } | null>(null);
     const [isDialogProcessing, setIsDialogProcessing] = useState(false);
 
-    // ── Calcolo importo membro con tariffe personalizzate e sconto fratelli retroattivo ──────
+    // â”€â”€ Calcolo importo membro con tariffe personalizzate e sconto fratelli retroattivo â”€â”€â”€â”€â”€â”€
     const calculateMemberPaymentAmount = (memberId: string, phase: 'caparra' | 'saldo'): number => {
         const member = allMembers.find(m => m.id === memberId);
         const faseData = phase === 'caparra' ? raccolta.faseCaparra : raccolta.faseSaldo;
 
-        // Verifica se c'è una tariffa personalizzata per il gruppo del membro
+        // Verifica se c'Ã¨ una tariffa personalizzata per il gruppo del membro
         const customTariff = raccolta.tariffePersonalizzate?.find(t => t.groupId === member?.groupId);
         const customImporto = phase === 'caparra' ? customTariff?.importoCaparra : customTariff?.importoSaldo;
         const hasCustomImporto = customTariff !== undefined && customImporto !== undefined && customImporto !== '';
@@ -334,15 +334,15 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
             ? (parseFloat(customImporto!) >= 0 ? parseFloat(customImporto!) : parseFloat(faseData?.importo) || 0)
             : (parseFloat(faseData?.importo) || 0);
 
-        // Con tariffa personalizzata a 0, non applicare sconto fratelli (già 0)
+        // Con tariffa personalizzata a 0, non applicare sconto fratelli (giÃ  0)
         if (hasCustomImporto && fullPrice === 0) return 0;
 
-        // Se non c'è sconto fratelli attivo o il membro non ha familyId, prezzo pieno
+        // Se non c'Ã¨ sconto fratelli attivo o il membro non ha familyId, prezzo pieno
         if (!member?.familyId || !faseData?.tariffaFratelliAttiva) return fullPrice;
 
         const discountedPrice = parseFloat(faseData.importoTariffaFratelli || '0') || fullPrice;
 
-        // Conta i fratelli dello stesso nucleo familiare già pagati
+        // Conta i fratelli dello stesso nucleo familiare giÃ  pagati
         const paidIds = new Set(
             phase === 'caparra' ? (raccolta.caparraPaidIds ?? []) : (raccolta.saldoPaidIds ?? [])
         );
@@ -352,8 +352,8 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
 
         // Formula retroattiva:
         // n=0 (primo a pagare): prezzo pieno
-        // n=1 (secondo): (2 × scontato) - pieno
-        // n≥2 (terzo+): scontato
+        // n=1 (secondo): (2 Ã— scontato) - pieno
+        // nâ‰¥2 (terzo+): scontato
         if (paidSiblingsCount === 0) return fullPrice;
         if (paidSiblingsCount === 1) return Math.max(0, 2 * discountedPrice - fullPrice);
         return discountedPrice;
@@ -390,7 +390,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                 [field]: arrayUnion(ghostId),
                 confermatiIds: arrayUnion(ghostId), // auto-conferma
             });
-            // Crea un movimento contanti così appare nel Conto e nel riepilogo contanti da consegnare
+            // Crea un movimento contanti cosÃ¬ appare nel Conto e nel riepilogo contanti da consegnare
             const movRef = doc(collection(firestore, 'movimenti-contanti'));
             batch.set(movRef, {
                 raccoltaId: raccolta.id,
@@ -446,14 +446,14 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
     };
 
     /**
-     * Conferma l'incasso contanti per più membri in un'unica operazione batch (carrello educatore).
+     * Conferma l'incasso contanti per piÃ¹ membri in un'unica operazione batch (carrello educatore).
      * Gestisce sia il tesseramento sia le fasi caparra/saldo delle raccolte standard.
      */
     const handleBatchPaymentConfirm = async (memberIds: string[], amounts: Record<string, number>, phase: 'tesseramento' | 'caparra' | 'saldo') => {
         if (!firestore || memberIds.length === 0) return;
 
         if (phase === 'tesseramento') {
-            // ── Tesseramento: logica esistente ──────────────────────────────
+            // â”€â”€ Tesseramento: logica esistente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             const getCurrentMembershipYear = () => {
                 const today = new Date();
                 return today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
@@ -508,7 +508,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
             return;
         }
 
-        // ── Raccolta standard: caparra o saldo ────────────────────────────
+        // â”€â”€ Raccolta standard: caparra o saldo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const raccoltaRef = doc(firestore, 'raccolte', raccolta.id);
         const paidIdsField = phase === 'caparra' ? 'caparraPaidIds' : 'saldoPaidIds';
         const batch = writeBatch(firestore);
@@ -581,7 +581,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                 numerator = paidSaldoMembers.length;
 
                 // Conta i fratelli che hanno PAGATO (non solo confermati) per coerenza
-                // con la formula retroattiva: se N fratelli hanno pagato → N × scontato
+                // con la formula retroattiva: se N fratelli hanno pagato â†’ N Ã— scontato
                 const paidFamilyCounts: Record<string, number> = {};
                 paidSaldoMembers.forEach(member => {
                     if (member.familyId) {
@@ -592,7 +592,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                 incasso = paidSaldoMembers.reduce((sum, member) => {
                     const ct = raccolta.tariffePersonalizzate?.find(t => t.groupId === member.groupId);
                     const customImporto = ct?.importoSaldo;
-                    // Se c'è tariffa personalizzata, usala (senza sconto fratelli)
+                    // Se c'Ã¨ tariffa personalizzata, usala (senza sconto fratelli)
                     if (customImporto !== undefined && customImporto !== '') {
                         const v = parseFloat(customImporto);
                         const price = isNaN(v) || v < 0 ? (parseFloat(faseData.importo) || 0) : v;
@@ -685,7 +685,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
             }
         } catch (error) {
              console.error("Errore during l'aggiornamento dell'archivio:", error);
-             alert(`Si è verificato un errore: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`);
+             alert(`Si Ã¨ verificato un errore: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`);
         } finally {
             setIsArchiving(false);
         }
@@ -700,12 +700,12 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         return (
              <TableRow>
                 <TableCell className="font-medium">{nome}</TableCell>
-                <TableCell className="text-right">€ {fase.importo || '0.00'}</TableCell>
+                <TableCell className="text-right">â‚¬ {fase.importo || '0.00'}</TableCell>
                 <TableCell className='text-center'>{renderStatusIcon(fase.attiva)}</TableCell>
                 <TableCell className="text-right">
                      <span className="text-sm text-muted-foreground">{numerator}/{denominator}</span>
                 </TableCell>
-                <TableCell className="text-right">€ {incasso.toFixed(2)}</TableCell>
+                <TableCell className="text-right">â‚¬ {incasso.toFixed(2)}</TableCell>
                 <TableCell className="text-right">{formatDate(fase.dataFine)}</TableCell>
                 <TableCell className='text-center'>
                     <Switch
@@ -730,7 +730,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                     </div>
                      <div className='flex flex-grow justify-end items-center gap-4 px-6'>
                         <span className="font-medium text-muted-foreground">Totale Incasso:</span>
-                        <span className="font-semibold text-lg">€ {totalIncome.toFixed(2)}</span>
+                        <span className="font-semibold text-lg">â‚¬ {totalIncome.toFixed(2)}</span>
                     </div>
                      <div className='flex items-center gap-2'>
                         <AccordionTrigger className="p-2 hover:bg-accent rounded-md [&[data-state=open]>svg]:rotate-0" />
@@ -790,7 +790,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                                 <TableRow>
                                     <TableCell className='text-center'>{renderStatusIcon(true)}</TableCell>
                                     <TableCell className='text-center'>{raccolta.tesseratiIds?.length || 0}</TableCell>
-                                    <TableCell className="text-right">€ {totalIncome.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">â‚¬ {totalIncome.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">-</TableCell>
                                     <TableCell className='text-center'>
                                         <Switch
@@ -832,7 +832,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
             </AccordionContent>
         </AccordionItem>
 
-        {/* ── Dialog conferma azione ghost ─────────────────────────────────── */}
+        {/* â”€â”€ Dialog conferma azione ghost â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <Dialog open={!!ghostDialog} onOpenChange={(open) => { if (!open) setGhostDialog(null); }}>
             <DialogContent>
                 <DialogHeader>
@@ -846,7 +846,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                             ? 'Vuoi rimuovere questo stato per il membro selezionato?'
                             : ghostDialog?.phase === 'conferma'
                                 ? 'Conferma la partecipazione del membro al progetto.'
-                                : 'Il pagamento verrà registrato come incasso in contanti e apparirà nel Conto.'}
+                                : 'Il pagamento verrÃ  registrato come incasso in contanti e apparirÃ  nel Conto.'}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -874,7 +874,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                     {(ghostDialog?.phase === 'caparra' || ghostDialog?.phase === 'saldo') && ghostDialog?.amount > 0 && (
                         <div className="flex items-center justify-between rounded-lg border p-3">
                             <span className="text-sm text-muted-foreground">Importo</span>
-                            <span className="font-bold text-lg">€{ghostDialog.amount.toFixed(2)}</span>
+                            <span className="font-bold text-lg">â‚¬{ghostDialog.amount.toFixed(2)}</span>
                         </div>
                     )}
                 </div>
@@ -891,7 +891,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                     >
                         {isDialogProcessing ? 'Salvataggio...' : ghostDialog?.currentValue
                             ? 'Rimuovi'
-                            : ghostDialog?.phase === 'conferma' ? 'Conferma partecipazione' : <><Banknote className="h-4 w-4 mr-1" />Conferma incasso €{ghostDialog?.amount.toFixed(2)}</>}
+                            : ghostDialog?.phase === 'conferma' ? 'Conferma partecipazione' : <><Banknote className="h-4 w-4 mr-1" />Conferma incassoÂ â‚¬{ghostDialog?.amount.toFixed(2)}</>}
                     </Button>
                 </DialogFooter>
             </DialogContent>
