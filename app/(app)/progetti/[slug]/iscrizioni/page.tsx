@@ -37,7 +37,20 @@ export default function ProgettoIscrizioniPage() {
         if (!firestore || !progetto?.raccoltaId) return null;
         return doc(firestore, 'raccolte', progetto.raccoltaId);
     }, [firestore, progetto?.raccoltaId]);
-    const { data: raccoltaData, isLoading: isLoadingRaccolta } = useDoc<Raccolta>(raccoltaDocRef);
+    const { data: directRaccoltaData, isLoading: isLoadingDirectRaccolta } = useDoc<Raccolta>(raccoltaDocRef);
+
+    // Fallback: se non c'è raccoltaId diretto, cerca raccolte legate al progetto (es. generate da form)
+    const projectRaccolteQuery = useMemoFirebase(() => {
+        if (!firestore || !progetto?.id || progetto?.raccoltaId) return null;
+        return query(collection(firestore, 'raccolte'), where('projectId', '==', progetto.id), where('archived', '==', false));
+    }, [firestore, progetto?.id, progetto?.raccoltaId]);
+    const { data: projectRaccolteData, isLoading: isLoadingProjectRaccolte } = useCollection<Raccolta>(projectRaccolteQuery);
+
+    const raccoltaData = useMemo(() => {
+        return directRaccoltaData || projectRaccolteData?.[0] || null;
+    }, [directRaccoltaData, projectRaccolteData]);
+
+    const isLoadingRaccolta = isLoadingDirectRaccolta || (isLoadingProjectRaccolte && !directRaccoltaData);
 
     const canEdit = useMemo(() => {
         if (!userData) return false;

@@ -151,7 +151,27 @@ export default function ProgettoDettaglioPage() {
         if (!firestore || !progetto?.raccoltaId) return null;
         return doc(firestore, 'raccolte', progetto.raccoltaId);
     }, [firestore, progetto?.raccoltaId]);
-    const { data: raccoltaData, isLoading: isLoadingRaccolta } = useDoc<Raccolta>(raccoltaDocRef);
+    const { data: directRaccoltaData, isLoading: isLoadingDirectRaccolta } = useDoc<Raccolta>(raccoltaDocRef);
+
+    // Fallback: se non c'è raccoltaId diretto, cerca raccolte legate al progetto (es. generate da form)
+    const projectRaccolteQuery = useMemoFirebase(() => {
+        if (!firestore || !progetto?.id || progetto?.raccoltaId) return null;
+        return query(collection(firestore, 'raccolte'), where('projectId', '==', progetto.id), where('archived', '==', false));
+    }, [firestore, progetto?.id, progetto?.raccoltaId]);
+    const { data: projectRaccolteData, isLoading: isLoadingProjectRaccolte } = useCollection<Raccolta>(projectRaccolteQuery);
+
+    const raccoltaData = useMemo(() => {
+        return directRaccoltaData || projectRaccolteData?.[0] || null;
+    }, [directRaccoltaData, projectRaccolteData]);
+
+    const isLoadingRaccolta = isLoadingDirectRaccolta || (isLoadingProjectRaccolte && !directRaccoltaData);
+
+    const formRowsQuery = useMemoFirebase(() => {
+        const fromFormId = (raccoltaData as any)?.fromFormId;
+        if (!firestore || !fromFormId) return null;
+        return query(collection(firestore, 'form_collection_rows'), where('formId', '==', fromFormId));
+    }, [firestore, (raccoltaData as any)?.fromFormId]);
+    const { data: formRowsData } = useCollection<any>(formRowsQuery);
 
     const allGroupsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'gruppi') : null, [firestore]);
     const { data: allGroups, isLoading: isLoadingAllGroups } = useCollection<Group>(allGroupsQuery);
@@ -442,7 +462,7 @@ export default function ProgettoDettaglioPage() {
                 <>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <div className="rounded-lg border bg-card p-3 text-center">
-                            <p className="text-2xl font-bold text-primary">{raccoltaData.confermatiIds?.length ?? 0}</p>
+                            <p className="text-2xl font-bold text-primary">{(raccoltaData.confermatiIds?.length ?? 0) + ((formRowsData || []).filter((r: any) => !r.raccoltaId || r.raccoltaId === raccoltaData.id).length)}</p>
                             <p className="text-xs text-muted-foreground mt-1">Iscritti confermati</p>
                         </div>
                         {raccoltaData.faseCaparra?.attiva && (

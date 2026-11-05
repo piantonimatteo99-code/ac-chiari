@@ -314,6 +314,9 @@ function IdentificationStep({
   responseId,
   collectionRowId,
   raccoltaId,
+  initialExtName = '',
+  initialExtEmail = '',
+  initialExtPhone = '',
   onComplete,
 }: {
   form: FormSchema;
@@ -322,6 +325,9 @@ function IdentificationStep({
   responseId: string;
   collectionRowId: string | null;
   raccoltaId: string | null;
+  initialExtName?: string;
+  initialExtEmail?: string;
+  initialExtPhone?: string;
   onComplete: () => void;
 }) {
   const firestore = useFirestore();
@@ -330,9 +336,9 @@ function IdentificationStep({
   );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [extName, setExtName] = useState('');
-  const [extEmail, setExtEmail] = useState('');
-  const [extPhone, setExtPhone] = useState('');
+  const [extName, setExtName] = useState(initialExtName);
+  const [extEmail, setExtEmail] = useState(initialExtEmail);
+  const [extPhone, setExtPhone] = useState(initialExtPhone);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -468,7 +474,7 @@ function IdentificationStep({
         try {
           // Segna come "esterno" nella raccolta: aggiungiamo un entry in externalSubmissions
           await updateDoc(doc(firestore, 'raccolte', raccoltaId), {
-            [`externalSubmissions.${responseId}`]: {
+            ['externalSubmissions.' + responseId]: {
               displayName: extName.trim(),
               email: extEmail.trim() || null,
               phone: extPhone.trim() || null,
@@ -694,6 +700,7 @@ export default function PublicFormPage() {
   const [savedResponseId, setSavedResponseId] = useState<string | null>(null);
   const [savedCollectionRowId, setSavedCollectionRowId] = useState<string | null>(null);
   const [savedRaccoltaId, setSavedRaccoltaId] = useState<string | null>(null);
+  const [extractedIdent, setExtractedIdent] = useState<{ name: string; email: string; phone: string }>({ name: '', email: '', phone: '' });
 
   // Carica schema form
   useEffect(() => {
@@ -742,6 +749,47 @@ export default function PublicFormPage() {
       }
     }
 
+    // Estrazione automatica nome, cognome, email, telefono inseriti prima dell'invio
+    let extractedNome = '';
+    let extractedCognome = '';
+    let extractedEmail = '';
+    let extractedPhone = '';
+
+    for (const q of form.questions) {
+      const val = answers[q.id];
+      if (!val || typeof val !== 'string') continue;
+      const trimmed = val.trim();
+      if (!trimmed) continue;
+      const lbl = (q.label || '').toLowerCase().trim();
+
+      if (
+        lbl === 'nome e cognome' ||
+        lbl === 'cognome e nome' ||
+        lbl.includes('nome e cognome') ||
+        lbl.includes('nominativo')
+      ) {
+        if (!extractedNome) extractedNome = trimmed;
+      } else if (lbl === 'nome' || lbl.startsWith('nome ') || lbl.endsWith(' nome') || lbl === 'il tuo nome') {
+        if (!extractedNome) extractedNome = trimmed;
+      } else if (lbl === 'cognome' || lbl.startsWith('cognome ') || lbl.endsWith(' cognome') || lbl === 'il tuo cognome') {
+        if (!extractedCognome) extractedCognome = trimmed;
+      } else if (q.type === 'email' || lbl.includes('email') || lbl.includes('e-mail')) {
+        if (!extractedEmail) extractedEmail = trimmed;
+      } else if (q.type === 'phone' || lbl.includes('telefono') || lbl.includes('cellulare') || lbl.includes('tel')) {
+        if (!extractedPhone) extractedPhone = trimmed;
+      }
+    }
+
+    const preSubmitDisplayName = (extractedNome && extractedCognome)
+      ? (extractedNome + ' ' + extractedCognome)
+      : (extractedNome || extractedCognome || null);
+
+    setExtractedIdent({
+      name: preSubmitDisplayName || '',
+      email: extractedEmail || '',
+      phone: extractedPhone || '',
+    });
+
     setIsSubmitting(true);
     try {
       // Firestore non accetta undefined — usiamo null per i campi opzionali
@@ -749,10 +797,10 @@ export default function PublicFormPage() {
         formId: form.id,
         projectId: form.projectId,
         userId: null,
-        displayName: null,
-        email: null,
-        phone: null,
-        isAnonymous: true,
+        displayName: preSubmitDisplayName || null,
+        email: extractedEmail || null,
+        phone: extractedPhone || null,
+        isAnonymous: !preSubmitDisplayName,
         answers,
         total: total > 0 ? total : null,
         summaryText: null,
@@ -800,7 +848,7 @@ export default function PublicFormPage() {
         // ── Crea o recupera la raccolta Firestore al momento del submit ──
         // Così esiste indipendentemente dall'identificazione dell'utente
         let raccoltaId: string | null = null;
-        if (total > 0) {
+        if (form.generateCollection) {
           try {
             const existingSnap = await getDocs(
               query(collection(firestore, 'raccolte'), where('fromFormId', '==', form.id))
@@ -828,6 +876,18 @@ export default function PublicFormPage() {
                 projectId: form.projectId,
               });
               raccoltaId = raccoltaRef.id;
+
+              // Collega la raccolta al progetto se non ancora associata
+              if (form.projectId) {
+                try {
+                  const projDoc = await getDoc(doc(firestore, 'progetti', form.projectId));
+                  if (projDoc.exists() && !projDoc.data().raccoltaId) {
+                    await updateDoc(doc(firestore, 'progetti', form.projectId), { raccoltaId: raccoltaRef.id });
+                  }
+                } catch (pe) {
+                  console.warn('Errore collegamento raccolta al progetto:', pe);
+                }
+              }
             } else {
               raccoltaId = existingSnap.docs[0].id;
             }
@@ -842,14 +902,32 @@ export default function PublicFormPage() {
           responseId: ref.id,
           raccoltaId: raccoltaId ?? null,
           userId: null,
-          displayName: 'In attesa di identificazione',
-          email: null,
-          phone: null,
+          displayName: preSubmitDisplayName || 'In attesa di identificazione',
+          email: extractedEmail || null,
+          phone: extractedPhone || null,
           summaryLines,
           total: total > 0 ? total : null,
-          isAnonymous: true,
+          isAnonymous: !preSubmitDisplayName,
           createdAt: serverTimestamp(),
         });
+
+        // Se abbiamo già identificato l'utente dal modulo, aggiorniamo subito la raccolta
+        if (raccoltaId && preSubmitDisplayName) {
+          try {
+            await updateDoc(doc(firestore, 'raccolte', raccoltaId), {
+              ['externalSubmissions.' + ref.id]: {
+                displayName: preSubmitDisplayName,
+                email: extractedEmail || null,
+                phone: extractedPhone || null,
+                total: total > 0 ? total : 0,
+                responseId: ref.id,
+                submittedAt: serverTimestamp(),
+              },
+            });
+          } catch (e) {
+            console.warn('[Form external initial] Errore aggiornamento raccolta:', e);
+          }
+        }
         setSavedCollectionRowId(rowRef.id);
         setPhase('identification');
       } else {
@@ -938,6 +1016,9 @@ export default function PublicFormPage() {
                 responseId={savedResponseId}
                 collectionRowId={savedCollectionRowId}
                 raccoltaId={savedRaccoltaId}
+                initialExtName={extractedIdent.name}
+                initialExtEmail={extractedIdent.email}
+                initialExtPhone={extractedIdent.phone}
                 onComplete={() => setPhase('success')}
               />
             </CardContent>
