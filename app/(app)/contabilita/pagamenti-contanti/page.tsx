@@ -733,6 +733,7 @@ export default function PagamentiContantiPage() {
                                                     {filteredMembers.length > 0 ? (
                                                         filteredMembers.map(member => {
                                                             const isGhost = member.isPlaceholder === true;
+                                                             const isFromForm = member.isFromForm === true;
                                                             const isConfirmed = raccolta.confermatiIds?.includes(member.id);
                                                             const isCaparraPaid = raccolta.caparraPaidIds?.includes(member.id);
                                                             const isSaldoPaid = raccolta.saldoPaidIds?.includes(member.id);
@@ -740,7 +741,7 @@ export default function PagamentiContantiPage() {
                                                             const caparraImporto = isGhost
                                                                 ? calculateGhostPaymentAmount(raccolta, member.id, 'caparra')
                                                                 : parseFloat(raccolta.faseCaparra.importo) || 0;
-                                                            let saldoImporto = isGhost
+                                                             let saldoImporto = isFromForm ? (member.total ?? 0) : isGhost
                                                                 ? calculateGhostPaymentAmount(raccolta, member.id, 'saldo')
                                                                 : parseFloat(raccolta.faseSaldo.importo) || 0;
                                                             if (!isGhost && raccolta.faseSaldo.tariffaFratelliAttiva && member.familyId && (familyCounts[member.familyId] || 0) >= 2) {
@@ -759,6 +760,11 @@ export default function PagamentiContantiPage() {
                                                                     <TableCell>
                                                                         <div className="flex items-center gap-2">
                                                                             {member.nome} {member.cognome}
+                                                                             {isFromForm && (
+                                                                                 <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50 text-[10px] px-1.5 h-4">
+                                                                                     Form
+                                                                                 </Badge>
+                                                                             )}
                                                                             {isGhost && (
                                                                                 <Badge variant="outline" className="text-yellow-600 border-yellow-300 bg-yellow-50 text-[10px] px-1.5 h-4">
                                                                                     Ghost
@@ -799,7 +805,7 @@ export default function PagamentiContantiPage() {
                                                                                     <Checkbox
                                                                                         checked={isSaldoPaid}
                                                                                         onCheckedChange={(checked) => handlePaymentToggle(raccolta, member.id, 'saldo', !!checked, saldoImporto)}
-                                                                                        disabled={(!isConfirmed && !isGhost) || isProcessingSaldo}
+                                                                                         disabled={(!isConfirmed && !isGhost && !isFromForm) || isProcessingSaldo}
                                                                                     />
                                                                                     <span>€{saldoImporto.toFixed(2)}</span>
                                                                                 </div>

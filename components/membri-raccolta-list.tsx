@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -262,6 +262,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
     cartMembers.forEach(memberId => {
       const member = allMembers.find(m => m.id === memberId);
       if (!member) return;
+      if (member.isFromForm) { amounts[memberId] = member.total ?? 0; return; }
       const customTariff = raccolta.tariffePersonalizzate?.find(t => t.groupId === member.groupId);
       const customImporto = cartPhase === 'caparra' ? customTariff?.importoCaparra : customTariff?.importoSaldo;
       const importo = (customImporto !== undefined && customImporto !== '')
@@ -357,7 +358,10 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
 
   const calculatePaidTotal = (member: UnifiedMember): number => {
     // Per i partecipanti da form: il pagato e' sempre 0 (il pagamento avviene esternamente)
-    if (member.isFromForm) return 0;
+    if (member.isFromForm) {
+      const hasPaid = (saldoPaidIds?.includes(member.id) ?? false) || (caparraPaidIds?.includes(member.id) ?? false);
+      return hasPaid ? (member.total ?? 0) : 0;
+    }
 
     // Per il tesseramento: il pagato Ã¨ la tariffa effettivamente incassata (se tesserato)
     if (raccolta.tipo === 'tesseramento') {
@@ -610,7 +614,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
           <TableBody>
             {filteredMembers.length > 0 ? (
               filteredMembers.map(member => {
-                 const isConfirmed = confermatiIds?.includes(member.id) ?? false;
+                 const isConfirmed = member.isFromForm ? true : (confermatiIds?.includes(member.id) ?? false);
                  const hasPaidCaparra = caparraPaidIds?.includes(member.id) ?? false;
                  const hasPaidSaldo = saldoPaidIds?.includes(member.id) ?? false;
                  const totalAmount = calculateTotal(member);
@@ -620,7 +624,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                  // Educatori regolari possono agire solo sui ghost del loro gruppo
                  const canActOnMember =
                    canManageGhosts && (
-                     canManageAll ||
+                     canManageAll || member.isFromForm ||
                      (member.isPlaceholder && (myEducatorGroupIds?.has(member.groupId ?? '') ?? false))
                    );
 
@@ -662,7 +666,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                 aria-label={`Seleziona ${member.nome} ${member.cognome}`}
                               />
                             ) : (
-                              <span className="text-muted-foreground/40 text-xs">â€”</span>
+                              <span className="text-muted-foreground/40 text-xs">—</span>
                             )}
                           </TableCell>
                         )}
@@ -749,7 +753,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                 >
                                   {hasPaidCaparra
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
-                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Caparra {getGhostAmount ? `â‚¬${getGhostAmount(member.id, 'caparra').toFixed(2)}` : ''}</>}
+                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Caparra {getGhostAmount ? `€${getGhostAmount(member.id, 'caparra').toFixed(2)}` : ''}</>}
                                 </Button>
                               ) : (
                                 renderPaymentCell(member.id, 'caparra')
@@ -767,15 +771,15 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                 >
                                   {hasPaidSaldo
                                     ? <><CheckCircle2 className="h-3.5 w-3.5 mr-1" />Pagato</>
-                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Saldo {getGhostAmount ? `â‚¬${getGhostAmount(member.id, 'saldo').toFixed(2)}` : ''}</>}
+                                    : <><Banknote className="h-3.5 w-3.5 mr-1" />Saldo {getGhostAmount ? `€${getGhostAmount(member.id, 'saldo').toFixed(2)}` : ''}</>}
                                 </Button>
                               ) : (
                                 renderPaymentCell(member.id, 'saldo')
                               )}
                             </TableCell>
                         )}
-                        {columnVisibility.pagato && <TableCell className="text-right tabular-nums">â‚¬ {paidAmount.toFixed(2)}</TableCell>}
-                        {columnVisibility.totale && <TableCell className="text-right tabular-nums">â‚¬ {totalAmount.toFixed(2)}</TableCell>}
+                        {columnVisibility.pagato && <TableCell className="text-right tabular-nums">€ {paidAmount.toFixed(2)}</TableCell>}
+                        {columnVisibility.totale && <TableCell className="text-right tabular-nums">€ {totalAmount.toFixed(2)}</TableCell>}
                         {columnVisibility.allergie && (
                             <TableCell>
                                 {member.allergie && !isNessunaAllergia(member.allergie) ? (
@@ -783,7 +787,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                                         {member.allergie}
                                     </span>
                                 ) : (
-                                    <span className="text-xs text-muted-foreground/50">â€”</span>
+                                    <span className="text-xs text-muted-foreground/50">—</span>
                                 )}
                             </TableCell>
                         )}
@@ -801,8 +805,8 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
           <TableFooter>
             <TableRow>
                 <TableCell colSpan={visibleColumnCount - 2}><span className='font-bold'>Totali Filtrati</span></TableCell>
-                {columnVisibility.pagato && <TableCell className="text-right font-bold tabular-nums">â‚¬ {tableTotals.totalPaid.toFixed(2)}</TableCell>}
-                {columnVisibility.totale && <TableCell className="text-right font-bold tabular-nums">â‚¬ {tableTotals.totalDue.toFixed(2)}</TableCell>}
+                {columnVisibility.pagato && <TableCell className="text-right font-bold tabular-nums">€ {tableTotals.totalPaid.toFixed(2)}</TableCell>}
+                {columnVisibility.totale && <TableCell className="text-right font-bold tabular-nums">€ {tableTotals.totalDue.toFixed(2)}</TableCell>}
             </TableRow>
           </TableFooter>
         </Table>
@@ -816,7 +820,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
               <div className="flex items-center gap-2 flex-wrap">
                 <ShoppingCart className="h-5 w-5 text-emerald-700" />
                 <h3 className="font-semibold text-emerald-800 dark:text-emerald-300 text-sm">
-                  Carrello â€”&nbsp;{cartMembers.size} {cartMembers.size === 1 ? 'membro selezionato' : 'membri selezionati'}
+                  Carrello —&nbsp;{cartMembers.size} {cartMembers.size === 1 ? 'membro selezionato' : 'membri selezionati'}
                 </h3>
                 {/* Selettore fase per raccolte standard */}
                 {raccolta.tipo !== 'tesseramento' && (
@@ -905,7 +909,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                         </span>
                       )}
                       <span className="font-bold text-sm tabular-nums">
-                        â‚¬ {importo.toFixed(2)}
+                        € {importo.toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -918,7 +922,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
               <div className="flex flex-col">
                 <span className="text-xs text-muted-foreground">Totale da incassare</span>
                 <span className="text-xl font-bold text-emerald-800 dark:text-emerald-300 tabular-nums">
-                  â‚¬ {cartTotal.toFixed(2)}
+                  € {cartTotal.toFixed(2)}
                 </span>
               </div>
               <Button
@@ -931,7 +935,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                 ) : (
                   <>
                     <Banknote className="h-4 w-4" />
-                    Conferma incasso contanti â€” â‚¬ {cartTotal.toFixed(2)}
+                    Conferma incasso contanti — € {cartTotal.toFixed(2)}
                   </>
                 )}
               </Button>
@@ -946,7 +950,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-600" />
             <h3 className="font-semibold text-orange-800 text-sm">
-              Allergie / Intolleranze â€” Iscritti a questo progetto
+              Allergie / Intolleranze — Iscritti a questo progetto
             </h3>
           </div>
           <p className="text-xs text-orange-700">
@@ -968,7 +972,7 @@ export function MembriRaccoltaList({ raccolta, targetGroupMembers, allMembers, i
                       {member.nome} {member.cognome}
                     </td>
                     <td className="py-2 pr-4 text-orange-700">
-                      {member.groupName || 'â€”'}
+                      {member.groupName || '—'}
                     </td>
                     <td className="py-2">
                       <span className="inline-block text-xs font-semibold text-orange-800 bg-orange-100 border border-orange-300 rounded-full px-3 py-1">

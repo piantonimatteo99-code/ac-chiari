@@ -323,6 +323,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
     // â”€â”€ Calcolo importo membro con tariffe personalizzate e sconto fratelli retroattivo â”€â”€â”€â”€â”€â”€
     const calculateMemberPaymentAmount = (memberId: string, phase: 'caparra' | 'saldo'): number => {
         const member = allMembers.find(m => m.id === memberId);
+        if ((member as any)?.isFromForm) return (member as any)?.total ?? 0;
         const faseData = phase === 'caparra' ? raccolta.faseCaparra : raccolta.faseSaldo;
 
         // Verifica se c'Ã¨ una tariffa personalizzata per il gruppo del membro
@@ -566,7 +567,6 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                     const ct = raccolta.tariffePersonalizzate?.find(t => t.groupId === member.groupId);
                     return sum + getCustomOrDefault(member, faseData.importo, ct?.importoConferma);
                 }, 0);
-                incasso += formMembersTotal;
                 break;
             }
             case 'faseCaparra': {
@@ -582,9 +582,10 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
             }
             case 'faseSaldo': {
                 const faseData = raccolta.faseSaldo;
-                denominator = confirmedInGroups.length;
-                const paidSaldoMembers = targetGroupMembers.filter(m => raccolta.saldoPaidIds?.includes(m.id));
-                numerator = paidSaldoMembers.length;
+                denominator = confirmedInGroups.length + formMembersCount;
+                const paidSaldoMembers = targetGroupMembers.filter(m => !(m as any).isFromForm && raccolta.saldoPaidIds?.includes(m.id));
+                const paidFormMembers = formMembers.filter(m => (raccolta.saldoPaidIds ?? []).includes(m.id));
+                numerator = paidSaldoMembers.length + paidFormMembers.length;
 
                 // Conta i fratelli che hanno PAGATO (non solo confermati) per coerenza
                 // con la formula retroattiva: se N fratelli hanno pagato â†’ N Ã— scontato
@@ -612,6 +613,8 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                     }
                     return sum + price;
                 }, 0);
+                const paidFormMembersTotal = paidFormMembers.reduce((sum, m) => sum + ((m as any).total ?? 0), 0);
+                incasso += paidFormMembersTotal;
                 break;
             }
         }
@@ -706,12 +709,12 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
         return (
              <TableRow>
                 <TableCell className="font-medium">{nome}</TableCell>
-                <TableCell className="text-right">â‚¬ {fase.importo || '0.00'}</TableCell>
+                <TableCell className="text-right">{(raccolta as any).fromFormId && (!fase.importo || fase.importo === '0') ? 'Variabile' : ('€ ' + (fase.importo || '0.00'))}</TableCell>
                 <TableCell className='text-center'>{renderStatusIcon(fase.attiva)}</TableCell>
                 <TableCell className="text-right">
                      <span className="text-sm text-muted-foreground">{numerator}/{denominator}</span>
                 </TableCell>
-                <TableCell className="text-right">â‚¬ {incasso.toFixed(2)}</TableCell>
+                <TableCell className="text-right">€ {incasso.toFixed(2)}</TableCell>
                 <TableCell className="text-right">{formatDate(fase.dataFine)}</TableCell>
                 <TableCell className='text-center'>
                     <Switch
@@ -736,7 +739,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                     </div>
                      <div className='flex flex-grow justify-end items-center gap-4 px-6'>
                         <span className="font-medium text-muted-foreground">Totale Incasso:</span>
-                        <span className="font-semibold text-lg">â‚¬ {totalIncome.toFixed(2)}</span>
+                        <span className="font-semibold text-lg">€ {totalIncome.toFixed(2)}</span>
                     </div>
                      <div className='flex items-center gap-2'>
                         <AccordionTrigger className="p-2 hover:bg-accent rounded-md [&[data-state=open]>svg]:rotate-0" />
@@ -796,7 +799,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                                 <TableRow>
                                     <TableCell className='text-center'>{renderStatusIcon(true)}</TableCell>
                                     <TableCell className='text-center'>{raccolta.tesseratiIds?.length || 0}</TableCell>
-                                    <TableCell className="text-right">â‚¬ {totalIncome.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">€ {totalIncome.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">-</TableCell>
                                     <TableCell className='text-center'>
                                         <Switch
@@ -880,7 +883,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                     {(ghostDialog?.phase === 'caparra' || ghostDialog?.phase === 'saldo') && ghostDialog?.amount > 0 && (
                         <div className="flex items-center justify-between rounded-lg border p-3">
                             <span className="text-sm text-muted-foreground">Importo</span>
-                            <span className="font-bold text-lg">â‚¬{ghostDialog.amount.toFixed(2)}</span>
+                            <span className="font-bold text-lg">€{ghostDialog.amount.toFixed(2)}</span>
                         </div>
                     )}
                 </div>
@@ -897,7 +900,7 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                     >
                         {isDialogProcessing ? 'Salvataggio...' : ghostDialog?.currentValue
                             ? 'Rimuovi'
-                            : ghostDialog?.phase === 'conferma' ? 'Conferma partecipazione' : <><Banknote className="h-4 w-4 mr-1" />Conferma incassoÂ â‚¬{ghostDialog?.amount.toFixed(2)}</>}
+                            : ghostDialog?.phase === 'conferma' ? 'Conferma partecipazione' : <><Banknote className="h-4 w-4 mr-1" />Conferma incasso €{ghostDialog?.amount.toFixed(2)}</>}
                     </Button>
                 </DialogFooter>
             </DialogContent>
