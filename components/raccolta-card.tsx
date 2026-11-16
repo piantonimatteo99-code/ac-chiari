@@ -676,7 +676,12 @@ export function RaccoltaCard({ raccolta, onEdit, filterGroupId }: RaccoltaCardPr
                     }
                     return sum + price;
                 }, 0);
-                const paidFormMembersTotal = paidFormMembers.reduce((sum, m) => sum + ((m as any).total ?? 0), 0);
+                // Per raccolte da form, il totale atteso include tutti i partecipanti
+                // (il totale impegnato compilando il form), non solo quelli marcati come pagati
+                const isFormRaccolta = !!(raccolta as any).fromFormId;
+                const paidFormMembersTotal = isFormRaccolta
+                    ? formMembersTotal  // tutti i form-members contribuiscono al totale atteso
+                    : paidFormMembers.reduce((sum, m) => sum + ((m as any).total ?? 0), 0);
                 incasso += paidFormMembersTotal;
                 break;
             }
