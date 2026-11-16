@@ -61,16 +61,7 @@ function computeTotal(form: FormSchema, answers: Record<string, AnswerValue>): n
     }
 
     if (q.type === 'quantity_picker') {
-      // Se le opzioni hanno un prezzo, contribuisce al totale (quantità × prezzo)
-      const ans = answers[q.id];
-      if (!ans || !q.options) continue;
-      const quantities = ans as Record<string, number>;
-      for (const opt of q.options) {
-        const price = typeof opt.price === 'number' ? opt.price : 0;
-        if (price > 0 && quantities[opt.id]) {
-          total += price * (quantities[opt.id] ?? 0);
-        }
-      }
+      // quantity_picker è solo un contatore: nessun contributo al totale
       continue;
     }
   }
@@ -290,14 +281,7 @@ function QuestionField({
                   key={opt.id}
                   className={`flex items-center gap-3 px-3 py-2.5 ${oi > 0 ? 'border-t' : ''}`}
                 >
-                  <span className="text-sm font-medium flex-1">
-                    {opt.label}
-                    {typeof opt.price === 'number' && opt.price > 0 && (
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {qty > 0 ? `€ ${(opt.price * qty).toFixed(2)}` : `€ ${opt.price.toFixed(2)} cad.`}
-                      </span>
-                    )}
-                  </span>
+                  <span className="text-sm font-medium flex-1">{opt.label}</span>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
