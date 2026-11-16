@@ -403,22 +403,30 @@ function IdentificationStep({
     email?: string,
     phone?: string,
   ) => {
-    if (!firestore || !form.generateCollection) return;
+    if (!firestore) return;
     const isIdentified = !!(displayName && (email || phone || userId));
-    const identData = {
+    const identData: Record<string, any> = {
       userId: userId ?? null,
       displayName: displayName ?? 'Sconosciuto',
       email: email ?? null,
       phone: phone ?? null,
       isAnonymous: !isIdentified,
-      summaryText: summaryLines.map(l => `${l.label}: ${l.value}`).join('\n'),
+      summaryText: summaryLines.map(l => `${l.label}: ${l.value}`).join('\n') || null,
     };
     // Aggiorna la riga già creata al momento dell'invio
-    if (collectionRowId) {
-      await updateDoc(doc(firestore, 'form_collection_rows', collectionRowId), identData);
+    if (form.generateCollection && collectionRowId) {
+      try {
+        await updateDoc(doc(firestore, 'form_collection_rows', collectionRowId), identData);
+      } catch (e) {
+        console.warn('[Form] Impossibile aggiornare form_collection_rows:', e);
+      }
     }
-    // Aggiorna anche la risposta
-    await updateDoc(doc(firestore, 'form_responses', responseId), identData);
+    // Aggiorna anche la risposta (best-effort)
+    try {
+      await updateDoc(doc(firestore, 'form_responses', responseId), identData);
+    } catch (e) {
+      console.warn('[Form] Impossibile aggiornare form_responses:', e);
+    }
   };
 
   const handleLogin = async () => {
