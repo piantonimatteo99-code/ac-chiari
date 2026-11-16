@@ -242,7 +242,7 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
                       placeholder={question.type === 'quantity_picker' ? 'Es: Menù adulti' : 'Etichetta opzione'}
                       className="h-7 text-sm flex-1"
                     />
-                    {question.type === 'price_item' && (
+                    {(question.type === 'price_item' || question.type === 'quantity_picker') && (
                       <div className="flex items-center gap-1 shrink-0">
                         <span className="text-xs text-muted-foreground">€</span>
                         <Input

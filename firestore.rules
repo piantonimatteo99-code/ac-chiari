@@ -80,6 +80,20 @@ service cloud.firestore {
       allow read, update, delete: if isAuthenticated();
     }
 
+    // ── Raccolte fondi ────────────────────────────────────────────────────────
+    // Utenti non autenticati possono leggere (per verificare esistenza raccolta da form)
+    // e creare/aggiornare solo raccolte collegate a un form (fromFormId presente)
+    match /raccolte/{raccoltaId} {
+      allow read: if true;  // necessario per getDocs con where('fromFormId', ...)
+      allow create: if request.resource.data.keys().hasAll(['fromFormId'])
+                       && request.resource.data.fromFormId is string
+                       && request.resource.data.fromFormId.size() > 0;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['externalSubmissions', 'confermatiIds', 'gruppiId', 'formCustomAmounts'])
+                    || isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
     // ── Tutto il resto: richiede autenticazione ───────────────────────────────
     // Collezioni come eventi, gruppi, campi, spese, iscrizioni, ecc.
     match /{document=**} {
