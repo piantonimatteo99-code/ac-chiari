@@ -56,7 +56,7 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
 
   const addOption = () => {
     const opts = question.options ?? [];
-    update({ options: [...opts, { id: nanoid(6), label: '', price: undefined }] });
+    update({ options: [...opts, { id: nanoid(6), label: '', price: 0 }] });
   };
 
   const updateOption = (id: string, patch: Partial<QuestionOption>) => {
@@ -251,7 +251,7 @@ export function QuestionEditor({ question, index, total, onChange, onDelete, onM
                           step="0.01"
                           min="0"
                           value={opt.price ?? ''}
-                          onChange={e => updateOption(opt.id, { price: e.target.value ? Number(e.target.value) : undefined })}
+                          onChange={e => updateOption(opt.id, { price: e.target.value !== '' ? Number(e.target.value) : 0 })}
                           placeholder="0.00"
                           className="h-7 text-sm w-20"
                         />

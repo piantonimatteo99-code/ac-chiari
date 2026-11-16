@@ -44,8 +44,9 @@ function computeTotal(form: FormSchema, answers: Record<string, AnswerValue>): n
         // Modalità quantità: Record<optId, qty> × prezzo
         const quantities = ans as Record<string, number>;
         for (const opt of q.options) {
-          if (opt.price && quantities[opt.id]) {
-            total += opt.price * (quantities[opt.id] ?? 0);
+          const price = typeof opt.price === 'number' ? opt.price : 0;
+          if (price > 0 && quantities[opt.id]) {
+            total += price * (quantities[opt.id] ?? 0);
           }
         }
       } else {
@@ -53,7 +54,8 @@ function computeTotal(form: FormSchema, answers: Record<string, AnswerValue>): n
         const selectedIds = Array.isArray(ans) ? ans : [ans as string];
         for (const optId of selectedIds) {
           const opt = q.options.find(o => o.id === optId);
-          if (opt?.price) total += opt.price;
+          const price = typeof opt?.price === 'number' ? opt.price : 0;
+          if (price > 0) total += price;
         }
       }
     }
