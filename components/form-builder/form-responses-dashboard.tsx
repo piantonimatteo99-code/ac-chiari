@@ -47,7 +47,23 @@ function getAnswerLabel(form: FormSchema, questionId: string, value: any): strin
       .map(o => `${o.label} × ${quantities[o.id]}`)
       .join(', ') || '—';
   }
-  if (q.type === 'single_choice' || q.type === 'select' || q.type === 'price_item') {
+  if (q.type === 'price_item') {
+    if (q.allowQuantity) {
+      // Modalità quantità: Record<optId, qty>
+      const quantities = value as Record<string, number>;
+      return (q.options ?? [])
+        .filter(o => quantities[o.id] > 0)
+        .map(o => {
+          const sub = (o.price ?? 0) * quantities[o.id];
+          return `${o.label} × ${quantities[o.id]}${sub > 0 ? ` (€ ${sub.toFixed(2)})` : ''}`;
+        })
+        .join(', ') || '—';
+    }
+    // Modalità checkbox: array di ID
+    const ids = Array.isArray(value) ? value : [value];
+    return ids.map((id: string) => q.options?.find(o => o.id === id)?.label ?? id).join(', ');
+  }
+  if (q.type === 'single_choice' || q.type === 'select') {
     const ids = Array.isArray(value) ? value : [value];
     return ids.map((id: string) => q.options?.find(o => o.id === id)?.label ?? id).join(', ');
   }
@@ -105,7 +121,7 @@ function QuestionStats({ form, responses }: { form: FormSchema; responses: FormR
             if (!ans) continue;
             answeredCount++;
 
-            if (q.type === 'quantity_picker') {
+            if (q.type === 'quantity_picker' || (q.type === 'price_item' && q.allowQuantity)) {
               const quantities = ans as Record<string, number>;
               for (const opt of q.options) {
                 const qty = quantities[opt.id] ?? 0;
@@ -123,8 +139,12 @@ function QuestionStats({ form, responses }: { form: FormSchema; responses: FormR
           }
 
           const isQuantity = q.type === 'quantity_picker';
-          const hasPrices = q.options.some(o => o.price != null);
-          const maxCount = Math.max(...Object.values(isQuantity ? totalQty : counts), 1);
+          const isPriceItem = q.type === 'price_item';
+          const isPriceItemWithQty = isPriceItem && q.allowQuantity;
+          // hasPrices: solo price_item con prezzi > 0 (non quantity_picker)
+          const hasPrices = isPriceItem && q.options.some(o => typeof o.price === 'number' && o.price > 0);
+          const useQty = isQuantity || isPriceItemWithQty;
+          const maxCount = Math.max(...Object.values(useQty ? totalQty : counts), 1);
 
           return (
             <Card key={q.id} className="overflow-hidden">
@@ -138,7 +158,7 @@ function QuestionStats({ form, responses }: { form: FormSchema; responses: FormR
                     </CardDescription>
                   </div>
                   <Badge variant="outline" className="text-[10px] shrink-0 mt-0.5">
-                    {isQuantity ? 'Quantità' : q.type === 'multiple_choice' ? 'Multipla' : 'Singola'}
+                    {isQuantity ? 'Quantità' : isPriceItemWithQty ? 'Prezzo×Qty' : isPriceItem ? 'Prezzo' : q.type === 'multiple_choice' ? 'Multipla' : 'Singola'}
                   </Badge>
                 </div>
               </CardHeader>
@@ -146,7 +166,7 @@ function QuestionStats({ form, responses }: { form: FormSchema; responses: FormR
                 {q.options.map((opt, oi) => {
                   const count = counts[opt.id] ?? 0;
                   const qty = totalQty[opt.id] ?? 0;
-                  const displayValue = isQuantity ? qty : count;
+                  const displayValue = useQty ? qty : count;
                   const pct = total > 0 ? (displayValue / maxCount) * 100 : 0;
                   const pctOfTotal = answeredCount > 0
                     ? ((isQuantity ? count : count) / answeredCount * 100).toFixed(0)
@@ -163,7 +183,7 @@ function QuestionStats({ form, responses }: { form: FormSchema; responses: FormR
                               € {opt.price.toFixed(2)}{isQuantity ? '/p' : ''}
                             </span>
                           )}
-                          {isQuantity ? (
+                          {useQty ? (
                             <span className="text-xs tabular-nums font-semibold">
                               <span className="text-primary">{qty} unità</span>
                               <span className="text-muted-foreground ml-1">({count} persone)</span>
@@ -187,7 +207,7 @@ function QuestionStats({ form, responses }: { form: FormSchema; responses: FormR
                 })}
 
                 {/* Totale per le domande con prezzo */}
-                {hasPrices && isQuantity && (
+                {hasPrices && (
                   <>
                     <Separator className="mt-3" />
                     <div className="flex justify-between items-center text-sm font-bold">
@@ -318,9 +338,31 @@ export function FormResponsesDashboard({ form, canEdit }: Props) {
   const totalResponses = responses.length;
   const anonymousCount = responses.filter(r => r.isAnonymous).length;
   const linkedCount = responses.filter(r => !r.isAnonymous).length;
-  const totalRevenue = responses.reduce((sum, r) => sum + (r.total ?? 0), 0);
+  const totalRevenue = responses.reduce((sum, r) => {
+    if (r.total != null) return sum + r.total;
+    // Fallback: ricalcola da risposte se total non salvato
+    let t = 0;
+    for (const q of form.questions) {
+      if (q.type !== 'price_item' || !q.options) continue;
+      const ans = r.answers[q.id];
+      if (!ans) continue;
+      if (q.allowQuantity) {
+        const qtys = ans as Record<string, number>;
+        for (const o of q.options) {
+          t += (typeof o.price === 'number' ? o.price : 0) * (qtys[o.id] ?? 0);
+        }
+      } else {
+        const ids = Array.isArray(ans) ? ans : [ans as string];
+        for (const id of ids) {
+          const o = q.options.find(x => x.id === id);
+          t += typeof o?.price === 'number' ? o.price : 0;
+        }
+      }
+    }
+    return sum + t;
+  }, 0);
   const hasPriceQuestions = form.questions.some(
-    q => q.type === 'price_item' || q.type === 'quantity_picker'
+    q => q.type === 'price_item' && q.options?.some(o => typeof o.price === 'number' && o.price > 0)
   );
 
   const exportCsv = () => {
